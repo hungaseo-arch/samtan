@@ -1,28 +1,68 @@
-# 技术栈
+# 삼탄 TMS (Tire Monitoring System)
 
-该项目使用以下技术栈
+TECHKING ETCRANE 385/95R24(14.00R24) **Road Train 타이어 모니터링** 웹 대시보드입니다.
+PT. Trasindo Murni Perkasa · Kalimantan Field 현장에서 운용하는 차량의 공기압·트레드·교체·수명·하중을 한 화면에서 관리합니다.
+
+> 상세 기능·사용법은 [docs/사용설명서.md](docs/사용설명서.md)를 참고하세요.
+
+## 기술 스택
+
 - Vite
 - TypeScript
 - React
 - shadcn-ui
 - Tailwind CSS
+- Recharts (차트) · Framer Motion (애니메이션)
+- Supabase (전체 데이터 저장)
 
+## 주요 기능
 
-# 开发流程
+- **8개 탭:** 대시보드 · 차량 배치도 · 하중계산 · 타이어 교체 이력 · 타이어 수명 DB · 점검 입력 · 압력·트레드 추이 · 타이어 공기압관리
+- **다국어(한국어/인도네시아어):** 헤더의 KO/ID 토글로 전환, 선택 언어는 브라우저에 저장
+- **Supabase 연동:** 모든 데이터(차량·포지션·점검·교체·수명·손상코드·스펙)를 DB에서 로드, 점검 입력은 즉시 저장(upsert)
 
-1. 参考用户需求，调整 src/index.css 与 tailwind.config.ts 的主题风格
-2. 根据用户需求，划分出所需要实现的页面
-3. 整理好每个页面需要实现的功能，在 pages 下创建对应的文件夹及其下入口 Index.tsx
-4. 在 App.tsx 中创建路由配置，引入刚才的各个入口文件 Index.tsx
-5. 根据刚才整理的需求，如果需求简单，可以直接在 Index.tsx 中完成该页面的全部工作
-6. 如果需求复杂，可以将 page 拆分为若干个组件来实现，目录结构如下：
-    - Index.tsx 入口
-    - /components/ 组件
-    - /hooks/ 钩子
-    - /stores/ 如果有复杂交互通信时，可以使用 zustand 进行通信
-7. 在完成需求后，需要进行 pnpm i 安装依赖，并使用 npm run lint & npx tsc --noEmit -p tsconfig.app.json --strict 进行检查，并修复问题
+## 실행 방법
 
-# 接入后端接口
-- 当需要新增接口或者操作 supabase 时，需要先在 src/api 新增对应 api 文件，并导出对应的数据类型，可以参考 src/demo.ts 文件，如果是 supabase 还需要做好实现
-- 前端与 supabase 做实现时，都需要完全按照数据类型进行实现，尽可能避免修改定好的数据类型，如果出现修改，需要检查所有引用该类型的文件
-# samtan
+```bash
+npm install        # 의존성 설치
+npm run dev        # 개발 서버 실행
+npm run build      # 프로덕션 빌드
+npm run lint       # 린트 검사
+npx tsc --noEmit -p tsconfig.app.json   # 타입 검사
+```
+
+## 환경 변수
+
+`.env` 파일에 Supabase 연결 정보를 설정합니다. (git 추적 제외 — `.env.example` 참고)
+
+```bash
+VITE_SUPABASE_URL=https://<프로젝트>.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxx
+```
+
+> 신규 API 키 체계를 사용하므로 레거시 JWT(anon) 키가 아닌 **publishable 키**를 사용해야 합니다. (브라우저 노출용 공개 키)
+
+## 디렉터리 구조
+
+```
+src/
+  pages/home/Index.tsx      공통 레이아웃(헤더·탭·푸터) + 탭 전환
+  components/               각 탭 컴포넌트 (DashboardTab, LayoutTab, LoadTab, ...)
+  data/
+    tmsData.ts              타입·상수·런타임 컨테이너(TMS_DATA)
+    loadData.ts             Supabase → TMS_DATA 로더 + 하중 데이터(LOAD_UNITS)
+    tmsUtils.ts             계산·판정 유틸(lifeCalc, loadPerTire 등)
+  i18n/index.tsx            다국어(한/인니) Provider·사전
+  api/inspections.ts        점검 입력 CRUD API
+  lib/supabase.ts           Supabase 클라이언트
+supabase/migrations/        DB 스키마·데이터 마이그레이션(0001~)
+docs/사용설명서.md          사용 설명서
+```
+
+## 개발 가이드
+
+1. 화면 추가 시 `pages/` 아래 폴더와 진입점 `Index.tsx`를 만들고, 필요하면 `App.tsx`에 라우트를 추가합니다. (탭 추가는 `pages/home/Index.tsx`의 `TABS` 배열)
+2. 페이지가 복잡하면 `components/`로 분리해 구현합니다.
+3. 백엔드 연동/Supabase 작업은 `src/api`에 API 파일을 추가하고 데이터 타입을 함께 정의합니다. (`src/api/inspections.ts` 참고)
+4. 작업 후 `npm run lint`와 `npx tsc --noEmit -p tsconfig.app.json`로 검사하고 문제를 수정합니다.
+5. 코드·기능 변경 시 [docs/사용설명서.md](docs/사용설명서.md)도 함께 갱신합니다.

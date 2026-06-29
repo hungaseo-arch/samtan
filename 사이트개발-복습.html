@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>삼탄 TMS · 사이트개발 복습 노트</title>
+<style>
+  :root {
+    --light-grey: #F0F0F0;
+    --soft-blue: #E3F2FD;
+    --sage-green: #E8F5E9;
+    --blue-grey: #ECEFF1;
+    --ink: #546E7A;
+    --ink-strong: #37474F;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+    background: var(--light-grey);
+    color: var(--ink);
+    line-height: 1.7;
+    padding: 32px 16px 80px;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; }
+
+  header.page {
+    background: var(--soft-blue);
+    border: 1px solid #cfe3f5;
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  header.page .kicker {
+    font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--ink); opacity: .7; font-weight: 700; margin-bottom: 6px;
+  }
+  header.page h1 { font-size: 24px; color: var(--ink-strong); font-weight: 800; }
+  header.page p { font-size: 14px; margin-top: 8px; }
+
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px;
+  }
+  .meta span {
+    font-size: 12px; font-weight: 600; background: #fff;
+    border: 1px solid #cfe3f5; border-radius: 6px; padding: 3px 10px; color: var(--ink);
+  }
+
+  .toc {
+    background: var(--blue-grey); border: 1px solid #d8dee2;
+    border-radius: 12px; padding: 18px 24px; margin-bottom: 28px;
+  }
+  .toc h2 { font-size: 14px; color: var(--ink-strong); margin-bottom: 10px; letter-spacing: 1px; }
+  .toc ol { margin-left: 18px; }
+  .toc li { font-size: 14px; margin: 4px 0; }
+  .toc a { color: var(--ink); text-decoration: none; border-bottom: 1px dashed #b0bec5; }
+  .toc a:hover { color: var(--ink-strong); }
+
+  section.card {
+    background: #fff; border: 1px solid #e0e0e0; border-radius: 14px;
+    padding: 26px 30px; margin-bottom: 22px;
+  }
+  section.card > h2 {
+    font-size: 19px; color: var(--ink-strong); font-weight: 800; margin-bottom: 4px;
+  }
+  .qno {
+    display: inline-block; background: var(--soft-blue); color: var(--ink-strong);
+    font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 10px; margin-bottom: 10px;
+  }
+  h3 {
+    font-size: 14px; color: var(--ink-strong); font-weight: 700;
+    margin: 20px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--blue-grey);
+  }
+  p { font-size: 14.5px; margin: 8px 0; }
+  ul { margin: 8px 0 8px 20px; }
+  li { font-size: 14.5px; margin: 5px 0; }
+  code {
+    background: var(--blue-grey); border-radius: 4px; padding: 1px 6px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--ink-strong);
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13.5px; }
+  th, td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; }
+  th { background: var(--blue-grey); color: var(--ink-strong); font-weight: 700; }
+
+  .tip {
+    background: var(--sage-green); border-left: 4px solid #a5d6a7;
+    border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 13.5px;
+  }
+  .tip strong { color: #2e7d32; }
+
+  .instruct {
+    background: var(--blue-grey); border: 1px dashed #90a4ae;
+    border-radius: 10px; padding: 16px 20px; margin-top: 16px;
+  }
+  .instruct .label {
+    font-size: 12px; font-weight: 800; color: var(--ink-strong);
+    letter-spacing: .5px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+  }
+  .instruct .label::before { content: "▶"; color: #66bb6a; font-size: 10px; }
+  .instruct ol { margin-left: 18px; }
+  .instruct li { font-size: 13.5px; margin: 4px 0; }
+
+  footer.page {
+    text-align: center; font-size: 12px; color: var(--ink); opacity: .7; margin-top: 36px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="kicker">SAMTAN · KALIMANTAN · TMS</div>
+    <h1>삼탄 TMS · 사이트개발 복습 노트</h1>
+    <p>VS Code Claude와 진행한 작업 질문·원리·지시문을 모아 복습용으로 정리합니다. 새 질문이 생길 때마다 항목이 추가됩니다.</p>
+    <div class="meta">
+      <span>Stack: React 19 + Vite + TS</span>
+      <span>UI: shadcn/ui + Tailwind v4</span>
+      <span>Backend: Supabase</span>
+      <span>최초작성 2026-06-27</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <h2>목차 (Daftar Isi)</h2>
+    <ol>
+      <li><a href="#q0">프로젝트 구조·작동 원리 개관</a></li>
+      <li><a href="#q1">메인 콘텐츠 폭(width) 수정 방법</a></li>
+      <li><a href="#q2">웹탭·헤더·푸터 로고 수정 방법</a></li>
+      <li><a href="#q3">차량 배치도 가운데 정렬 + 크기 1.5배</a></li>
+      <li><a href="#q4">대시보드 '주의·교체 알림' 1열 → 2열</a></li>
+      <li><a href="#q5">'저장된 점검 이력' 날짜 → 탭 선택 방식</a></li>
+      <li><a href="#q6">헤더 우측을 탭별 안내 내용으로 교체</a></li>
+      <li><a href="#q7">메뉴 탭 가운데 정렬</a></li>
+      <li><a href="#q8">결재 라인 5단계 좌우 균등 배분</a></li>
+      <li><a href="#q9">결재 라인 사이 화살표 표시</a></li>
+      <li><a href="#q10">Lifetime DB: 수명(km)+수명(hr)+예상 KM</a></li>
+      <li><a href="#q11">로드트레인 하중 재계산 + 상세페이지</a></li>
+    </ol>
+  </nav>
+
+  <!-- ============ Q0 ============ -->
+  <section class="card" id="q0">
+    <span class="qno">개관</span>
+    <h2>프로젝트 구조와 작동 원리</h2>
+
+    <h3>이 앱은 무엇인가</h3>
+    <p>삼탄 TMS (Tire Monitoring System / Sistem Pemantauan Ban). PT Samtan 칼리만탄 현장의 TECHKING ETCRANE 385/95R24(14.00R24) Road Train 타이어 시범 모니터링 웹앱. 단일 페이지 + 6개 탭 구조.</p>
+
+    <h3>화면 구성 (6개 탭)</h3>
+    <table>
+      <tr><th>탭</th><th>컴포넌트</th><th>역할</th></tr>
+      <tr><td>대시보드 (Dashboard)</td><td>DashboardTab</td><td>종합 현황</td></tr>
+      <tr><td>차량 배치도 (Layout)</td><td>LayoutTab</td><td>휠 포지션 맵</td></tr>
+      <tr><td>압력·트레드 추이 (Trend)</td><td>TrendTab</td><td>시계열 차트</td></tr>
+      <tr><td>타이어 공기압관리 (Pressure)</td><td>PressureTab</td><td>공기압 관리</td></tr>
+      <tr><td>점검 입력 (Input)</td><td>InspectionTab</td><td>Supabase 저장</td></tr>
+      <tr><td>교체·수명 DB (Lifetime)</td><td>LifeTab</td><td>교체/스크랩 이력</td></tr>
+    </table>
+
+    <h3>데이터 흐름 (핵심 원리)</h3>
+    <p>데이터가 두 층으로 작동합니다.</p>
+    <ul>
+      <li><strong>정적 기준 데이터</strong>: <code>src/data/tmsData.ts</code>에 5개 차량(834·839·832·835·849) 원본·타입 하드코딩.</li>
+      <li><strong>라이브 병합</strong>: <code>Index.tsx</code> 마운트 시 <code>listInspections()</code>(Supabase)로 신규 점검값을 불러와 <code>applyInspections()</code>로 <code>TMS_DATA</code>에 덧씌우고 <code>dataVersion</code>을 올려 차트 재렌더.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> Supabase 연결 실패 시 <code>catch {}</code>로 조용히 정적 데이터로 폴백한다. 즉 입력 → 저장 → 재조회 → 정적 데이터에 병합 → 화면 갱신 구조.</div>
+
+    <h3>작업 4원칙</h3>
+    <ul>
+      <li><strong>타입 우선</strong>: <code>tmsData.ts</code> 타입을 함부로 바꾸지 말 것. 바꾸면 참조하는 모든 컴포넌트 점검.</li>
+      <li><strong>API 분리</strong>: Supabase 작업은 <code>src/api/</code>에 파일 추가 후 타입 export.</li>
+      <li><strong>검증 필수</strong>: 작업 후 <code>npm run lint</code> + <code>npx tsc --noEmit</code>.</li>
+      <li><strong>신규 페이지</strong>: <code>pages/&lt;name&gt;/Index.tsx</code> + <code>App.tsx</code> 라우트 추가.</li>
+    </ul>
+  </section>
+
+  <!-- ============ Q1 ============ -->
+  <section class="card" id="q1">
+    <span class="qno">질문 1</span>
+    <h2>메인 콘텐츠 폭(width) 수정 방법</h2>
+
+    <h3>폭을 결정하는 위치</h3>
+    <p>폭은 <code>src/pages/home/Index.tsx</code>의 <code>max-w-7xl mx-auto px-6</code> 클래스가 결정. 이 패턴이 <strong>4곳에 반복</strong>됨.</p>
+    <table>
+      <tr><th>위치</th><th>줄</th><th>영역</th></tr>
+      <tr><td>헤더</td><td>50</td><td>로고·탭 내비</td></tr>
+      <tr><td>섹션 배너</td><td>130</td><td>페이지 타이틀</td></tr>
+      <tr><td>메인 콘텐츠</td><td>142</td><td>실제 탭 내용</td></tr>
+      <tr><td>푸터</td><td>154</td><td>하단</td></tr>
+    </table>
+    <p>클래스 의미: <code>max-w-7xl</code>=최대폭 1280px, <code>mx-auto</code>=가운데 정렬, <code>px-6</code>=좌우 안쪽 여백 24px.</p>
+
+    <div class="tip"><strong>복습 포인트:</strong> 142행(메인)만 바꾸면 헤더·푸터와 좌우 끝이 어긋난다. 4곳을 함께 바꾸거나, 공통 상수 <code>const CONTAINER = "max-w-7xl mx-auto px-6"</code>로 추출해 재사용할 것.</p></div>
+
+    <h3>폭 값 선택지 (Tailwind max-w)</h3>
+    <table>
+      <tr><th>클래스</th><th>실제 폭</th><th>용도</th></tr>
+      <tr><td><code>max-w-6xl</code></td><td>1152px</td><td>살짝 좁게</td></tr>
+      <tr><td><code>max-w-7xl</code></td><td>1280px</td><td>현재</td></tr>
+      <tr><td><code>max-w-screen-2xl</code></td><td>1536px</td><td>넓게</td></tr>
+      <tr><td><code>max-w-[1440px]</code></td><td>1440px</td><td>임의 지정</td></tr>
+      <tr><td>(max-w 제거)</td><td>풀폭</td><td>화면 꽉 채움</td></tr>
+    </table>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li>Index.tsx에서 <code>max-w-7xl</code>이 쓰인 4곳(헤더 50·배너 130·메인 142·푸터 154행)을 모두 동일 값으로 변경. 또는 공통 상수 <code>CONTAINER</code>로 추출해 재사용.</li>
+        <li>변경 후 <code>npm run lint</code> 확인 및 브라우저에서 정렬 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q2 ============ -->
+  <section class="card" id="q2">
+    <span class="qno">질문 2</span>
+    <h2>웹탭·헤더·푸터 로고 수정 방법</h2>
+    <p>로고가 세 곳에 서로 다른 방식으로 들어가 있어 수정 방법도 각기 다름.</p>
+
+    <h3>1. 웹탭 로고 (Favicon)</h3>
+    <ul>
+      <li>파일: <code>public/favicon.ico</code>. 현재 <code>index.html</code>에 favicon 링크가 없어 브라우저가 자동으로 <code>/favicon.ico</code>를 사용.</li>
+      <li>간단: <code>favicon.ico</code> 파일 교체.</li>
+      <li>권장: <code>&lt;head&gt;</code>에 <code>&lt;link rel="icon" type="image/svg+xml" href="/logo.svg" /&gt;</code> 추가.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> <code>index.html</code> 6·10·11·17행의 탭 제목이 "SAMTA<strong>M</strong>" 오타 → "SAMTA<strong>N</strong>"으로 수정 필요.</div>
+
+    <h3>2. 헤더 로고</h3>
+    <ul>
+      <li>위치: <code>Index.tsx</code> 53~63행. 외부 이미지가 아닌 <strong>인라인 SVG 타이어 아이콘</strong>(<code>bg-primary</code> 원형 안 흰색 SVG).</li>
+      <li>SVG 내부 도형 교체, 또는 <code>&lt;img src="/logo.svg" className="w-10 h-10" /&gt;</code>로 치환.</li>
+      <li>옆 텍스트 로고(66행 "삼탄 TMS", 69행 "Tire Monitoring System")도 함께 수정.</li>
+    </ul>
+
+    <h3>3. 푸터 로고</h3>
+    <ul>
+      <li>위치: <code>Index.tsx</code> 156~160행. 헤더와 동일한 작은 인라인 SVG(<code>w-4 h-4</code>). 161행 "PT. Trasindo Murni Perkasa" 텍스트.</li>
+      <li>SVG 교체 또는 <code>&lt;img className="w-4 h-4" /&gt;</code>로 치환.</li>
+    </ul>
+
+    <h3>정리</h3>
+    <table>
+      <tr><th>로고</th><th>파일</th><th>방식</th></tr>
+      <tr><td>웹탭</td><td>public/favicon.ico + index.html</td><td>이미지 파일</td></tr>
+      <tr><td>헤더</td><td>Index.tsx 53~63행</td><td>인라인 SVG</td></tr>
+      <tr><td>푸터</td><td>Index.tsx 156~160행</td><td>인라인 SVG</td></tr>
+    </table>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>index.html</code> 6·10·11·17행의 "SAMTAM"을 "SAMTAN"으로 수정.</li>
+        <li><code>index.html</code> <code>&lt;head&gt;</code>에 favicon 링크 추가: <code>&lt;link rel="icon" type="image/svg+xml" href="/logo.svg" /&gt;</code> (회사 로고 <code>public/logo.svg</code> 사용).</li>
+        <li><code>Index.tsx</code> 53~63행(헤더)·156~160행(푸터)의 인라인 SVG를 회사 로고로 교체 — <code>&lt;img src="/logo.svg" className="w-10 h-10" /&gt;</code>(헤더), <code>className="w-4 h-4"</code>(푸터).</li>
+        <li>변경 후 <code>npm run lint</code> 및 브라우저에서 탭 아이콘·헤더·푸터 렌더 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q3 ============ -->
+  <section class="card" id="q3">
+    <span class="qno">질문 3</span>
+    <h2>차량 배치도 가운데 정렬 + 크기 1.5배</h2>
+    <p>파일: <code>src/components/LayoutTab.tsx</code>. 두 요구사항은 서로 다른 원리.</p>
+
+    <h3>1. 가운데 정렬</h3>
+    <p>좌측에 붙는 이유: 92행 차량 줄의 <code>min-w-max</code>(콘텐츠 폭만큼만 차지) 때문. 화면보다 좁으면 왼쪽 고정.</p>
+    <ul>
+      <li>해결: <code>min-w-max</code> → <code>w-max mx-auto</code>(콘텐츠 폭 + 좌우 자동 여백)로 변경.</li>
+      <li>화면보다 좁으면 가운데 정렬, 넓으면 기존 가로 스크롤 유지.</li>
+    </ul>
+
+    <h3>2. 크기 1.5배</h3>
+    <p>문제: 타이어·간격이 고정 Tailwind 값으로 흩어져 있음 — <code>TireCell</code> <code>w-10 h-12</code>(238·258행), 비시험 <code>w-8 h-10</code>(245행), 축 라벨 <code>w-5 h-5</code>(115행), 간격 <code>gap-1</code>·<code>gap-3</code>, 패딩 <code>px-3 pt-5 pb-3</code>(97행). 일일이 1.5배는 번거로움.</p>
+    <table>
+      <tr><th>방법</th><th>내용</th><th>평가</th></tr>
+      <tr><td>A. <code>zoom: 1.5</code></td><td>92행에 <code>style={{ zoom: 1.5 }}</code></td><td>권장 — 한 줄로 전체 확대, 공간도 함께 늘어 범례 안 겹침</td></tr>
+      <tr><td>B. <code>transform: scale(1.5)</code></td><td>같은 위치 transform</td><td>시각만 커지고 공간 미확보 → 겹침 위험</td></tr>
+      <tr><td>C. 유틸 일괄 1.5배</td><td><code>w-10</code>→<code>w-[60px]</code> 등</td><td>정석이나 손 많이 감</td></tr>
+    </table>
+
+    <div class="tip"><strong>복습 포인트:</strong> 정렬·크기를 92행 한 줄에서 동시 처리 가능 — <code>className</code>의 <code>min-w-max</code>를 <code>w-max mx-auto</code>로, 그리고 <code>style={{ zoom: 1.5 }}</code> 추가. Chrome 기준 사내 도구라 zoom 방식이 가장 깔끔.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>src/components/LayoutTab.tsx</code> 92행 <code>&lt;div className="flex items-stretch gap-1 min-w-max px-2 py-2"&gt;</code>를 <code>&lt;div className="flex items-stretch gap-1 w-max mx-auto px-2 py-2" style={{ zoom: 1.5 }}&gt;</code>로 변경.</li>
+        <li>변경 후 <code>npm run lint</code> 및 브라우저에서 가운데 정렬·1.5배 확대·범례 겹침 여부 확인. 겹치면 카드 패딩 또는 높이 조정.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q4 ============ -->
+  <section class="card" id="q4">
+    <span class="qno">질문 4</span>
+    <h2>대시보드 '주의·교체 알림' 1열 → 2열</h2>
+    <p>파일: <code>src/components/DashboardTab.tsx</code> 75행.</p>
+
+    <h3>원리</h3>
+    <p>현재 1열인 이유: <code>&lt;ul className="space-y-2"&gt;</code>. <code>space-y-2</code>는 자식 사이에 세로 간격만 줘서 위→아래로 쌓는 방식.</p>
+    <ul>
+      <li>2열로: 레이아웃을 CSS 그리드로 전환 → <code>grid grid-cols-1 sm:grid-cols-2 gap-2</code>.</li>
+      <li><code>sm:</code> = 모바일 1열, 일정 폭 이상 2열 (반응형).</li>
+      <li>그리드에선 <code>space-y-2</code> 대신 <code>gap-2</code> 사용. 각 <code>&lt;li&gt;</code> 스타일(76~83행)은 그대로.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> "쌓기(space-y)"는 세로 1열, "그리드(grid-cols-N)"는 N열 배치. 항목 스타일은 건드릴 필요 없이 부모 <code>ul</code>의 클래스만 바꾸면 된다.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>src/components/DashboardTab.tsx</code> 75행 <code>&lt;ul className="space-y-2"&gt;</code>를 <code>&lt;ul className="grid grid-cols-1 sm:grid-cols-2 gap-2"&gt;</code>로 변경.</li>
+        <li>변경 후 <code>npm run lint</code> 및 브라우저에서 2열 배치·반응형(좁은 화면 1열) 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q5 ============ -->
+  <section class="card" id="q5">
+    <span class="qno">질문 5</span>
+    <h2>'저장된 점검 이력' 날짜 → 탭 선택 방식</h2>
+    <p>파일: <code>src/components/InspectionTab.tsx</code> 272~354행. className 한 줄이 아니라 <strong>상태(state) 구조 변경</strong>이 필요한 작업.</p>
+
+    <h3>현재 구조</h3>
+    <p>모든 날짜를 한 번에 세로로 쌓아 출력: 142행 <code>dates</code> 목록을 303~352행에서 전부 <code>map</code>.</p>
+
+    <h3>변경 원리 (3단계)</h3>
+    <ul>
+      <li><strong>1단계 — 선택 상태 추가</strong>: <code>const [selDate, setSelDate] = useState&lt;string&gt;("")</code> (36행 근처).</li>
+      <li><strong>2단계 — 활성 날짜 파생</strong>: <code>const activeDate = selDate &amp;&amp; grouped[selDate] ? selDate : (dates[0] ?? "")</code>. 별도 useEffect 없이, "선택값이 유효하면 그것, 아니면 최신날짜" 매번 계산 → 비동기 로드에도 안전.</li>
+      <li><strong>3단계 — 목록을 탭+단일 테이블로 교체</strong>: 날짜를 CH 탭과 같은 스타일 버튼 줄로, 그 아래엔 <code>activeDate</code> 1건만 렌더. 기존 테이블 JSX(309~349행)는 <code>d</code> → <code>activeDate</code>만 바꿔 재사용.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> "전부 보여주기(map)" → "하나 선택해서 보기"는 ① 선택 상태 ② 유효성 폴백(파생값) ③ 단일 렌더, 이 3박자가 공통 패턴. 차량(CH) 탭과 똑같은 UI 패턴을 날짜에 재사용한다.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>InspectionTab.tsx</code>에 상태 추가: <code>const [selDate, setSelDate] = useState&lt;string&gt;("")</code>.</li>
+        <li>142행 <code>dates</code> 정의 아래에 파생값 추가: <code>const activeDate = selDate &amp;&amp; grouped[selDate] ? selDate : (dates[0] ?? "")</code>.</li>
+        <li>303~352행의 <code>dates.map</code> 전체 출력을, ① <code>dates</code>를 버튼(탭)으로 렌더(클릭 시 <code>setSelDate(d)</code>, 활성 표시는 <code>activeDate===d</code>) + ② <code>activeDate</code> 한 건만 기존 테이블 JSX로 렌더하도록 교체. 탭 스타일은 차량(CH) 선택 버튼 클래스 재사용.</li>
+        <li>변경 후 <code>npm run lint</code> + <code>npx tsc --noEmit</code> 및 브라우저에서 날짜 탭 클릭 시 해당 날짜만 표시·삭제 동작 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q6 ============ -->
+  <section class="card" id="q6">
+    <span class="qno">질문 6</span>
+    <h2>헤더 우측을 탭별 안내 내용으로 교체</h2>
+    <p>파일: <code>src/pages/home/Index.tsx</code> 79~100행(타이어 스펙 칩 + 보고일/대수). 어느 탭에서도 동일한 고정 스펙을 → 선택 탭에 따라 바뀌는 내용으로 교체.</p>
+
+    <h3>원리</h3>
+    <p>이미 있는 <code>activeTab</code> 상태와 <code>TABS</code> 배열을 활용해 "현재 탭의 설명"을 찾아 렌더. 데이터(탭별 문구)와 화면(렌더)을 분리하는 것이 핵심.</p>
+
+    <h3>변경 2단계</h3>
+    <ul>
+      <li><strong>1단계 — <code>TABS</code>에 <code>desc</code> 추가</strong>(16~23행): 각 탭 객체에 설명 문구 필드. 예) dash="시험 현황 요약 · KPI · 주의/교체 알림", layout="Road Train 휠 포지션 · 타이어 상태 맵", trend="포지션별 공기압·트레드 시계열 추이", pressure="권장 공기압 대비 측정값 관리", input="점검 결과 입력 · Supabase 저장", life="교체 이력 · 폐기/수명 데이터베이스".</li>
+      <li><strong>2단계 — 우측 블록(79~100행) 교체</strong>: <code>const active = TABS.find(t =&gt; t.id === activeTab)</code>로 찾아 <code>active?.label</code> + <code>active?.desc</code> 표시.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> 화면을 상태에 따라 바꾸려면, 바뀌는 값을 데이터 배열(TABS)에 필드로 넣고 화면에선 현재 상태로 find 해서 꺼내 쓴다. 하드코딩 대신 "데이터 주도(data-driven)" 패턴.</div>
+    <div class="tip"><strong>주의:</strong> 지우는 칩에는 타이어 스펙·보고일·차량 대수(70본) 정보가 있음. 완전 교체(A) 또는 핵심 정보는 배너/푸터로 이전(B) 중 선택. 기본 A 기준.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>Index.tsx</code> 16~23행 <code>TABS</code> 각 항목에 <code>desc</code> 필드 추가(문구는 위 예시 사용).</li>
+        <li>79~100행의 스펙 칩 + 보고일/대수 블록을 삭제하고, <code>const active = TABS.find((t) =&gt; t.id === activeTab)</code>로 찾은 <code>active?.label</code>(굵게) + <code>active?.desc</code>(보조 텍스트)를 우측에 렌더하도록 교체.</li>
+        <li><code>TMS_DATA</code> 칩 참조가 사라지므로 미사용 import 정리. 변경 후 <code>npm run lint</code> + <code>npx tsc --noEmit</code> 및 각 탭 전환 시 우측 문구가 바뀌는지 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q7 ============ -->
+  <section class="card" id="q7">
+    <span class="qno">질문 7</span>
+    <h2>메뉴 탭 가운데 정렬</h2>
+    <p>파일: <code>src/pages/home/Index.tsx</code> 105행 <code>&lt;nav&gt;</code>.</p>
+
+    <h3>원리</h3>
+    <p><code>&lt;nav className="flex gap-0 overflow-x-auto"&gt;</code> — nav는 전체 폭 flex 행이고 자식(탭 버튼)은 기본 <code>justify-start</code>라 좌측에 붙음. <code>justify-center</code> 추가로 가운데 정렬.</p>
+    <ul>
+      <li>변경: <code>&lt;nav className="flex justify-center gap-0 overflow-x-auto"&gt;</code></li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> flex 안에서 가로 정렬은 <code>justify-*</code>(start/center/end/between)로 제어. 세로 정렬은 <code>items-*</code>.</div>
+    <div class="tip"><strong>주의(반응형):</strong> <code>overflow-x-auto</code> + <code>justify-center</code>는 좁은 화면에서 탭이 넘칠 때 왼쪽 끝이 스크롤로 안 닿을 수 있음. 모바일까지 안전하게는 <code>justify-start sm:justify-center</code>(일정 폭 이상에서만 가운데).</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>src/pages/home/Index.tsx</code> 105행 <code>&lt;nav className="flex gap-0 overflow-x-auto"&gt;</code>를 <code>&lt;nav className="flex justify-center gap-0 overflow-x-auto"&gt;</code>로 변경.</li>
+        <li>모바일 안전성까지 원하면 <code>justify-start sm:justify-center</code>로 적용.</li>
+        <li>변경 후 <code>npm run lint</code> 및 데스크톱·모바일 폭에서 정렬·스크롤 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q8 ============ -->
+  <section class="card" id="q8">
+    <span class="qno">질문 8</span>
+    <h2>결재 라인 5단계 좌우 균등 배분</h2>
+    <p>파일: <code>src/components/DashboardTab.tsx</code> 157행.</p>
+
+    <h3>원리</h3>
+    <p><code>&lt;div className="flex flex-wrap gap-6 text-center"&gt;</code> — <code>gap-6</code> 고정 간격이라 왼쪽부터 붙음. 폭 전체로 펼치려면 flex의 <code>justify-*</code> 추가.</p>
+    <table>
+      <tr><th>클래스</th><th>결과</th></tr>
+      <tr><td><code>justify-between</code></td><td>첫 항목 왼쪽 끝, 마지막 오른쪽 끝, 사이 균등</td></tr>
+      <tr><td><code>justify-evenly</code></td><td>양 끝 여백 포함 완전 균등</td></tr>
+      <tr><td><code>justify-around</code></td><td>각 항목 둘레 균등(끝 여백 절반)</td></tr>
+    </table>
+    <div class="tip"><strong>복습 포인트:</strong> 정확히 N등분 칸을 원하면 각 자식에 <code>flex-1</code>을 줘서 동일 너비로 나누는 방법도 있다. 항목 폭이 달라도 칸은 균등.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>src/components/DashboardTab.tsx</code> 157행 <code>&lt;div className="flex flex-wrap gap-6 text-center"&gt;</code>를 <code>&lt;div className="flex flex-wrap justify-between gap-6 text-center"&gt;</code>로 변경(양끝 어색하면 <code>justify-evenly</code>).</li>
+        <li>변경 후 <code>npm run lint</code> 및 브라우저에서 5단계 좌우 배분 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q9 ============ -->
+  <section class="card" id="q9">
+    <span class="qno">질문 9</span>
+    <h2>결재 라인 사이 화살표 표시</h2>
+    <p>파일: <code>src/components/DashboardTab.tsx</code> 157~173행. "구분자(separator) 렌더" 패턴.</p>
+
+    <h3>원리</h3>
+    <p>화살표는 항목과 항목 <strong>사이에만</strong>(마지막 뒤엔 없이) 들어가야 함 → "인덱스가 마지막이 아닐 때만 화살표 추가 렌더". <code>React.Fragment</code>로 [카드 + 조건부 화살표]를 묶어 반복.</p>
+
+    <h3>변경 3단계</h3>
+    <ul>
+      <li><strong>1단계 — 아이콘 import</strong>(4행): <code>ChevronRight</code>를 lucide-react에서 추가.</li>
+      <li><strong>2단계 — 인물 배열을 변수로 추출</strong>: <code>[{...}].map</code> 대신 <code>const approvers = [...]</code>로 빼서 <code>.length</code> 참조 가능하게.</li>
+      <li><strong>3단계 — 사이에만 렌더</strong>: <code>{i &lt; approvers.length - 1 &amp;&amp; &lt;ChevronRight .../&gt;}</code> 조건으로 마지막 뒤 화살표 제외.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> 리스트 사이에만 구분선·화살표를 넣을 땐 <code>index &lt; length - 1</code> 조건 + <code>React.Fragment</code>. 트레일링(마지막 뒤) 구분자를 피하는 표준 패턴.</div>
+    <div class="tip"><strong>정렬 팁:</strong> 인물이 세로 칼럼이라 <code>items-center</code> 화살표는 칼럼 세로 중앙에 옴. 아바타 원과 맞추려면 화살표에 <code>mt-5</code>(또는 <code>self-start mt-7</code>) 같은 위쪽 여백.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>DashboardTab.tsx</code> 4행 import에 <code>ChevronRight</code> 추가.</li>
+        <li>158~164행 인물 인라인 배열을 컴포넌트 내 <code>const approvers = [...]</code>로 추출.</li>
+        <li>map을 <code>React.Fragment</code>로 감싸 [기존 카드 JSX] + <code>{i &lt; approvers.length - 1 &amp;&amp; (&lt;ChevronRight className="w-5 h-5 text-muted-foreground/40 shrink-0 mt-5" /&gt;)}</code> 렌더. 컨테이너(157행)에 <code>items-center</code> 유지.</li>
+        <li>변경 후 <code>npm run lint</code> + <code>npx tsc --noEmit</code> 및 브라우저에서 화살표가 4개(5명 사이)만, 마지막 뒤엔 없이 표시되는지 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q10 ============ -->
+  <section class="card" id="q10">
+    <span class="qno">질문 10</span>
+    <h2>Lifetime DB: 수명(km) + 수명(hr) 동시 표시 + 예상 KM 추가</h2>
+    <p>파일: <code>src/components/LifeTab.tsx</code>(표시) + <code>src/data/tmsUtils.ts</code>(계산). 단순 스타일이 아닌 <strong>데이터 계산 + 모델 설계</strong> 작업.</p>
+
+    <h3>확정 결정</h3>
+    <ul>
+      <li>예상수명 임계값: <strong>5mm(교체권장, TREAD_DANGER)</strong>.</li>
+      <li>수명 기준점: <strong>점검 회차별 상세 데이터</strong>(units의 dates/hm/km + tread 시계열).</li>
+    </ul>
+
+    <h3>핵심 문제: 데이터 연결</h3>
+    <p>Lifetime DB는 시리얼 70본 표지만, 트레드·km 추세는 모니터링 5대×10포지션(50본)에만 <code>tread[ch][pos]</code>·<code>units[].km</code>로 존재. 따라서 시리얼→현재 ch/pos 매핑(<code>serial2 || serial</code>)되는 타이어만 값이 나오고 나머지는 "−".</p>
+    <div class="tip"><strong>데이터 현실:</strong> 실제 km 기록은 CH 834·839뿐. CH 832·835는 HM Reset·km 결측, CH 849는 km=0. 그래서 수명(km)·예상 KM은 일부만, 수명(hr)은 대부분 계산됨. 코드 문제 아님 — km 입력이 채워지면 자동 표시.</div>
+
+    <h3>계산 원리</h3>
+    <ul>
+      <li><strong>수명(km)</strong> = 기록 회차 (최신 km − 최초 km).</li>
+      <li><strong>수명(hr)</strong> = (최신 HM − 최초 HM).</li>
+      <li><strong>예상 KM</strong> = 트레드 vs km <strong>선형회귀(추세선)</strong>로 기울기(mm/km) 산출 → 트레드가 5mm 도달하는 누적 km 외삽. 회귀식 <code>slope = Σ((x−x̄)(y−ȳ)) / Σ((x−x̄)²)</code>, <code>예상km = (5 − intercept) / slope</code>.</li>
+    </ul>
+    <div class="tip"><strong>복습 포인트:</strong> 계산 로직은 <code>tmsUtils.ts</code>에 <code>lifeCalc(serial)</code> 헬퍼로 분리(README "계산 분리" 원칙) → 표에서 호출만. 추세 예측 = 선형회귀 기울기 + 임계값 외삽.</div>
+    <div class="tip"><strong>정확도 개선 여지:</strong> 교체 이력(<code>TMS_DATA.repl</code>) 있는 포지션은 신·구 타이어 혼합이라, 정밀하게는 교체일 이후 데이터만 회귀에 사용. v1은 전체 구간, 후속 개선 권장.</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시</div>
+      <ol>
+        <li><code>src/data/tmsUtils.ts</code>에 <code>LifeCalc</code> 인터페이스와 <code>lifeCalc(serial, limit=TREAD_DANGER)</code> 헬퍼 추가: ① 시리얼로 ch/pos 탐색(serial 또는 serial2 일치) ② 해당 포지션 트레드 존재 회차의 (km,hm,tread) 수집 ③ km/hr 수명 = 최신−최초 ④ 예상수명 = tread vs (km−km0) 선형회귀 기울기로 5mm 도달 km 외삽. 데이터 부족 시 null 반환.</li>
+        <li><code>src/components/LifeTab.tsx</code> 100행 헤더 "수명(시간)"을 "수명(km)·수명(hr)·예상 KM" 3개로 변경.</li>
+        <li>127~133행 단일 lifetime 셀을 <code>const c = lifeCalc(l.serial)</code> 계산 후 3개 셀로 교체. null은 "−" 표시, 숫자는 <code>toLocaleString("ko-KR")</code>.</li>
+        <li>변경 후 <code>npm run lint</code> + <code>npx tsc --noEmit</code> 및 CH 834·839 타이어에서 km·예상수명 값, 나머지 "−" 확인.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============ Q11 ============ -->
+  <section class="card" id="q11">
+    <span class="qno">질문 11</span>
+    <h2>로드트레인 차량 하중 재계산 + 상세페이지 (v2 교차검증)</h2>
+    <p>산출물: <code>로드트레인-하중분석.html</code> (별도 상세페이지). 구성 — Head(Western Star 6×4 광산용 프라임무버) + Trailer 1 + Dolly + Trailer 2.</p>
+
+    <div class="tip"><strong>v2 핵심 변경(산업 데이터 교차검증):</strong> 325/95R24 18PR 하중지수 = <strong>162/160</strong> → 단독 4,750 / <strong>듀얼 4,500 kg</strong>. 트레일러·돌리는 듀얼 장착이므로 정격 <strong>4,500 적용</strong>. 결과 Trailer 1 판정이 98.9%(주의) → <strong>104.4%(과적)</strong>으로 바뀜.</div>
+
+    <h3>재계산 결과 (듀얼 정격 기준)</h3>
+    <table>
+      <tr><th>유닛</th><th>1본당</th><th>적용 정격</th><th>부하율</th><th>판정</th></tr>
+      <tr><td>Head (385/95R24)</td><td>3,760 kg</td><td>6,000 (단독)</td><td>62.7%</td><td>정상</td></tr>
+      <tr><td>Trailer 1 (325/95R24)</td><td>4,700 kg</td><td>4,500 (듀얼)</td><td>104.4%</td><td>과적 ⚠</td></tr>
+      <tr><td>Trailer 2·Dolly</td><td>4,000 kg</td><td>4,500 (듀얼)</td><td>88.9%</td><td>주의</td></tr>
+    </table>
+    <div class="tip"><strong>핵심 발견:</strong> 트레인 190 t·46본. <strong>Trailer 1 과적(듀얼 정격 4.4% 초과)</strong>. 적재 한계 = 4,500×12 = 54.0 t (현재 56.4 t, 약 2.4 t 초과). 분배율 60%→57.4%로 낮추거나 Head로 이전 권고(Head 여유 큼).</div>
+    <div class="tip"><strong>복습 포인트:</strong> 듀얼(복륜) 장착 타이어는 반드시 <strong>듀얼 하중지수(낮은 값)</strong>를 적용. 단독값을 쓰면 정격 과대평가 → 과적을 놓침. 162/160 = 단독162(4,750)/듀얼160(4,500).</div>
+
+    <div class="instruct">
+      <div class="label">VS Code Claude에게 줄 지시 예시 (앱 통합 시)</div>
+      <ol>
+        <li><code>src/data/loadData.ts</code> 분리: 유닛별 공차·적재·분배율·본수·규격·<strong>단독/듀얼 정격</strong>(Head 6,000 단독 / 트레일러 4,500 듀얼). 장착방식(single/dual) 필드 포함.</li>
+        <li><code>src/data/tmsUtils.ts</code>에 <code>loadPerTire(total, ratio, count)</code> + <code>loadRatio(perTire, ratedByMount)</code> 헬퍼. 듀얼이면 듀얼 정격 사용.</li>
+        <li><code>pages/load/Index.tsx</code> + <code>/load</code> 라우트(또는 탭). 표·부하율 막대·<strong>과적 경고(Trailer 1, 부하율>100%)</strong> 표시.</li>
+        <li>정격 근거: 첨부 시트 + 하중지수 표(162/160) + 제조사 데이터. <code>npm run lint</code> + <code>npx tsc --noEmit</code>.</li>
+      </ol>
+    </div>
+  </section>
+
+  <footer class="page">
+    삼탄 TMS 사이트개발 복습 노트 · 마지막 업데이트 2026-06-27 · 질문이 추가될 때마다 갱신됩니다.
+  </footer>
+
+</div>
+</body>
+</html>

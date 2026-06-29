@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>로드트레인 차량 하중 분석 · Load Distribution (v2 교차검증)</title>
+<style>
+  :root{
+    --light-grey:#F0F0F0; --soft-blue:#E3F2FD; --sage-green:#E8F5E9;
+    --blue-grey:#ECEFF1; --ink:#546E7A; --ink-strong:#37474F;
+    --red:#C62828; --amber:#F9A825;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+    background:var(--light-grey);color:var(--ink);line-height:1.65;padding:32px 16px 80px}
+  .wrap{max-width:980px;margin:0 auto}
+
+  header.page{background:var(--soft-blue);border:1px solid #cfe3f5;border-radius:14px;padding:26px 30px;margin-bottom:22px}
+  header.page .kicker{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--ink);opacity:.7;font-weight:700;margin-bottom:6px}
+  header.page h1{font-size:23px;color:var(--ink-strong);font-weight:800}
+  .config{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .config span{font-size:12px;font-weight:600;background:#fff;border:1px solid #cfe3f5;border-radius:6px;padding:4px 11px;color:var(--ink)}
+  .config span.head{border-color:#1a3a6b;color:#1a3a6b}
+  .config span.red{border-color:#e6a3a3;color:var(--red)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  .kpi{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:16px}
+  .kpi .l{font-size:11px;color:var(--ink);opacity:.8;margin-bottom:5px}
+  .kpi .v{font-size:22px;font-weight:800;color:var(--ink-strong);line-height:1}
+  .kpi .u{font-size:11px;font-weight:500;opacity:.6;margin-left:3px}
+
+  section.card{background:#fff;border:1px solid #e0e0e0;border-radius:14px;padding:24px 28px;margin-bottom:20px}
+  section.card>h2{font-size:17px;color:var(--ink-strong);font-weight:800;margin-bottom:4px}
+  section.card>.sub{font-size:12px;color:var(--ink);opacity:.65;margin-bottom:16px}
+
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px}
+  th,td{border:1px solid #e0e0e0;padding:8px 10px;text-align:center}
+  th{background:var(--blue-grey);color:var(--ink-strong);font-weight:700;font-size:12px}
+  td.l,th.l{text-align:left}
+  tbody tr:nth-child(even){background:#fafbfc}
+  .num{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink-strong)}
+  tr.head-row td:first-child{color:#1a3a6b;font-weight:800}
+  .ok{color:#2e7d32;font-weight:700}
+  .crit{color:var(--red);font-weight:800}
+  .mid{color:var(--amber);font-weight:700}
+
+  .bar{height:8px;border-radius:4px;background:var(--blue-grey);overflow:hidden;min-width:70px}
+  .bar>i{display:block;height:100%;border-radius:4px}
+
+  .callout{border-radius:10px;padding:14px 18px;margin:12px 0;font-size:13.5px}
+  .callout.green{background:var(--sage-green);border-left:4px solid #a5d6a7}
+  .callout.red{background:#fdecea;border-left:4px solid #ef9a9a}
+  .callout.amber{background:#fff8e1;border-left:4px solid #ffd54f}
+  .callout.green strong{color:#2e7d32}
+  .callout.red strong{color:var(--red)}
+  .callout.amber strong{color:#f57f17}
+
+  h3{font-size:13px;color:var(--ink-strong);font-weight:700;margin:16px 0 6px;padding-bottom:4px;border-bottom:2px solid var(--blue-grey)}
+  p{font-size:13.5px;margin:7px 0}
+  ul{margin:6px 0 6px 20px}li{font-size:13.5px;margin:4px 0}
+  code{background:var(--blue-grey);border-radius:4px;padding:1px 6px;font-family:Menlo,Consolas,monospace;font-size:12px;color:var(--ink-strong)}
+
+  .units{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+  .unit{border:2px solid #cfd8dc;border-radius:10px;padding:12px;text-align:center}
+  .unit.head{border-color:#1a3a6b}
+  .unit.red{border-color:#e6a3a3}
+  .unit .nm{font-size:13px;font-weight:800;color:var(--ink-strong)}
+  .unit.head .nm{color:#1a3a6b}.unit.red .nm{color:var(--red)}
+  .unit .sz{font-size:11px;color:var(--ink);opacity:.7;margin:3px 0}
+  .unit .tn{font-size:18px;font-weight:800;color:var(--ink-strong);margin-top:4px}
+  .unit .tl{font-size:10px;opacity:.6}
+
+  footer.page{text-align:center;font-size:11px;color:var(--ink);opacity:.7;margin-top:30px}
+  .src{font-size:11px;color:var(--ink);opacity:.75;margin-top:8px}
+  .src a{color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="page">
+    <div class="kicker">SAMTAN · KALIMANTAN · TECHKING · v2 교차검증</div>
+    <h1>로드트레인 차량 하중 분석 — Load Distribution</h1>
+    <div class="config">
+      <span class="head">Head · Western Star 6×4 광산용 프라임무버</span>
+      <span class="red">Trailer 1</span>
+      <span class="red">Dolly</span>
+      <span class="red">Trailer 2</span>
+    </div>
+  </header>
+
+  <!-- KPI -->
+  <div class="kpis">
+    <div class="kpi"><div class="l">트레인 총중량 (GVW)</div><div class="v">190<span class="u">t</span></div></div>
+    <div class="kpi"><div class="l">공차 / 적재</div><div class="v">70<span class="u">t</span> / 120<span class="u">t</span></div></div>
+    <div class="kpi"><div class="l">총 타이어</div><div class="v">46<span class="u">본</span></div></div>
+    <div class="kpi"><div class="l">과적 유닛</div><div class="v" style="color:var(--red)">Trailer 1 · 104%</div></div>
+  </div>
+
+  <div class="callout red">
+    <strong>⚠ v2 핵심 변경:</strong> 트레일러·돌리 타이어(325/95R24 18PR)는 하중지수 <strong>162/160</strong> — 단독 4,750 kg / <strong>듀얼(복륜) 4,500 kg</strong>. 이 타이어는 듀얼 장착이므로 적용 정격은 <strong>4,500 kg</strong>. 그 결과 <strong>Trailer 1 = 4,700 kg → 듀얼 정격 4.4% 초과(과적)</strong>로 판정됩니다.
+  </div>
+
+  <!-- 차량 구성 -->
+  <section class="card">
+    <h2>1. 차량 구성 (Unit Configuration)</h2>
+    <div class="sub">Susunan Unit · Western Star 6×4 프라임무버 + 트레일러 2 + 돌리 1</div>
+    <div class="units">
+      <div class="unit head"><div class="nm">Head</div><div class="sz">385/95R24 (14.00R24)</div><div class="tn">10<span class="tl"> 본</span></div><div class="tl">6×4 · 조향2+구동8(듀얼)</div></div>
+      <div class="unit red"><div class="nm">Trailer 1</div><div class="sz">325/95R24 (12.00R24)</div><div class="tn">12<span class="tl"> 본</span></div><div class="tl">11–22 · 듀얼</div></div>
+      <div class="unit red"><div class="nm">Dolly</div><div class="sz">325/95R24 (12.00R24)</div><div class="tn">12<span class="tl"> 본</span></div><div class="tl">23–34 · 듀얼</div></div>
+      <div class="unit red"><div class="nm">Trailer 2</div><div class="sz">325/95R24 (12.00R24)</div><div class="tn">12<span class="tl"> 본</span></div><div class="tl">35–46 · 듀얼</div></div>
+    </div>
+    <p><strong>6×4</strong> = 3축(조향 1 + 구동 2), 구동축 듀얼 → Head 10본. 트레일러·돌리는 각 12본(3축×듀얼), 합계 46본. <strong>듀얼 장착이므로 듀얼 하중지수 적용이 정확</strong>합니다.</p>
+  </section>
+
+  <!-- 하중 분배 -->
+  <section class="card">
+    <h2>2. 하중 분배 (Load Distribution)</h2>
+    <div class="sub">단위: 중량 = 톤(t) · 1본당 = kg · 운영 수치(중량·적재·분배율)는 첨부 자료 기준</div>
+    <table>
+      <thead>
+        <tr>
+          <th class="l">유닛</th><th>타이어</th><th>공차(t)</th><th>적재(t)</th>
+          <th>유닛 합계(t)</th><th>본수</th><th>분배율</th><th>실하중(t)</th><th>1본당(kg)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="head-row"><td class="l">Head</td><td>14.00R24</td><td class="num">16</td>
+          <td class="num" rowspan="2">55</td><td class="num" rowspan="2">94</td>
+          <td class="num">10</td><td>40%</td><td class="num">37.6</td><td class="num">3,760</td></tr>
+        <tr><td class="l">Trailer 1</td><td>12.00R24</td><td class="num">23</td>
+          <td class="num">12</td><td>60%</td><td class="num">56.4</td><td class="num">4,700</td></tr>
+        <tr><td class="l">Trailer 2</td><td>12.00R24</td><td class="num">25</td>
+          <td class="num" rowspan="2">65</td><td class="num" rowspan="2">96</td>
+          <td class="num">12</td><td>50%</td><td class="num">48.0</td><td class="num">4,000</td></tr>
+        <tr><td class="l">Dolly</td><td>12.00R24</td><td class="num">6</td>
+          <td class="num">12</td><td>50%</td><td class="num">48.0</td><td class="num">4,000</td></tr>
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--blue-grey)">
+          <td class="l" style="font-weight:800">합계</td><td>—</td><td class="num">70</td>
+          <td class="num">120</td><td class="num">190</td><td class="num">46</td><td>100%</td>
+          <td class="num">190</td><td class="num">—</td>
+        </tr>
+      </tfoot>
+    </table>
+    <p style="font-size:12.5px"><strong>계산식:</strong> 1본당 = (유닛 합계 × 분배율) ÷ 본수. 예) Trailer 1 = 94t × 60% ÷ 12 = 4.70 t = 4,700 kg.</p>
+  </section>
+
+  <!-- 산업 데이터 교차검증 -->
+  <section class="card">
+    <h2>3. 산업 데이터 교차검증 — 정격 하중</h2>
+    <div class="sub">하중지수(Load Index) 표준표 + 제조사 데이터로 정격 확인</div>
+    <table>
+      <thead>
+        <tr><th class="l">규격</th><th>하중지수(LI)</th><th>단독(kg)</th><th>듀얼(kg)</th><th class="l">근거</th></tr>
+      </thead>
+      <tbody>
+        <tr class="head-row"><td class="l">385/95R24 (14.00R24)</td><td>170 (F)</td><td class="num">6,000</td><td class="l">—*</td><td class="l">크레인용 E-2/E-4, LI 170=6,000kg</td></tr>
+        <tr><td class="l">325/95R24 (12.00R24) 18PR</td><td>162 / 160</td><td class="num">4,750</td><td class="num">4,500</td><td class="l">Michelin X Works XZ 162/160K 등</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:12.5px">* 385/95R24 크레인 타이어는 통상 단독 LI 170(6,000kg)만 공표. Head 구동축이 듀얼이라도 실하중(3,760kg)이 단독 정격의 62.7%로 듀얼 디레이트를 적용해도 여유가 충분합니다.</p>
+    <div class="callout amber"><strong>핵심 포인트:</strong> 듀얼(복륜) 장착 타이어는 <strong>듀얼 하중지수(LI 160 = 4,500kg)</strong>를 적용해야 함. 단독값(4,750)을 쓰면 정격을 과대평가하게 됩니다. 트레일러·돌리는 모두 듀얼 → 4,500kg 기준.</p></div>
+  </section>
+
+  <!-- 1본당 하중 vs 정격 (보정) -->
+  <section class="card">
+    <h2>4. 타이어 1본당 하중 vs 정격 (듀얼 기준 보정)</h2>
+    <div class="sub">부하율 = 1본당 ÷ 적용 정격 · 100% 초과 = 과적</div>
+    <table>
+      <thead>
+        <tr><th class="l">유닛</th><th>1본당(kg)</th><th>적용 정격(kg)</th><th>부하율</th><th>판정</th><th>부하율 막대</th><th>권장압</th></tr>
+      </thead>
+      <tbody>
+        <tr class="head-row"><td class="l">Head</td><td class="num">3,760</td><td class="num">6,000 (단독)</td>
+          <td class="num">62.7%</td><td class="ok">정상</td>
+          <td><div class="bar"><i style="width:62.7%;background:#66bb6a"></i></div></td><td class="num">125 psi</td></tr>
+        <tr><td class="l">Trailer 1</td><td class="num">4,700</td><td class="num">4,500 (듀얼)</td>
+          <td class="crit">104.4%</td><td class="crit">과적 ⚠</td>
+          <td><div class="bar"><i style="width:100%;background:#ef5350"></i></div></td><td class="num">≥130 psi</td></tr>
+        <tr><td class="l">Trailer 2 / Dolly</td><td class="num">4,000</td><td class="num">4,500 (듀얼)</td>
+          <td class="num">88.9%</td><td class="mid">주의</td>
+          <td><div class="bar"><i style="width:88.9%;background:#ffa726"></i></div></td><td class="num">125 psi</td></tr>
+      </tbody>
+    </table>
+    <div class="callout red">
+      <strong>⚠ Trailer 1 과적:</strong> 1본당 4,700 kg vs 듀얼 정격 4,500 kg → <strong>104.4%(4.4% 초과)</strong>. 단독 정격(4,750) 기준이면 98.9%지만, 듀얼 장착이므로 <strong>과적</strong>이 정확한 판정. 적재 편중·노면 충격 시 추가 초과 → 타이어 손상·수명 급감 위험.
+    </div>
+    <div class="callout green">
+      <strong>Head 여유 충분:</strong> 62.7%(단독). 듀얼 디레이트(~9%, ≈5,460kg)를 가정해도 68.9%로 안전. 385/95R24가 가장 큰 정격을 보유.
+    </div>
+  </section>
+
+  <!-- 개선 권고 -->
+  <section class="card">
+    <h2>5. 개선 권고 (Action)</h2>
+    <h3>① 적재 재분배</h3>
+    <p>Trailer 1 듀얼 정격 한계 = 4,500 kg × 12본 = <strong>54.0 t</strong>. 현재 56.4 t → <strong>약 2.4 t 초과</strong>. 그룹1(Head+Trailer1) 분배율을 60%→약 57.4%로 낮추거나(=54t), 초과분을 Head로 이전. <em>Head는 여유가 커 흡수 가능.</em></p>
+    <table>
+      <thead><tr><th class="l">조정안</th><th>Trailer 1 분배</th><th>1본당(kg)</th><th>부하율(듀얼)</th></tr></thead>
+      <tbody>
+        <tr><td class="l">현재</td><td>60% (56.4t)</td><td class="num">4,700</td><td class="crit">104.4%</td></tr>
+        <tr><td class="l">권고</td><td>57.4% (54.0t)</td><td class="num">4,500</td><td class="ok">100.0%</td></tr>
+        <tr><td class="l">안전마진 10%</td><td>51.7% (48.6t)</td><td class="num">4,050</td><td class="ok">90.0%</td></tr>
+      </tbody>
+    </table>
+    <h3>② 공기압</h3>
+    <p>고하중일수록 요구 공기압 상승(load-inflation 관계). 정격 근접 유닛(Trailer 1)은 냉간 <strong>최대 권장압(약 9bar / 130psi)</strong> 유지. 제조사 load-inflation 표로 4,500kg 듀얼에 필요한 정확 압력 확인 권장.</p>
+    <h3>③ 실측 검증</h3>
+    <p>분배율(40/60·50/50)은 첨부 자료 가정값. <strong>계량대(weighbridge) 축중 실측</strong>으로 좌우·축별 편중까지 확인하면 정밀도가 크게 향상됩니다.</p>
+  </section>
+
+  <!-- 방법·가정·출처 -->
+  <section class="card">
+    <h2>6. 계산 방법 · 가정 · 출처</h2>
+    <h3>전제</h3>
+    <ul>
+      <li>운영 수치(공차·적재·분배율): 첨부 TECHKING Load Distribution 시트.</li>
+      <li>정격: 하중지수 표준표 + 제조사 데이터. 325/95R24 18PR = 162/160 → 단독 4,750 / <strong>듀얼 4,500</strong>. 385/95R24 = LI 170 단독 6,000.</li>
+      <li>중량 단위 t, 1본당 kg(=t×1000). 1본당은 유닛 평균(축별 편중 미반영).</li>
+    </ul>
+    <h3>v1 → v2 변경</h3>
+    <ul>
+      <li>트레일러 정격 4,750(단독) → <strong>4,500(듀얼)</strong> 적용. Trailer 1 판정 98.9%(주의) → <strong>104.4%(과적)</strong>.</li>
+      <li>Head Over Load: 원본 시트 −48.0% → 정정 −37.3%(부하율 62.7%) 유지.</li>
+    </ul>
+    <div class="src">출처:
+      <a href="https://boltzequipmentparts.com/products/385-95r24-14-00r24-michelin-x-crane-at-170f-radial-crane-tire">385/95R24 170F (LI 170=6,000kg)</a> ·
+      <a href="https://otrusa.com/products/325-95r24-12-00r24-18pr-michelin-x-works-xz-162-160k-tl-m-s">325/95R24 18PR 162/160K (단독4,750/듀얼4,500)</a> ·
+      <a href="https://www.nortire.lt/files/pdf_files/Techking-OTR-Technical-Book-V17.0.pdf">Techking OTR Databook V17.0</a> ·
+      <a href="https://commercial.bridgestone.com/content/dam/bcs-sites/bridgestone-ex/products/Databooks/Archive/Bridgestone-OTR-Databook-2018-09-06-2018.pdf">Bridgestone OTR Databook</a> · 첨부 TECHKING 시트
+    </div>
+  </section>
+
+  <footer class="page">
+    삼탄 로드트레인 하중 분석 v2 (산업 데이터 교차검증) · Western Star 6×4 + Trailer 1 / Dolly / Trailer 2 · 2026-06-27
+  </footer>
+
+</div>
+</body>
+</html>

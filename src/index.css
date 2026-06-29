@@ -1,0 +1,202 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap");
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+==========================================================================
+【AI HANDOVER NOTE】
+1. DESIGN PHILOSOPHY:
+   - Core design philosophy: Industrial Command Center Aesthetic — this is a mission-critical tire monitoring system for heavy mining vehicles in the Kalimantan coal field. The design must convey authority, precision, and operational readiness. We adopt a "Dark Premium Industrial Theme" that balances the ruggedness of mining operations with the sophistication of modern fleet management software.
+   - Visual style: Physicality with Ambient Occlusion + Neo-minimalism. Dark surfaces with subtle rim-lighting create depth and hierarchy. Gold (#FFB800) accents provide high-contrast alert states and CTAs against deep charcoal backgrounds (#121416). Bento-style modular cards organize the 4-tab structure (Dashboard / Vehicle Layout / Pressure-Tread Trends / Replacement-Lifespan DB) with clear visual boundaries.
+   - Rationale: Mining operations demand 24/7 monitoring in low-light control rooms. Dark mode reduces eye strain during extended shifts. The gold accent is not decorative — it's a high-visibility warning color that stands out in critical alert scenarios (SCRAP status, pressure deviations, tread wear thresholds). This palette supports the operational context where a missed alert could mean vehicle downtime or safety incidents.
+
+2. TYPOGRAPHY:
+   - Sans font choice: Noto Sans KR (primary) + Rajdhani (display/headings). Noto Sans KR ensures flawless rendering of Korean labels (차량배치도, 압력추이, 교체권장) with excellent readability at small sizes for dense data tables. Rajdhani brings a technical, geometric character to headings and vehicle IDs (CH 834, CH 839) — its condensed letterforms and sharp angles evoke industrial precision and engineering rigor, perfect for a fleet management context.
+   - Mono font purpose: JetBrains Mono handles all numeric data — tire pressure readings (100 psi, 125 psi), tread depth measurements (22mm → 8mm → 5mm), timestamps (2026-04-02), and vehicle runtime hours (75시간). Tabular figures ensure perfect alignment in data grids and trend charts, critical for at-a-glance comparison across 70 tires.
+
+3. COLOR SYSTEM:
+   - Brand primary: Deep Industrial Gold (Hue 45°, warm amber-gold family). This hue was chosen to represent operational excellence and high-value assets (TECHKING ETCRANE tires are premium mining equipment). The gold maps to --primary for CTAs and active states, --accent for secondary emphasis (e.g., selected vehicle in layout view), and --ring for focus indicators.
+   - Semantic color logic: --destructive uses a deep red-orange (Hue 15°) for SCRAP status and critical alerts (Crown Damage, TOE IN issues). --warning employs a saturated amber (Hue 50°) for tread depth thresholds (≤8mm caution zone). --success is a muted industrial green (Hue 150°) for optimal pressure ranges and healthy tread depth (>8mm). All semantic colors maintain high chroma in dark mode for visibility against #121416 backgrounds.
+   - Neutral system: Background and card surfaces use charcoal with a faint warm tint (Hue 45°, C≈0.01) to create a cohesive, slightly amber-tinted environment that feels less sterile than pure gray. Borders and muted elements carry the same warm bias, unifying the palette.
+
+4. USAGE GUIDE:
+   - Layout type: Dashboard full-width with 4-tab navigation. The main viewport displays real-time monitoring data across multiple vehicles. Use Bento-style cards with subtle borders and ambient shadows to separate data modules (pressure gauges, tread depth charts, vehicle schematics).
+   - Recommended effects: Apply subtle rim-light (1px top border with 20% opacity white) to elevated cards. Use backdrop-blur sparingly on modal overlays (e.g., detailed tire inspection views). Avoid glassmorphism on primary data surfaces — readability is paramount.
+   - Project-specific rules: (a) Variance level: MEDIUM — this is a professional industrial tool, not consumer software. Use restrained motion and avoid playful animations. (b) Data density: Prioritize tabular layouts with generous line-height (1.6-1.8) for Korean text. (c) Alert hierarchy: Gold for attention, red-orange for critical, amber for caution. (d) Accessibility: Ensure all pressure/tread values meet WCAG AAA contrast against dark backgrounds (use --primary-foreground and --destructive-foreground with L>0.90). (e) Localization: All UI labels in Korean; numeric formats use international standards (psi, mm, ISO dates).
+==========================================================================
+*/
+
+:root {
+  /* Typography — Inter (display) + Noto Sans KR (Korean) */
+  --font-sans: "Inter", "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+
+  /* Radius — STI Corp: clean, slightly rounded corners */
+  --radius: 0.375rem;
+
+  /* ── STI Corp Navy Blue Corporate Palette ── */
+  /* Primary = Deep Navy #1B3972 → oklch approx */
+  --background: oklch(1.0 0 0);           /* pure white */
+  --foreground: oklch(0.18 0.03 255);     /* near-black with cool tint */
+  --card: oklch(1.0 0 0);                 /* white cards */
+  --card-foreground: oklch(0.18 0.03 255);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.18 0.03 255);
+  --primary: oklch(0.32 0.12 255);        /* #1B3972 deep navy */
+  --primary-foreground: oklch(1.0 0 0);   /* white on navy */
+  --secondary: oklch(0.95 0.01 255);      /* light cool grey */
+  --secondary-foreground: oklch(0.32 0.12 255);
+  --muted: oklch(0.96 0.008 255);         /* near-white cool grey */
+  --muted-foreground: oklch(0.50 0.02 255);
+  --accent: oklch(0.38 0.13 255);         /* slightly lighter navy for hover */
+  --accent-foreground: oklch(1.0 0 0);
+  --destructive: oklch(0.52 0.22 25);     /* red for errors/scrap */
+  --destructive-foreground: oklch(1.0 0 0);
+  --border: oklch(0.88 0.01 255);         /* cool light grey border */
+  --input: oklch(0.88 0.01 255);
+  --ring: oklch(0.32 0.12 255);           /* navy focus ring */
+
+  /* Chart Tokens */
+  --chart-1: oklch(0.32 0.12 255);        /* navy */
+  --chart-2: oklch(0.52 0.18 150);        /* green */
+  --chart-3: oklch(0.58 0.22 25);         /* red */
+  --chart-4: oklch(0.58 0.16 200);        /* teal */
+  --chart-5: oklch(0.62 0.15 300);        /* purple */
+
+  /* Sidebar Tokens */
+  --sidebar: oklch(0.97 0.006 255);
+  --sidebar-foreground: oklch(0.22 0.04 255);
+  --sidebar-primary: oklch(0.32 0.12 255);
+  --sidebar-primary-foreground: oklch(1.0 0 0);
+  --sidebar-accent: oklch(0.92 0.015 255);
+  --sidebar-accent-foreground: oklch(0.32 0.12 255);
+  --sidebar-border: oklch(0.88 0.01 255);
+  --sidebar-ring: oklch(0.32 0.12 255);
+}
+
+.dark {
+  --background: oklch(0.14 0.025 255);
+  --foreground: oklch(0.93 0.008 255);
+  --card: oklch(0.18 0.025 255);
+  --card-foreground: oklch(0.93 0.008 255);
+  --popover: oklch(0.16 0.025 255);
+  --popover-foreground: oklch(0.93 0.008 255);
+  --primary: oklch(0.58 0.14 255);
+  --primary-foreground: oklch(1.0 0 0);
+  --secondary: oklch(0.24 0.03 255);
+  --secondary-foreground: oklch(0.88 0.01 255);
+  --muted: oklch(0.22 0.025 255);
+  --muted-foreground: oklch(0.62 0.015 255);
+  --accent: oklch(0.62 0.15 255);
+  --accent-foreground: oklch(1.0 0 0);
+  --destructive: oklch(0.58 0.24 25);
+  --destructive-foreground: oklch(1.0 0 0);
+  --border: oklch(0.28 0.03 255);
+  --input: oklch(0.28 0.03 255);
+  --ring: oklch(0.58 0.14 255);
+
+  --chart-1: oklch(0.58 0.14 255);
+  --chart-2: oklch(0.62 0.2 150);
+  --chart-3: oklch(0.65 0.22 25);
+  --chart-4: oklch(0.58 0.16 200);
+  --chart-5: oklch(0.68 0.17 300);
+
+  --sidebar: oklch(0.16 0.025 255);
+  --sidebar-foreground: oklch(0.88 0.01 255);
+  --sidebar-primary: oklch(0.58 0.14 255);
+  --sidebar-primary-foreground: oklch(1.0 0 0);
+  --sidebar-accent: oklch(0.62 0.15 255);
+  --sidebar-accent-foreground: oklch(1.0 0 0);
+  --sidebar-border: oklch(0.28 0.03 255);
+  --sidebar-ring: oklch(0.58 0.14 255);
+}
+
+@theme inline {
+  /* Shadcn Core Mapping */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Charts Mapping */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Sidebar Mapping */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Typography */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* Radius */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans min-h-screen;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  code, pre {
+    @apply font-mono;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-primary;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40;
+  }
+}
