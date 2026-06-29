@@ -12,6 +12,8 @@ import { SquarePen, Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2 } from 
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
+import { useAuth } from "@/auth/AuthProvider";
+import LoginCard from "@/auth/LoginCard";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -122,6 +124,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   const { lang } = useLang();
   const tx = TX[lang];
+  const { user } = useAuth();
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
   const [date, setDate] = useState(todayISO());
   const [hm, setHm] = useState("");
@@ -238,6 +241,9 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   }, {});
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
   const activeDate = selDate && grouped[selDate] ? selDate : (dates[0] ?? "");
+
+  // 점검 입력(쓰기)은 로그인 필요 — 비로그인 시 로그인 카드 표시
+  if (!user) return <LoginCard />;
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">

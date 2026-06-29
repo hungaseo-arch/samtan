@@ -10,6 +10,8 @@ import PressureTab from "@/components/PressureTab";
 import InspectionTab from "@/components/InspectionTab";
 import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
+import { useAuth } from "@/auth/AuthProvider";
+import { LogOut } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -31,6 +33,7 @@ const CONTAINER = "max-w-6xl mx-auto px-6";
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
+  const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("dash");
   // 전체 데이터는 Supabase에서 로드. version 변경 시 차트 탭 재렌더.
   const [dataVersion, setDataVersion] = useState(0);
@@ -128,6 +131,18 @@ export default function Index() {
                 </button>
               ))}
             </div>
+            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 */}
+            {user && (
+              <button
+                onClick={() => signOut()}
+                title={user.email ?? undefined}
+                className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
+                <span className="md:hidden">{t("auth.logout")}</span>
+              </button>
+            )}
           </div>
         </div>
 

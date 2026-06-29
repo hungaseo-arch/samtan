@@ -12,5 +12,6 @@ const SUPABASE_KEY =
 export const SUPABASE_ENABLED = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
+  // 로그인 세션을 브라우저에 유지(점검 입력 등 쓰기 작업은 인증 필요).
+  auth: { persistSession: true, autoRefreshToken: true },
 });

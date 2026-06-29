@@ -34,6 +34,15 @@ const KO: Dict = {
   "error.title": "데이터를 불러오지 못했습니다.",
   "error.retry": "다시 시도",
   "lang.aria": "언어 선택",
+  "auth.login": "로그인",
+  "auth.logout": "로그아웃",
+  "auth.email": "이메일",
+  "auth.password": "비밀번호",
+  "auth.signIn": "로그인",
+  "auth.signingIn": "로그인 중…",
+  "auth.required": "점검 입력은 로그인이 필요합니다.",
+  "auth.desc": "현장 관리자 계정으로 로그인하세요.",
+  "auth.failed": "로그인 실패 — 이메일/비밀번호를 확인하세요.",
 };
 
 const ID: Dict = {
@@ -58,6 +67,15 @@ const ID: Dict = {
   "error.title": "Gagal memuat data.",
   "error.retry": "Coba lagi",
   "lang.aria": "Pilih bahasa",
+  "auth.login": "Masuk",
+  "auth.logout": "Keluar",
+  "auth.email": "Email",
+  "auth.password": "Kata sandi",
+  "auth.signIn": "Masuk",
+  "auth.signingIn": "Sedang masuk…",
+  "auth.required": "Input inspeksi memerlukan login.",
+  "auth.desc": "Masuk dengan akun pengawas lapangan.",
+  "auth.failed": "Gagal masuk — periksa email/kata sandi.",
 };
 
 const DICT: Record<Lang, Dict> = { ko: KO, id: ID };
