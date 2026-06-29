@@ -102,7 +102,7 @@ export default function Index() {
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
         <div className={`${CONTAINER} py-4 relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
           {/* 회사 로고 (좌) */}
-          <img src="/logo.png" alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
+          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
 
           {/* 시스템명 (가로 화면 가운데) */}
           <h1 className="text-3xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2">

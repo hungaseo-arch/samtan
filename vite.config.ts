@@ -208,6 +208,9 @@ function cdnPrefixImages(): Plugin {
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   return {
+    // 배포 베이스 경로 — GitHub Pages(서브경로) 배포 시 VITE_BASE=/samtan/ 로 빌드.
+    // 미설정(일반 빌드/개발)은 루트('/') 유지.
+    base: process.env.VITE_BASE ?? '/',
     server: {
       host: "::",
       port: 8080,

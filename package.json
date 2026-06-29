@@ -7,8 +7,10 @@
     "dev": "VITE_ENABLE_ROUTE_MESSAGING=true vite",
     "build": "VITE_ENABLE_ROUTE_MESSAGING=true vite build --mode development",
     "postbuild": "node scripts/postbuild.mjs",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy": "VITE_BASE=/samtan/ npm run build && cp dist/index.html dist/404.html && gh-pages -d dist"
   },
+  "homepage": "https://hungaseo-arch.github.io/samtan",
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@iconify/react": "^6.0.2",
@@ -53,11 +55,12 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "4.7.0",
     "@vitejs/plugin-react-swc": "^3.5.0",
-    "happy-dom": "15.11.7",
     "eslint": "^9.9.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.9",
+    "gh-pages": "^6.3.0",
     "globals": "^15.9.0",
+    "happy-dom": "15.11.7",
     "lovable-tagger": "1.1.9",
     "postcss": "^8.4.47",
     "tailwindcss": "^4.0.0",
