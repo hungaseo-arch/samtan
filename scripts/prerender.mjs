@@ -304,6 +304,9 @@ async function run() {
     });
 
     const { Window } = await import("happy-dom");
+    // SSR 빌드의 BASE_URL은 '/'이므로 BrowserRouter basename도 '/'.
+    // 따라서 프리렌더 location은 루트('/')로 두어 홈 라우트가 매칭되게 함.
+    // (런타임 클라이언트 번들은 VITE_BASE가 적용되어 basename=/samtan/ 로 동작)
     window = new Window({
       url: "http://localhost:3000",
       settings: {
