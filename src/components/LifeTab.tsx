@@ -76,7 +76,7 @@ const TX = {
     excelDownload: "엑셀 다운로드",
   },
   id: {
-    dbTitle: "Database Umur Ban",
+    dbTitle: "DB Umur Ban",
     status: "Status",
     all: "Semua",
     pcs: "pcs",
