@@ -145,8 +145,8 @@ export default function LoadTab() {
         </div>
       </motion.div>
 
-      {/* 과적 경고 */}
-      {overUnits.length > 0 ? (
+      {/* 과적 경고 (정격 초과 시에만 표시) */}
+      {overUnits.length > 0 && (
         <motion.div variants={staggerItem}>
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
@@ -156,13 +156,6 @@ export default function LoadTab() {
                 {overUnits.map((u) => `${u.name} (${Math.round(u.load * 100)}%)`).join(" · ")}{tx.overBody}
               </p>
             </div>
-          </div>
-        </motion.div>
-      ) : (
-        <motion.div variants={staggerItem}>
-          <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground">{tx.allWithin1}{Math.round(Math.max(...rows.map((r) => r.load)) * 100)}{tx.allWithin2}</p>
           </div>
         </motion.div>
       )}

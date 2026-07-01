@@ -188,7 +188,7 @@ export default function Index() {
       <footer className="border-t border-border bg-white">
         <div className={`${CONTAINER} py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1`}>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-primary">PT. Trasindo Murni Perkasa</span>
+            <span className="text-xl font-semibold text-primary">PT. Trasindo Murni Perkasa</span>
             <span className="text-xs text-muted-foreground">·  Kalimantan Field</span>
           </div>
           <p className="text-[11px] text-muted-foreground">
