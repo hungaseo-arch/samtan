@@ -180,7 +180,6 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
           <div className="flex items-center gap-2 mb-4">
             <Truck className="w-4 h-4 text-primary" />
             <span className="text-sm font-bold">{tx.statusPerUnit}</span>
-            <span className="text-xs text-muted-foreground">Per Unit</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed text-sm border-collapse">

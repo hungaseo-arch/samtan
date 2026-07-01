@@ -260,20 +260,6 @@ export default function PressureTab() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* ── 안내 배너 ── */}
-      <motion.div variants={staggerItem}>
-        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 flex items-start gap-3">
-          <Gauge className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-primary">{tx.bannerTitle}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {tx.bannerDesc1}
-              {" "}{tx.bannerDesc2}
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
       {/* ── 권장 공기압 기준 ── */}
       <motion.div variants={staggerItem}>
         <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
