@@ -107,10 +107,7 @@ export default function Index() {
           {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
           <div className="flex items-center gap-3 min-w-0">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
-            <div className="flex flex-col gap-0.5 min-w-0">
-              <span className="text-base font-bold text-primary leading-tight truncate">{active ? t(`tab.${active.id}.label`) : ""}</span>
-              <span className="text-xs text-muted-foreground truncate">{active ? t(`tab.${active.id}.desc`) : ""}</span>
-            </div>
+            <span className="text-base font-bold text-primary leading-tight truncate min-w-0">{active ? t(`tab.${active.id}.label`) : ""}</span>
           </div>
 
           {/* 2단: 홈페이지 제목 (가로 화면 가운데) */}
