@@ -107,7 +107,6 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           <span className="text-xs font-bold text-primary uppercase tracking-widest">
             {tx.title}
           </span>
-          <span className="text-xs text-muted-foreground">Replacement</span>
           <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
             {TMS_DATA.repl.length}{tx.countSuffix}
           </span>

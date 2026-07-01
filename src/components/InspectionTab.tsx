@@ -8,7 +8,7 @@ import {
   deleteInspectionRound,
   type InspectionRow,
 } from "@/api/inspections";
-import { SquarePen, Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -247,19 +247,6 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
 
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
-      {/* 안내 */}
-      <motion.div variants={staggerItem}>
-        <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 flex items-start gap-3">
-          <SquarePen className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-          <div>
-            <p className="text-sm font-bold text-primary">{tx.inputTitle}</p>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {tx.inputDesc}
-            </p>
-          </div>
-        </div>
-      </motion.div>
-
       {/* 차량 선택 */}
       <motion.div variants={staggerItem}>
         <div className="flex flex-wrap items-center gap-2">

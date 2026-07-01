@@ -252,7 +252,6 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           <span className="text-xs font-bold text-primary uppercase tracking-widest">
             {tx.dbTitle}
           </span>
-          <span className="text-xs text-muted-foreground">Lifetime DB</span>
           <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
             {filtered.length}{tx.pcs} / {TMS_DATA.life.length}{tx.pcs}
           </span>

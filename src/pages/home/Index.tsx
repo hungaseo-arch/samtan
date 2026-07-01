@@ -193,7 +193,7 @@ export default function Index() {
             <span className="text-sm font-semibold text-primary">PT. Trasindo Murni Perkasa</span>
             <span className="text-xs text-muted-foreground">·  Kalimantan Field</span>
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Copyright © ASEOA · 2026
           </p>
         </div>

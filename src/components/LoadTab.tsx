@@ -166,7 +166,6 @@ export default function LoadTab() {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
             <span className="text-sm font-bold text-foreground">{tx.unitStatusTitle}</span>
-            <span className="text-xs text-muted-foreground">Load per Unit</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed text-xs border-collapse">
@@ -235,7 +234,6 @@ export default function LoadTab() {
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
             <span className="text-sm font-bold text-foreground">{tx.ratioTitle}</span>
-            <span className="text-xs text-muted-foreground">Load Ratio</span>
           </div>
           <div className="space-y-3">
             {rows.map((r) => {
