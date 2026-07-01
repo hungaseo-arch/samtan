@@ -85,7 +85,7 @@ const TX = {
     save: "Simpan",
     resetInput: "Reset input",
     innerNote: "Dual dalam (In) yang tidak diukur dikosongkan akan diproses sebagai N/A.",
-    historyTitle: "Riwayat inspeksi tersimpan (Supabase)",
+    historyTitle: "Riwayat inspeksi tersimpan",
     refresh: "Muat ulang",
     loadingMsg: "Memuat…",
     emptyMsg: "Tidak ada data inspeksi tersimpan. Masukkan dan simpan di atas.",

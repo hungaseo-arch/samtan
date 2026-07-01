@@ -13,8 +13,8 @@ const TX = {
     statusDanger: "과적",
     mountSingle: "단독",
     mountDual: "듀얼",
-    bannerTitle: "하중 계산 · Load Distribution",
-    bannerBody1: "기준 하중 그룹별 타이어당 하중·정격 대비 부하율입니다. 총중량 ",
+    bannerTitle: "하중 계산",
+    bannerBody1: "총중량 ",
     bannerBody2: " · 정격: Head ",
     bannerBody3: "(단독) / 트레일러·돌리 ",
     bannerBody4: "(듀얼) kg/본.",
@@ -61,8 +61,8 @@ const TX = {
     statusDanger: "Kelebihan beban",
     mountSingle: "Tunggal",
     mountDual: "Ganda",
-    bannerTitle: "Perhitungan Beban · Load Distribution",
-    bannerBody1: "Per grup beban acuan, beban per ban·rasio beban thd rating. Berat total ",
+    bannerTitle: "Perhitungan Beban",
+    bannerBody1: "Berat total ",
     bannerBody2: " · Rating: Head ",
     bannerBody3: "(Tunggal) / trailer·dolly ",
     bannerBody4: "(Ganda) kg/ban.",
@@ -137,7 +137,7 @@ export default function LoadTab() {
           <div>
             <p className="text-sm font-bold text-primary">{tx.bannerTitle}</p>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Techking <em>Load Distribution Road Train unit</em> {tx.bannerBody1}
+              {tx.bannerBody1}
               <strong className="text-foreground font-mono">{fmtInt(LOAD_GROSS_KG)} kg</strong>{tx.bannerBody2}
               <strong className="text-foreground font-mono">6,000</strong>{tx.bannerBody3}<strong className="text-foreground font-mono">4,500</strong>{tx.bannerBody4}
             </p>

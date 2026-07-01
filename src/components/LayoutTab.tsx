@@ -22,7 +22,7 @@ const TX = {
     statusDanger: "교체권장",
     statusNone: "시험 외",
     legendNone: "시험 외 (12.00R24)",
-    footnoteA: "Head(파랑) 10본 = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly(빨강)는 12.00R24으로 ",
+    footnoteA: "Head 10본 = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly는 12.00R24으로 ",
     footnoteB: "시험 미포함",
     recPress: "권장 공기압",
     serial: "시리얼",
@@ -52,7 +52,7 @@ const TX = {
     statusDanger: "Rekomendasi ganti",
     statusNone: "Non-uji",
     legendNone: "Non-uji (12.00R24)",
-    footnoteA: "Head(biru) 10 ban = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly(merah) 12.00R24 ",
+    footnoteA: "Head 10 ban = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly 12.00R24 ",
     footnoteB: "Tidak termasuk uji",
     recPress: "Tekanan rekomendasi",
     serial: "Serial",
@@ -168,7 +168,7 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
           <div className="flex items-stretch gap-1 w-max mx-auto px-2 py-2" style={{ zoom: 1.5 }}>
             {LAYOUT.map((grp) => (
               <div key={grp.name} className={`border-2 ${grp.cls} rounded-xl px-3 pt-5 pb-3 relative mx-1 flex flex-col`}>
-                <span className={`absolute -top-3 left-3 bg-background px-2 text-xs font-black ${grp.labelCls}`}>
+                <span className={`absolute -top-3 left-1/2 -translate-x-1/2 bg-background px-2 text-xs font-black whitespace-nowrap ${grp.labelCls}`}>
                   {grp.name}
                 </span>
                 {/* 축 레이블(①②③ / A·B·C)이 그룹 간 가로 정렬되도록 세로 중앙 밴드에 배치 */}
