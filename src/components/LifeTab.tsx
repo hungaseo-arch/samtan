@@ -253,6 +253,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             {tx.dbTitle}
           </span>
           <span className="text-xs text-muted-foreground">Lifetime DB</span>
+          <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
+            {filtered.length}{tx.pcs} / {TMS_DATA.life.length}{tx.pcs}
+          </span>
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{tx.status}:</span>
             <select
@@ -266,9 +269,6 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
               <option value="Spare">Spare</option>
               <option value="Not Install">Not Install</option>
             </select>
-            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
-              {filtered.length}{tx.pcs} / {TMS_DATA.life.length}{tx.pcs}
-            </span>
             <button
               onClick={exportExcel}
               className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"

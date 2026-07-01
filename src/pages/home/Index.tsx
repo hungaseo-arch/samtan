@@ -103,7 +103,7 @@ export default function Index() {
 
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className={`${CONTAINER} py-4 relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
+        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ padding: "20px 50px" }}>
           {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
           <div className="flex items-center gap-3 min-w-0">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
