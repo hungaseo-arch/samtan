@@ -106,12 +106,13 @@ export default function Index() {
         <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ padding: "20px 50px" }}>
           {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
           <div className="flex items-center gap-3 min-w-0">
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-6 w-auto shrink-0" />
+            <span className="h-7 w-px bg-border shrink-0" aria-hidden="true" />
             <span className="text-base font-bold text-primary leading-tight truncate min-w-0">{active ? t(`tab.${active.id}.label`) : ""}</span>
           </div>
 
           {/* 2단: 홈페이지 제목 (가로 화면 가운데) */}
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
+          <h1 className="text-2xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
             Tire Monitoring System (TMS)
           </h1>
 
@@ -188,10 +189,10 @@ export default function Index() {
       <footer className="border-t border-border bg-white">
         <div className={`${CONTAINER} py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1`}>
           <div className="flex items-center gap-2">
-            <span className="text-xl font-semibold text-primary">PT. Trasindo Murni Perkasa</span>
+            <span className="text-sm font-semibold text-primary">PT. Trasindo Murni Perkasa</span>
             <span className="text-xs text-muted-foreground">·  Kalimantan Field</span>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Copyright © ASEOA · 2026
           </p>
         </div>
