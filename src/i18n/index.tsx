@@ -5,9 +5,9 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 
 export type Lang = "ko" | "id";
 
-export const LANGS: { code: Lang; label: string }[] = [
-  { code: "ko", label: "한국어" },
-  { code: "id", label: "Bahasa" },
+export const LANGS: { code: Lang; label: string; flag: string }[] = [
+  { code: "ko", label: "한국어", flag: "🇰🇷" },
+  { code: "id", label: "Bahasa", flag: "🇮🇩" },
 ];
 
 type Dict = Record<string, string>;

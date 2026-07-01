@@ -125,8 +125,9 @@ export default function Index() {
                   key={l.code}
                   onClick={() => setLang(l.code)}
                   aria-pressed={lang === l.code}
-                  className={`px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
                 >
+                  <span className="text-sm leading-none">{l.flag}</span>
                   {l.code.toUpperCase()}
                 </button>
               ))}
