@@ -54,6 +54,9 @@ const TX = {
     egMid2: "(78%) · 트레일러 1 3,917/4,500(87%) · 트레일러 2·돌리 4,000/4,500(89%).",
     egSteer: "/6,000(78%)",
     editData: "데이터 수정: ",
+    uNames: { headSteer: "Head 조향축", headDrive: "Head 구동축", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
+    uSubs: { headSteer: "L1·R1 · 단독 (Head 20%)", headDrive: "L2·L3·R2·R3 · 단독 (Head 80%)", trailer1: "트레일러 1", trailer2: "트레일러 2", dolly: "돌리" },
+    gNames: { 1: "그룹 1 · Head + 트레일러 1", 2: "그룹 2 · 돌리 + 트레일러 2" },
   },
   id: {
     statusOk: "Normal",
@@ -102,6 +105,9 @@ const TX = {
     egMid2: "(78%) · trailer 1 3,917/4,500(87%) · trailer 2·dolly 4,000/4,500(89%).",
     egSteer: "/6,000(78%)",
     editData: "Edit data: ",
+    uNames: { headSteer: "Head Poros Kemudi", headDrive: "Head Poros Penggerak", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
+    uSubs: { headSteer: "L1·R1 · Tunggal (Head 20%)", headDrive: "L2·L3·R2·R3 · Tunggal (Head 80%)", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
+    gNames: { 1: "Grup 1 · Head + Trailer 1", 2: "Grup 2 · Dolly + Trailer 2" },
   },
 } as const;
 
@@ -196,7 +202,7 @@ export default function LoadTab() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.name} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
-                    <td className="px-2 py-2 font-bold text-primary">{r.name}<span className="block text-[10px] text-muted-foreground font-normal">{r.sub}</span></td>
+                    <td className="px-2 py-2 font-bold text-primary">{tx.uNames[r.key]}<span className="block text-[10px] text-muted-foreground font-normal">{tx.uSubs[r.key]}</span></td>
                     <td className="px-2 py-2 font-mono text-[11px] text-muted-foreground">{r.spec}</td>
                     <td className="px-2 py-2 text-center text-[10px]">
                       <span className={`px-1.5 py-0.5 rounded-full border ${r.mount === "dual" ? "border-primary/40 text-primary bg-primary/5" : "border-border text-muted-foreground bg-muted/30"}`}>{mountLabel(r.mount)}</span>
@@ -220,7 +226,7 @@ export default function LoadTab() {
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {LOAD_GROUPS.map((g) => (
               <div key={g.id} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[11px] flex items-center justify-between">
-                <span className="font-semibold">{g.name}</span>
+                <span className="font-semibold">{tx.gNames[g.id]}</span>
                 <span className="font-mono text-muted-foreground">Payload {fmtInt(g.payload)} · 총 <strong className="text-foreground">{fmtInt(groupTotal(g.id))} kg</strong></span>
               </div>
             ))}

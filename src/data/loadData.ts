@@ -23,8 +23,11 @@ export interface LoadGroup {
   payload: number;    // 적재 (kg)
 }
 
+export type LoadUnitKey = "headSteer" | "headDrive" | "trailer1" | "trailer2" | "dolly";
+
 export interface LoadUnit {
-  name: string;        // Head 조향축/구동축 / Trailer 1 / Trailer 2 / Dolly
+  key: LoadUnitKey;    // 다국어 표시명 조회 키 (LoadTab에서 name·sub 번역)
+  name: string;        // Head 조향축/구동축 / Trailer 1 / Trailer 2 / Dolly (기본=한국어)
   sub: string;         // 포지션·장착 설명
   spec: string;        // 타이어 규격
   count: number;       // 본수
@@ -46,11 +49,11 @@ export const LOAD_GROUPS: LoadGroup[] = [
 export const HEAD_GROUP_SHARE = 0.5;
 
 export const LOAD_UNITS: LoadUnit[] = [
-  { name: "Head 조향축", sub: "L1·R1 · 단독 (Head 20%)",          spec: "385/95R24(14.00R24)", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
-  { name: "Head 구동축", sub: "L2·L3·R2·R3 · 단독 (Head 80%)",     spec: "385/95R24(14.00R24)", count: 8,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
-  { name: "Trailer 1",  sub: "트레일러 1",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
-  { name: "Trailer 2",  sub: "트레일러 2",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
-  { name: "Dolly",      sub: "돌리",                               spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (Head 20%)",          spec: "385/95R24(14.00R24)", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
+  { key: "headDrive", name: "Head Driving axis", sub: "L2·L3·R2·R3 · Single (Head 80%)",     spec: "385/95R24(14.00R24)", count: 8,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
+  { key: "trailer1",  name: "Trailer 1",  sub: "Trailer 1",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
+  { key: "trailer2",  name: "Trailer 2",  sub: "Trailer 2",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
+  { key: "dolly",     name: "Dolly",      sub: "Dolly",                               spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
 ];
 
 /** 그룹 총중량(kg) = 그룹 소속 유닛 공차 합 + 그룹 Payload */

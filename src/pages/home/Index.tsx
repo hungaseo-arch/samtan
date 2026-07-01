@@ -149,25 +149,28 @@ export default function Index() {
 
         {/* ── 탭 내비게이션 (STI Corp 스타일: 언더라인) ── */}
         <div className={CONTAINER}>
-          <nav className="flex justify-center gap-0 overflow-x-auto">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tab.id); }}
-                className={`
-                  flex items-center gap-1.5 px-5 py-3 text-sm font-semibold whitespace-nowrap
-                  border-b-2 transition-all duration-200
-                  ${activeTab === tab.id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                  }
-                `}
-              >
-                {tab.icon}
-                <span className="hidden sm:inline">{t(`tab.${tab.id}.label`)}</span>
-                <span className="sm:hidden">{tab.sub}</span>
-              </button>
-            ))}
+          {/* overflow 시에도 첫 탭(대시보드)이 잘리지 않도록 내부 래퍼를 w-max mx-auto로 (justify-center + overflow 클리핑 회피) */}
+          <nav className="overflow-x-auto">
+            <div className="flex gap-0 w-max mx-auto">
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tab.id); }}
+                  className={`
+                    flex items-center gap-1.5 px-5 py-3 text-sm font-semibold whitespace-nowrap
+                    border-b-2 transition-all duration-200
+                    ${activeTab === tab.id
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    }
+                  `}
+                >
+                  {tab.icon}
+                  <span className="hidden sm:inline">{t(`tab.${tab.id}.label`)}</span>
+                  <span className="sm:hidden">{tab.sub}</span>
+                </button>
+              ))}
+            </div>
           </nav>
         </div>
       </header>
