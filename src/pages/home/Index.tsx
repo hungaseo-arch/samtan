@@ -104,20 +104,22 @@ export default function Index() {
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
         <div className={`${CONTAINER} py-4 relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`}>
-          {/* 회사 로고 (좌) */}
-          <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
+          {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
+          <div className="flex items-center gap-3 min-w-0">
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-7 w-auto shrink-0" />
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-base font-bold text-primary leading-tight truncate">{active ? t(`tab.${active.id}.label`) : ""}</span>
+              <span className="text-xs text-muted-foreground truncate">{active ? t(`tab.${active.id}.desc`) : ""}</span>
+            </div>
+          </div>
 
-          {/* 시스템명 (가로 화면 가운데) */}
-          <h1 className="text-3xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2">
+          {/* 2단: 홈페이지 제목 (가로 화면 가운데) */}
+          <h1 className="text-3xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
             Tire Monitoring System (TMS)
           </h1>
 
-          {/* 언어 전환 + 현재 탭 안내 (우) */}
-          <div className="flex items-center gap-3 sm:flex-row-reverse">
-            <div className="flex flex-col sm:items-end gap-0.5 text-left sm:text-right">
-              <span className="text-base font-bold text-primary leading-tight">{active ? t(`tab.${active.id}.label`) : ""}</span>
-              <span className="text-xs text-muted-foreground">{active ? t(`tab.${active.id}.desc`) : ""}</span>
-            </div>
+          {/* 3단: 언어 전환(KO/ID) + 로그인 정보 (우) */}
+          <div className="flex items-center gap-3">
             {/* 언어 토글 (KO / ID) */}
             <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label={t("lang.aria")}>
               {LANGS.map((l) => (
