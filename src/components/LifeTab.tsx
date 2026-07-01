@@ -4,7 +4,7 @@ import { TMS_DATA, TREAD_WARN, TREAD_DANGER } from "@/data/tmsData";
 import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
 import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -73,6 +73,7 @@ const TX = {
     mInstall: "최초 장착",
     mMount: "교체 장착",
     mCurrent: "현재",
+    excelDownload: "엑셀 다운로드",
   },
   id: {
     dbTitle: "Database Umur Ban",
@@ -139,6 +140,7 @@ const TX = {
     mInstall: "Pasang awal",
     mMount: "Pasang ganti",
     mCurrent: "Saat ini",
+    excelDownload: "Unduh Excel",
   },
 } as const;
 
@@ -205,6 +207,43 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
     return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm) };
   })();
 
+  // 현재 필터에 표시된 행을 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
+  const exportExcel = async () => {
+    const rows = filtered.map((l) => {
+      const c = lifeCalc(l.serial);
+      const noExpected = l.status === "Scrap" || l.status === "Not Install";
+      const unit = findUnitBySerial(l.serial);
+      const monitored = !!unit;
+      const tread = latestTreadOf(l.serial);
+      const damage = l.damage && l.damage !== "-" ? l.damage : null;
+      const noteParts: string[] = [];
+      if (!monitored) noteParts.push(tx.nonMeasured);
+      if (damage) noteParts.push(codeName(damage));
+      if (l.note) noteParts.push(l.note);
+      if (unit?.hmReset) noteParts.push(tx.hmReset);
+      return {
+        [tx.colNo]: l.no,
+        [tx.colSerial]: l.serial,
+        [tx.colInstall]: fmtD(l.install),
+        [tx.colTread]: tread != null ? Number(tread.toFixed(1)) : "",
+        [tx.colKm]: c?.km ?? "",
+        [tx.colHr]: c?.hr ?? "",
+        [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
+        [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
+        [tx.colStatus]: l.status,
+        [tx.colNote]: noteParts.join(" · "),
+      };
+    });
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 28 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    XLSX.writeFile(wb, `TireLifetimeDB_${stamp}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
       {/* Lifetime DB */}
@@ -230,6 +269,13 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
               {filtered.length}{tx.pcs} / {TMS_DATA.life.length}{tx.pcs}
             </span>
+            <button
+              onClick={exportExcel}
+              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {tx.excelDownload}
+            </button>
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
