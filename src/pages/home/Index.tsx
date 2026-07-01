@@ -103,7 +103,7 @@ export default function Index() {
 
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3" style={{ padding: "20px 50px" }}>
+        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-[50px] sm:py-5">
           {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
           <div className="flex items-center gap-3 min-w-0">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-6 w-auto shrink-0" />
@@ -112,7 +112,7 @@ export default function Index() {
           </div>
 
           {/* 2단: 홈페이지 제목 (가로 화면 가운데) */}
-          <h1 className="text-2xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
             Tire Monitoring System (TMS)
           </h1>
 

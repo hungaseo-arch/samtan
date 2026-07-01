@@ -182,7 +182,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             <span className="text-sm font-bold">{tx.statusPerUnit}</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-sm border-collapse">
+            <table className="w-full min-w-[720px] table-fixed text-sm border-collapse">
               <colgroup>
                 {["9%","13%","13%","13%","13%","8%","8%","11%","12%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />

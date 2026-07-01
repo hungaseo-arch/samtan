@@ -278,7 +278,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full table-fixed text-xs border-collapse font-mono">
+          <table className="w-full min-w-[760px] table-fixed text-xs border-collapse font-mono">
             <colgroup>
               {["4%", "13%", "11%", "9%", "9%", "9%", "9%", "9%", "9%", "18%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />

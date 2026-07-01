@@ -112,7 +112,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm border-collapse">
+          <table className="w-full min-w-[720px] table-fixed text-sm border-collapse">
             <colgroup>
               {(has3rd
                 ? ["7%", "6%", "9%", "13%", "9%", "13%", "10%", "9%", "13%", "11%"]
