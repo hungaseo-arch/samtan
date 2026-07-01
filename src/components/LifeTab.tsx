@@ -1,7 +1,7 @@
 // @section: life-tab
 import { useState, useEffect, useRef } from "react";
 import { TMS_DATA, TREAD_WARN, TREAD_DANGER } from "@/data/tmsData";
-import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory } from "@/data/tmsUtils";
+import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
 import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
@@ -64,6 +64,15 @@ const TX = {
     sessions: "회차",
     noMeasData: "측정 데이터 없음",
     colInspect: "점검일",
+    moveHist: "장착 이력 (위치·차량 변경)",
+    moveNone: "장착 이력이 1건입니다 (변경 없음).",
+    mDate: "장착일",
+    mVehicle: "차량",
+    mPos: "포지션",
+    mKind: "구분",
+    mInstall: "최초 장착",
+    mMount: "교체 장착",
+    mCurrent: "현재",
   },
   id: {
     dbTitle: "Database Umur Ban",
@@ -121,6 +130,15 @@ const TX = {
     sessions: "sesi",
     noMeasData: "Tidak ada data ukur",
     colInspect: "Tgl inspeksi",
+    moveHist: "Riwayat pemasangan (posisi·unit)",
+    moveNone: "Hanya 1 riwayat pemasangan (tidak berubah).",
+    mDate: "Tgl pasang",
+    mVehicle: "Unit",
+    mPos: "Posisi",
+    mKind: "Jenis",
+    mInstall: "Pasang awal",
+    mMount: "Pasang ganti",
+    mCurrent: "Saat ini",
   },
 } as const;
 
@@ -163,6 +181,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
   // 행 클릭 → 타이어 전체 히스토리 모달
   const [historyOf, setHistoryOf] = useState<string | null>(null);
   const hist = historyOf ? tireHistory(historyOf) : null;
+  const moves = historyOf ? tireMovements(historyOf) : [];
 
   // 손상 코드 모달 (코드 클릭 시 열기, hiCode = 강조할 코드)
   const [showCodes, setShowCodes] = useState(false);
@@ -425,6 +444,40 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <HRow label={tx.hKmHr} value={`${fmtInt(hist.km)} km / ${fmtInt(hist.hr)} hr`} mono />
                 <HRow label={tx.hExpKmHm} value={`${fmtInt(hist.expectedKm)} km / ${fmtInt(hist.expectedHm)} hr`} mono />
                 <HRow label={tx.hTread} value={hist.latestTread != null ? `${fmtTread(hist.latestTread)} mm` : null} mono />
+              </div>
+
+              {/* 장착 이력 (위치·차량 변경) */}
+              <div className="mb-4">
+                <p className="text-xs font-bold text-primary mb-2">{tx.moveHist} ({moves.length})</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse font-mono">
+                    <thead>
+                      <tr className="border-b border-border text-muted-foreground">
+                        <th className="px-2 py-1 text-left font-semibold">{tx.mDate}</th>
+                        <th className="px-2 py-1 text-left font-semibold">{tx.mVehicle}</th>
+                        <th className="px-2 py-1 text-left font-semibold">{tx.mPos}</th>
+                        <th className="px-2 py-1 text-left font-semibold">{tx.mKind}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {moves.map((m, i) => {
+                        const current = hist.ch === m.ch && hist.pos === m.pos;
+                        return (
+                          <tr key={i} className={`border-b border-border/30 ${current ? "bg-primary/5" : ""}`}>
+                            <td className="px-2 py-1">{m.date ?? "−"}</td>
+                            <td className="px-2 py-1 font-bold text-primary">CH {m.ch}</td>
+                            <td className="px-2 py-1">{m.pos}</td>
+                            <td className="px-2 py-1">
+                              <span className="font-sans text-muted-foreground">{m.kind === "install" ? tx.mInstall : tx.mMount}</span>
+                              {current && <span className="font-sans ml-1 text-[10px] text-green-600 font-bold">· {tx.mCurrent}</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {moves.length <= 1 && <p className="text-[11px] text-muted-foreground mt-1">{tx.moveNone}</p>}
               </div>
 
               {/* 측정 회차 이력 */}

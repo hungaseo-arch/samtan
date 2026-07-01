@@ -318,6 +318,45 @@ export interface TireHistory {
   rounds: TireRound[];          // 측정 이력 (해당 타이어 장착 구간)
 }
 
+export interface TireMovement {
+  date: string | null;   // 장착일 (최초=입고/조립일, 교체=repl.date)
+  ch: string;            // 장착 차량
+  pos: string;           // 장착 포지션
+  kind: "install" | "mount"; // 최초 장착 / 교체 장착
+}
+
+/**
+ * 시리얼의 장착 이동 이력(차량·포지션 변경) 재구성.
+ * - 원본(최초) 장착: vehicle_positions.serial === serial → life.install 일자
+ * - 교체 장착: replacements.newSerial === serial → repl.date
+ * 일자순 정렬. 같은 (차량·포지션·일자)는 1건으로 합침.
+ */
+export function tireMovements(serial: string): TireMovement[] {
+  if (!serial) return [];
+  const life = TMS_DATA.life.find((l) => l.serial === serial);
+  const install = life?.install && life.install !== "-" ? life.install : null;
+
+  const out: TireMovement[] = [];
+  for (const u of TMS_DATA.units) {
+    for (const p of u.positions) {
+      if (p.serial === serial) out.push({ date: install, ch: u.ch, pos: p.pos, kind: "install" });
+    }
+  }
+  for (const r of TMS_DATA.repl) {
+    if (r.newSerial === serial) out.push({ date: r.date, ch: r.ch, pos: r.pos, kind: "mount" });
+  }
+
+  const seen = new Set<string>();
+  const dedup = out.filter((m) => {
+    const k = `${m.ch}|${m.pos}|${m.date ?? ""}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  dedup.sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""));
+  return dedup;
+}
+
 /** 시리얼로 타이어 전체 히스토리(장착·탈착·폐기·HM Reset·측정 회차)를 구성. */
 export function tireHistory(serial: string): TireHistory | null {
   if (!serial) return null;
