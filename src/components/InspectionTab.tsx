@@ -291,7 +291,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
 
           {/* 포지션별 입력 */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] table-fixed text-sm border-collapse">
+            <table className="w-full min-w-140table-fixed text-sm border-collapse">
               <colgroup>
                 {["16%", "14%", "20%", "20%", "30%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />
@@ -438,7 +438,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
                     </button>
                   </div>
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[520px] table-fixed text-xs border-collapse font-mono">
+                    <table className="w-full min-w-130 table-fixed text-xs border-collapse font-mono">
                       <colgroup>
                         {["22%", "24%", "24%", "30%"].map((w, i) => (
                           <col key={i} style={{ width: w }} />

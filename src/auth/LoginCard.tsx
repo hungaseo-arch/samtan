@@ -4,7 +4,7 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useLang } from "@/i18n";
 import { LogIn, Loader2 } from "lucide-react";
 
-export default function LoginCard() {
+export default function LoginCard({ onSuccess, heading, className }: { onSuccess?: () => void; heading?: string; className?: string }) {
   const { signIn } = useAuth();
   const { t } = useLang();
   const [email, setEmail] = useState("");
@@ -18,14 +18,15 @@ export default function LoginCard() {
     setErr("");
     const { error } = await signIn(email.trim(), password);
     if (error) setErr(t("auth.failed"));
+    else onSuccess?.();
     setBusy(false);
   };
 
   return (
-    <div className="max-w-sm mx-auto rounded-xl border border-border bg-card p-6 mt-6">
+    <div className={className ?? "max-w-sm mx-auto rounded-xl border border-border bg-card p-6 mt-6"}>
       <div className="flex items-center gap-2 mb-1">
         <LogIn className="w-5 h-5 text-primary" />
-        <h3 className="text-sm font-bold text-foreground">{t("auth.required")}</h3>
+        <h3 className="text-sm font-bold text-foreground">{heading ?? t("auth.required")}</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">{t("auth.desc")}</p>
       <form onSubmit={submit} className="space-y-3">

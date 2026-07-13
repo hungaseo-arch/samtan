@@ -174,7 +174,7 @@ export default function LoadTab() {
             <span className="text-sm font-bold text-foreground">{tx.unitStatusTitle}</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] table-fixed text-xs border-collapse">
+            <table className="w-full min-w-205 table-fixed text-xs border-collapse">
               <colgroup>
                 {["12%", "12%", "7%", "6%", "9%", "8%", "9%", "9%", "12%", "10%", "6%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />

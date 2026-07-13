@@ -11,7 +11,8 @@ import InspectionTab from "@/components/InspectionTab";
 import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
-import { LogOut } from "lucide-react";
+import LoginCard from "@/auth/LoginCard";
+import { LogOut, LogIn, X } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -34,6 +35,7 @@ const CONTAINER = "max-w-6xl mx-auto px-6";
 export default function Index() {
   const { lang, setLang, t } = useLang();
   const { user, signOut } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("dash");
   // 전체 데이터는 Supabase에서 로드. version 변경 시 차트 탭 재렌더.
   const [dataVersion, setDataVersion] = useState(0);
@@ -103,7 +105,7 @@ export default function Index() {
 
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-[50px] sm:py-5">
+        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-5">
           {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
           <div className="flex items-center gap-3 min-w-0">
             <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-6 w-auto shrink-0" />
@@ -132,8 +134,8 @@ export default function Index() {
                 </button>
               ))}
             </div>
-            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 */}
-            {user && (
+            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 / 비로그인 시 로그인 버튼 */}
+            {user ? (
               <button
                 onClick={() => signOut()}
                 title={user.email ?? undefined}
@@ -142,6 +144,14 @@ export default function Index() {
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
                 <span className="md:hidden">{t("auth.logout")}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLogin(true)}
+                className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                {t("auth.login")}
               </button>
             )}
           </div>
@@ -201,6 +211,29 @@ export default function Index() {
           </p>
         </div>
       </footer>
+
+      {/* ── 로그인 모달 (헤더 로그인 버튼) ── */}
+      {showLogin && !user && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onClick={() => setShowLogin(false)}
+        >
+          <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowLogin(false)}
+              aria-label="close"
+              className="absolute -top-3 -right-3 z-10 p-1.5 rounded-full bg-card border border-border shadow hover:bg-muted/50 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <LoginCard
+              heading={t("auth.login")}
+              onSuccess={() => setShowLogin(false)}
+              className="rounded-2xl border border-border bg-card p-6 shadow-2xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
