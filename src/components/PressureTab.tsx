@@ -254,95 +254,98 @@ export default function PressureTab() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* ── 권장 공기압 기준 + 최근 공기압 점검 현황 (같은 행) ── */}
+      {/* ── 1행: 권장 공기압 기준 + 상태 판정 기준 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-      <motion.div variants={staggerItem}>
-        <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {PRESSURE_STD.map((s) => (
-            <div key={s.key} className="rounded-xl border border-border bg-card p-4 text-center">
-              <div className="text-sm font-bold text-foreground">{tx[s.key]}</div>
-              <div className="text-xs text-muted-foreground">{s.sub}</div>
-              <div className="font-mono text-2xl font-bold text-primary leading-none my-2">
-                {s.psi}<span className="text-xs font-normal ml-1 opacity-70">psi</span>
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {PRESSURE_STD.map((s) => (
+              <div key={s.key} className="rounded-xl border border-border bg-card p-4 text-center">
+                <div className="text-sm font-bold text-foreground">{tx[s.key]}</div>
+                <div className="text-xs text-muted-foreground">{s.sub}</div>
+                <div className="font-mono text-2xl font-bold text-primary leading-none my-2">
+                  {s.psi}<span className="text-xs font-normal ml-1 opacity-70">psi</span>
+                </div>
+                <div className="pt-2 border-t border-border/60 text-xs font-mono text-muted-foreground">
+                  {tx.position}: {s.pos}
+                </div>
               </div>
-              <div className="pt-2 border-t border-border/60 text-xs font-mono text-muted-foreground">
-                {tx.position}: {s.pos}
-              </div>
-            </div>
-          ))}
-        </div>
-      </motion.div>
-
-      {/* ── 실시간 공기압 이상 현황 ── */}
-      <motion.div variants={staggerItem}>
-        <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-          {kpis.map((k) => (
-            <div key={k.label} className={`rounded-xl border p-4 text-center ${k.cls}`}>
-              <div className="text-xs opacity-80 mb-1">{k.label} <span className="opacity-60">· {k.sub}</span></div>
-              <div className="font-mono text-2xl font-bold leading-none">
-                {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-4 h-4 text-yellow-500" />
-            <span className="text-sm font-bold text-foreground">{tx.alertTitle}</span>
-            <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alerts.length}{tx.alertCount}</span>
+            ))}
           </div>
-          {alerts.length === 0 ? (
-            <div className="flex items-center gap-2 text-green-600 text-sm py-2">
-              <CheckCircle2 className="w-4 h-4" />
-              {tx.noAlert}
-            </div>
-          ) : (
-            <ul className="space-y-2">
-              {alerts.map((a, i) => (
-                <li
-                  key={i}
-                  className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
-                    a.lv === "danger"
-                      ? "text-destructive border-destructive/40 bg-destructive/10"
-                      : "text-yellow-600 border-yellow-500/40 bg-yellow-500/10"
-                  }`}
-                >
-                  <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold border border-current">
-                    {a.lv === "danger" ? tx.badgeLow : tx.badgeDev}
-                  </span>
-                  <span className="font-mono">
-                    CH {a.ch} · {a.pos} — {Math.round(a.psi)}psi
-                    <span className="text-muted-foreground"> ({tx.rec} {a.target} / {a.dev > 0 ? "+" : ""}{a.dev.toFixed(0)}%)</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="mt-3 text-xs text-muted-foreground">
-            {tx.alertNote}
-          </p>
-        </div>
-      </motion.div>
+        </motion.div>
+
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {JUDGE.map((j) => (
+              <div key={j.lvKey} className={`rounded-xl border p-4 text-center ${j.cls}`}>
+                <div className="flex items-baseline justify-center gap-2 mb-2">
+                  <span className="text-sm font-bold">{tx[j.lvKey]}</span>
+                  <span className="text-xs opacity-70">{tx[j.subKey]}</span>
+                </div>
+                <div className="text-xs font-mono mb-1">{tx[j.rangeKey]}</div>
+                <div className="text-xs opacity-80">{tx[j.descKey]}</div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </div>
 
-      {/* ── 상태 판정 기준 ── */}
-      <motion.div variants={staggerItem}>
-        <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {JUDGE.map((j) => (
-            <div key={j.lvKey} className={`rounded-xl border p-4 text-center ${j.cls}`}>
-              <div className="flex items-baseline justify-center gap-2 mb-2">
-                <span className="text-sm font-bold">{tx[j.lvKey]}</span>
-                <span className="text-xs opacity-70">{tx[j.subKey]}</span>
+      {/* ── 2행: 최근 공기압 점검 현황 + 공기압 이상 알림 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
+          <div className="grid grid-cols-2 gap-3">
+            {kpis.map((k) => (
+              <div key={k.label} className={`rounded-xl border p-4 text-center ${k.cls}`}>
+                <div className="text-xs opacity-80 mb-1">{k.label} <span className="opacity-60">· {k.sub}</span></div>
+                <div className="font-mono text-2xl font-bold leading-none">
+                  {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
+                </div>
               </div>
-              <div className="text-xs font-mono mb-1">{tx[j.rangeKey]}</div>
-              <div className="text-xs opacity-80">{tx[j.descKey]}</div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-yellow-500" />} ko={tx.alertTitle} />
+          <div className="rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-end mb-2">
+              <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alerts.length}{tx.alertCount}</span>
             </div>
-          ))}
-        </div>
-      </motion.div>
+            {alerts.length === 0 ? (
+              <div className="flex items-center gap-2 text-green-600 text-sm py-2">
+                <CheckCircle2 className="w-4 h-4" />
+                {tx.noAlert}
+              </div>
+            ) : (
+              <ul className="space-y-2">
+                {alerts.map((a, i) => (
+                  <li
+                    key={i}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
+                      a.lv === "danger"
+                        ? "text-destructive border-destructive/40 bg-destructive/10"
+                        : "text-yellow-600 border-yellow-500/40 bg-yellow-500/10"
+                    }`}
+                  >
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold border border-current">
+                      {a.lv === "danger" ? tx.badgeLow : tx.badgeDev}
+                    </span>
+                    <span className="font-mono">
+                      CH {a.ch} · {a.pos} — {Math.round(a.psi)}psi
+                      <span className="text-muted-foreground"> ({tx.rec} {a.target} / {a.dev > 0 ? "+" : ""}{a.dev.toFixed(0)}%)</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">
+              {tx.alertNote}
+            </p>
+          </div>
+        </motion.div>
+      </div>
 
       {/* ── 점검 절차 체크리스트 ── */}
       <motion.div variants={staggerItem}>

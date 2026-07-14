@@ -9,13 +9,14 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useAuth } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
+import TireDetailModal from "@/components/TireDetailModal";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -141,7 +142,7 @@ interface FormCell {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
+export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void }) {
   const { lang } = useLang();
   const tx = TX[lang];
   const { user } = useAuth();
@@ -154,6 +155,8 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   const [adding, setAdding] = useState(false);
   const [newCh, setNewCh] = useState("");
   const [addBusy, setAddBusy] = useState(false);
+  const [formOpen, setFormOpen] = useState(true); // 입력 폼 아코디언
+  const [detail, setDetail] = useState<number | null>(null); // 배치도 타이어 상세 모달(포지션 번호)
 
   const [history, setHistory] = useState<InspectionRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -285,9 +288,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   const dates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
   const activeDate = selDate && grouped[selDate] ? selDate : (dates[0] ?? "");
 
-  // 점검 입력(쓰기)은 로그인 필요 — 비로그인 시 로그인 카드 표시
-  if (!user) return <LoginCard />;
-
+  // 조회(이력)는 로그인 없이 가능. 데이터 CRUD(입력·저장·삭제·차량추가)는 로그인 사용자만.
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
       {/* 차량 선택 */}
@@ -307,8 +308,8 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
               CH {u.ch}
             </button>
           ))}
-          {/* 차량(CH) 추가 */}
-          {adding ? (
+          {/* 차량(CH) 추가 — 로그인 사용자만 */}
+          {user && (adding ? (
             <span className="flex items-center gap-1">
               <input
                 value={newCh}
@@ -334,19 +335,22 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
             >
               <Plus className="w-3.5 h-3.5" /> {tx.addVehicle}
             </button>
-          )}
+          ))}
         </div>
       </motion.div>
 
       {/* 입력 폼 */}
       <motion.div variants={staggerItem}>
         <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <button onClick={() => setFormOpen((o) => !o)} className="w-full flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
             <span className="text-sm font-bold text-foreground">{tx.resultInput} {selCh}</span>
             <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{filledCount}/10 {tx.filledSuffix}</span>
-          </div>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${formOpen ? "" : "-rotate-90"}`} />
+          </button>
 
+          {formOpen && (user ? (
+          <>
           {/* 회차 메타 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <Field label={tx.inspDate}>
@@ -432,6 +436,10 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
               {tx.innerNote}
             </span>
           </div>
+          </>
+          ) : (
+            <LoginCard onSuccess={onSaved} />
+          ))}
         </div>
       </motion.div>
 
@@ -522,13 +530,15 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
                       {meta.km != null && ` · KM ${meta.km.toLocaleString("ko-KR")}`}
                     </span>
                     <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{rows.length}{tx.countSuffix}</span>
-                    <button
-                      onClick={() => handleDelete(d)}
-                      className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                      title={tx.deleteTitle}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {user && (
+                      <button
+                        onClick={() => handleDelete(d)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                        title={tx.deleteTitle}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                   {histView === "table" ? (
                     <div className="overflow-x-auto">
@@ -569,6 +579,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
                           return acc;
                         }, {})}
                         caption={`${TMS_DATA.tire.brand} · ${TMS_DATA.tire.size}`}
+                        onCellClick={(rp) => setDetail(POS_ORDER.indexOf(rp) + 1)}
                       />
                       <div className="flex flex-wrap gap-4 mt-3 text-xs px-1">
                         {[
@@ -590,6 +601,13 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
           </div>
         </div>
       </motion.div>
+
+      {/* 배치도 타이어 상세 모달 (차량 배치도와 동일 형태) */}
+      <AnimatePresence>
+        {detail != null && (
+          <TireDetailModal ch={selCh} pos={detail} onClose={() => setDetail(null)} onSerialClick={onSerialClick} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

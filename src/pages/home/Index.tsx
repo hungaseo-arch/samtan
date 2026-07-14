@@ -220,7 +220,7 @@ export default function Index() {
           {activeTab === "repl"     && <ReplacementTab key={dataVersion} onSerialClick={goToSerial} onVehicleClick={goToVehicle} />}
           {activeTab === "trend"    && <TrendTab key={dataVersion} onSerialClick={goToSerial} />}
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
-          {activeTab === "input"    && <InspectionTab onSaved={reloadData} />}
+          {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
         </div>
       </main>
