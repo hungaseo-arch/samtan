@@ -9,7 +9,8 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2 } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon } from "lucide-react";
+import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -46,6 +47,11 @@ const TX = {
     resetInput: "입력 초기화",
     innerNote: "내측 듀얼(In)은 미측정 시 비워두면 N/A로 처리됩니다.",
     historyTitle: "저장된 점검 이력 (Supabase)",
+    viewLayout: "배치도",
+    viewTable: "표",
+    statusOk: "정상",
+    statusWarn: "주의",
+    statusDanger: "교체권장",
     refresh: "새로고침",
     loadingMsg: "불러오는 중…",
     emptyMsg: "저장된 점검 데이터가 없습니다. 위에서 입력 후 저장하세요.",
@@ -95,6 +101,11 @@ const TX = {
     resetInput: "Reset input",
     innerNote: "Dual dalam (In) yang tidak diukur dikosongkan akan diproses sebagai N/A.",
     historyTitle: "Riwayat inspeksi tersimpan",
+    viewLayout: "Tata Letak",
+    viewTable: "Tabel",
+    statusOk: "Normal",
+    statusWarn: "Perhatian",
+    statusDanger: "Rekomendasi ganti",
     refresh: "Muat ulang",
     loadingMsg: "Memuat…",
     emptyMsg: "Tidak ada data inspeksi tersimpan. Masukkan dan simpan di atas.",
@@ -148,6 +159,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selDate, setSelDate] = useState<string>("");
+  const [histView, setHistView] = useState<"layout" | "table">("layout"); // 기본 배치도
 
   // 선택 차량의 포지션/시리얼로 폼 초기화
   const resetForm = useCallback(() => {
@@ -430,12 +442,34 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
             <div className="w-1 h-5 bg-primary rounded-full" />
             <span className="text-sm font-bold text-foreground">{tx.historyTitle}</span>
             <span className="text-xs text-muted-foreground">CH {selCh}</span>
-            <button
-              onClick={loadHistory}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> {tx.refresh}
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center rounded-lg border border-border overflow-hidden" role="group">
+                <button
+                  onClick={() => setHistView("layout")}
+                  aria-pressed={histView === "layout"}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${
+                    histView === "layout" ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" /> {tx.viewLayout}
+                </button>
+                <button
+                  onClick={() => setHistView("table")}
+                  aria-pressed={histView === "table"}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${
+                    histView === "table" ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <TableIcon className="w-3.5 h-3.5" /> {tx.viewTable}
+                </button>
+              </div>
+              <button
+                onClick={loadHistory}
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> {tx.refresh}
+              </button>
+            </div>
           </div>
 
           {loadError && (
@@ -496,35 +530,60 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-130 table-fixed text-xs border-collapse font-mono">
-                      <colgroup>
-                        {["22%", "24%", "24%", "30%"].map((w, i) => (
-                          <col key={i} style={{ width: w }} />
-                        ))}
-                      </colgroup>
-                      <thead>
-                        <tr className="border-b border-border/50">
-                          {[tx.histColPos, tx.histColPressure, tx.histColTread, tx.histColSerial].map((h) => (
-                            <th key={h} className="px-3 py-1.5 text-center text-muted-foreground font-semibold">{h}</th>
+                  {histView === "table" ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-130 table-fixed text-xs border-collapse font-mono">
+                        <colgroup>
+                          {["22%", "24%", "24%", "30%"].map((w, i) => (
+                            <col key={i} style={{ width: w }} />
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {POS_ORDER.map((pos) => {
+                        </colgroup>
+                        <thead>
+                          <tr className="border-b border-border/50">
+                            {[tx.histColPos, tx.histColPressure, tx.histColTread, tx.histColSerial].map((h) => (
+                              <th key={h} className="px-3 py-1.5 text-center text-muted-foreground font-semibold">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {POS_ORDER.map((pos) => {
+                            const r = byPos.get(pos);
+                            return (
+                              <tr key={pos} className="border-b border-border/30 text-center">
+                                <td className="px-3 py-1.5 font-bold text-primary">{pos}</td>
+                                <td className="px-3 py-1.5">{r?.pressure != null ? Math.round(r.pressure) : "−"}</td>
+                                <td className="px-3 py-1.5">{r?.tread != null ? fmtTread(r.tread) : "−"}</td>
+                                <td className="px-3 py-1.5 text-muted-foreground truncate max-w-40">{r?.serial ?? "−"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="p-3">
+                      <TireSchematic
+                        cells={POS_ORDER.reduce<Record<string, SchematicCell>>((acc, pos) => {
                           const r = byPos.get(pos);
-                          return (
-                            <tr key={pos} className="border-b border-border/30 text-center">
-                              <td className="px-3 py-1.5 font-bold text-primary">{pos}</td>
-                              <td className="px-3 py-1.5">{r?.pressure != null ? Math.round(r.pressure) : "−"}</td>
-                              <td className="px-3 py-1.5">{r?.tread != null ? fmtTread(r.tread) : "−"}</td>
-                              <td className="px-3 py-1.5 text-muted-foreground truncate max-w-40">{r?.serial ?? "−"}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                          acc[pos] = { pressure: r?.pressure ?? null, tread: r?.tread ?? null, serial: r?.serial ?? null };
+                          return acc;
+                        }, {})}
+                        caption={`${TMS_DATA.tire.brand} · ${TMS_DATA.tire.size}`}
+                      />
+                      <div className="flex flex-wrap gap-4 mt-3 text-xs px-1">
+                        {[
+                          { cls: "bg-green-500/15 border-green-500", label: tx.statusOk },
+                          { cls: "bg-yellow-400/15 border-yellow-400", label: tx.statusWarn },
+                          { cls: "bg-red-500/15 border-red-500", label: tx.statusDanger },
+                        ].map((l) => (
+                          <span key={l.label} className="flex items-center gap-1.5">
+                            <span className={`w-4 h-5 rounded border-2 ${l.cls} inline-block`} />
+                            {l.label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}

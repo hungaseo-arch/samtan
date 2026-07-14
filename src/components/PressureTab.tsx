@@ -254,7 +254,8 @@ export default function PressureTab() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* ── 권장 공기압 기준 ── */}
+      {/* ── 권장 공기압 기준 + 최근 공기압 점검 현황 (같은 행) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
       <motion.div variants={staggerItem}>
         <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -324,6 +325,7 @@ export default function PressureTab() {
           </p>
         </div>
       </motion.div>
+      </div>
 
       {/* ── 상태 판정 기준 ── */}
       <motion.div variants={staggerItem}>

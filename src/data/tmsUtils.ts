@@ -92,6 +92,36 @@ export function statusOf(d: HeadPosData | null, pos: number): TireStatus {
   return st;
 }
 
+/**
+ * 측정값(트레드·공기압)만으로 타이어 상태를 판정.
+ * - statusOf()와 동일 임계값을 쓰되, HeadPosData 대신 개별 값을 받음.
+ * - 폐기(Scrap) 이력은 회차 측정값에 없으므로 반영하지 않음(의도됨).
+ * @param tread 최근 트레드(mm) | null
+ * @param press 최근 공기압(psi) | null
+ * @param pos   포지션 번호(1~10). recPsi 계산용.
+ */
+export function statusFromValues(
+  tread: number | null,
+  press: number | null,
+  pos: number
+): TireStatus {
+  if (tread == null && press == null) return "none";
+  let st: TireStatus = "ok";
+
+  if (tread != null) {
+    if (tread <= TREAD_DANGER) st = "danger";
+    else if (tread <= TREAD_WARN) st = "warn";
+  }
+
+  if (typeof press === "number") {
+    const r = recPsi(pos);
+    if (press < r * 0.85) st = "danger";
+    else if (Math.abs(press - r) / r > 0.15 && st !== "danger") st = "warn";
+  }
+
+  return st;
+}
+
 export function codeName(c: string | null | undefined): string {
   if (!c) return "";
   const name = TMS_DATA.codes[c];
