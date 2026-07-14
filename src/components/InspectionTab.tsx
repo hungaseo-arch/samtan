@@ -8,7 +8,8 @@ import {
   deleteInspectionRound,
   type InspectionRow,
 } from "@/api/inspections";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -19,6 +20,13 @@ import { useLang } from "@/i18n";
 const TX = {
   ko: {
     unitLabel: "차량(CH):",
+    addVehicle: "차량 추가",
+    addPh: "예: 850",
+    addBtn: "추가",
+    addCancel: "취소",
+    addOk: "차량 추가 완료",
+    addDup: "이미 존재하는 차량입니다.",
+    addFail: "차량 추가 실패: ",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
     inspDate: "점검일",
@@ -61,6 +69,13 @@ const TX = {
   },
   id: {
     unitLabel: "Unit(CH):",
+    addVehicle: "Tambah unit",
+    addPh: "cth: 850",
+    addBtn: "Tambah",
+    addCancel: "Batal",
+    addOk: "Unit ditambahkan",
+    addDup: "Unit sudah ada.",
+    addFail: "Gagal menambah unit: ",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
     inspDate: "Tgl inspeksi",
@@ -125,6 +140,9 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
   const [km, setKm] = useState("");
   const [cells, setCells] = useState<Record<string, FormCell>>({});
   const [saving, setSaving] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [newCh, setNewCh] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
 
   const [history, setHistory] = useState<InspectionRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -216,6 +234,25 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
     }
   };
 
+  // 차량(CH) 추가 — vehicles + 10개 포지션 생성 후 리로드·선택
+  const handleAddVehicle = async () => {
+    const c = newCh.trim();
+    if (!c) return;
+    setAddBusy(true);
+    try {
+      await createVehicle(c);
+      toast.success(`${tx.addOk} · CH ${c}`);
+      setNewCh(""); setAdding(false);
+      onSaved?.();      // TMS_DATA(units) 리로드
+      setSelCh(c);      // 새 차량 선택
+    } catch (e) {
+      if (e instanceof DuplicateVehicleError) toast.error(tx.addDup);
+      else toast.error(tx.addFail + (e instanceof Error ? e.message : tx.errGeneric));
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
   const handleDelete = async (d: string) => {
     if (!window.confirm(`CH ${selCh} · ${d} ${tx.confirmDelete}`)) return;
     try {
@@ -258,6 +295,34 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
               CH {u.ch}
             </button>
           ))}
+          {/* 차량(CH) 추가 */}
+          {adding ? (
+            <span className="flex items-center gap-1">
+              <input
+                value={newCh}
+                onChange={(e) => setNewCh(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleAddVehicle(); if (e.key === "Escape") { setAdding(false); setNewCh(""); } }}
+                placeholder={tx.addPh}
+                autoFocus
+                className="w-24 px-2 py-1.5 rounded-lg border border-border text-sm font-mono"
+              />
+              <button
+                onClick={handleAddVehicle}
+                disabled={addBusy || !newCh.trim()}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+              >
+                {addBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{tx.addBtn}
+              </button>
+              <button onClick={() => { setAdding(false); setNewCh(""); }} className="px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground">{tx.addCancel}</button>
+            </span>
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" /> {tx.addVehicle}
+            </button>
+          )}
         </div>
       </motion.div>
 
@@ -285,7 +350,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
 
           {/* 포지션별 입력 */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-140table-fixed text-sm border-collapse">
+            <table className="w-full min-w-140 table-fixed text-sm border-collapse">
               <colgroup>
                 {["16%", "14%", "20%", "20%", "30%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />
@@ -301,7 +366,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
               <tbody>
                 {POS_ORDER.map((pos) => (
                   <tr key={pos} className="border-b border-border/40 text-center">
-                    <td className="px-2 py-1.5 font-mono font-bold text-primary whitespace-nowrap">{pos}</td>
+                    <td className="px-2 py-1.5 text-center font-mono font-bold text-primary whitespace-nowrap">{pos}</td>
                     <td className="px-2 py-1.5 font-mono text-xs text-muted-foreground">{targetPsi(pos)}</td>
                     <td className="px-2 py-1.5">
                       <input
