@@ -9,13 +9,12 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useAuth } from "@/auth/AuthProvider";
-import LoginCard from "@/auth/LoginCard";
 import TireDetailModal from "@/components/TireDetailModal";
 import { useLang } from "@/i18n";
 
@@ -29,6 +28,8 @@ const TX = {
     addOk: "차량 추가 완료",
     addDup: "이미 존재하는 차량입니다.",
     addFail: "차량 추가 실패: ",
+    needLogin: "점검 입력·수정은 로그인이 필요합니다.",
+    loginBtn: "로그인",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
     inspDate: "점검일",
@@ -83,6 +84,8 @@ const TX = {
     addOk: "Unit ditambahkan",
     addDup: "Unit sudah ada.",
     addFail: "Gagal menambah unit: ",
+    needLogin: "Input·edit inspeksi memerlukan login.",
+    loginBtn: "Masuk",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
     inspDate: "Tgl inspeksi",
@@ -142,7 +145,7 @@ interface FormCell {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void }) {
+export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void; onLoginClick?: () => void }) {
   const { lang } = useLang();
   const tx = TX[lang];
   const { user } = useAuth();
@@ -438,7 +441,15 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
           </div>
           </>
           ) : (
-            <LoginCard onSuccess={onSaved} />
+            <div className="flex flex-col items-center gap-3 py-8">
+              <p className="text-sm text-muted-foreground">{tx.needLogin}</p>
+              <button
+                onClick={onLoginClick}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+              >
+                <LogIn className="w-4 h-4" /> {tx.loginBtn}
+              </button>
+            </div>
           ))}
         </div>
       </motion.div>

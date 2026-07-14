@@ -12,7 +12,7 @@ import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
-import { LogOut, LogIn, X, ChevronDown } from "lucide-react";
+import { LogOut, LogIn, X, ChevronDown, Menu } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -45,6 +45,7 @@ export default function Index() {
   const { user, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [mobileMenu, setMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("dash");
   // 전체 데이터는 Supabase에서 로드. version 변경 시 차트 탭 재렌더.
   const [dataVersion, setDataVersion] = useState(0);
@@ -113,20 +114,29 @@ export default function Index() {
 
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-5">
-          {/* 좌: 로고 + TMS 제목 (클릭 시 홈=대시보드로 이동) */}
-          <button
-            onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setOpenMenu(null); }}
-            title="홈"
-            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
-          >
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="h-6 w-auto shrink-0" />
-            <span className="h-5 w-1 bg-border shrink-0" aria-hidden="true" />
-            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-primary leading-none shrink-0">TMS</h1>
-          </button>
+        <div className="w-full relative flex flex-row items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-4">
+          {/* 좌: 햄버거(모바일) / 로고+TMS(데스크톱, 클릭 시 홈) */}
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setMobileMenu((o) => !o)}
+              aria-label="menu"
+              className="sm:hidden p-2 -ml-1 rounded-lg text-primary hover:bg-muted/40 transition-colors"
+            >
+              {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setOpenMenu(null); }}
+              title="홈"
+              className="hidden sm:flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+            >
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="h-6 w-auto shrink-0" />
+              <span className="h-5 w-1 bg-border shrink-0" aria-hidden="true" />
+              <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-primary leading-none shrink-0">TMS</h1>
+            </button>
+          </div>
 
-          {/* 가운데: 그룹 내비게이션 (하위 탭은 드롭다운) */}
-          <nav className="flex flex-wrap justify-center gap-1 order-last w-full sm:order-none sm:w-auto">
+          {/* 가운데: 그룹 내비게이션 (데스크톱, 하위 탭은 드롭다운) */}
+          <nav className="hidden sm:flex flex-wrap justify-center gap-1">
             {GROUPS.map((g) => {
               const on = g.tabs.includes(activeTab);
               const single = g.tabs.length === 1;
@@ -209,6 +219,37 @@ export default function Index() {
             )}
           </div>
         </div>
+
+        {/* 모바일 햄버거 메뉴 (반응형) */}
+        {mobileMenu && (
+          <div className="sm:hidden border-t border-border bg-card px-4 py-2">
+            <button
+              onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setMobileMenu(false); }}
+              className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-left ${activeTab === "dash" ? "bg-primary/5 text-primary" : "text-foreground hover:bg-muted/40"}`}
+            >
+              <LayoutDashboard className="w-4 h-4" /> {t("tab.dash.label")}
+            </button>
+            {GROUPS.map((g) => (
+              <div key={g.id} className="mt-1">
+                <p className="px-3 pt-2 pb-0.5 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{t(`nav.g.${g.id}`)}</p>
+                {g.tabs.map((tid) => {
+                  const tab = TABS.find((t) => t.id === tid)!;
+                  const cur = activeTab === tid;
+                  return (
+                    <button
+                      key={tid}
+                      onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tid); setMobileMenu(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left ${cur ? "bg-primary/5 text-primary font-bold" : "text-foreground hover:bg-muted/40"}`}
+                    >
+                      {tab.icon}
+                      {t(`tab.${tid}.label`)}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* ── 메인 콘텐츠 ── */}
@@ -220,7 +261,7 @@ export default function Index() {
           {activeTab === "repl"     && <ReplacementTab key={dataVersion} onSerialClick={goToSerial} onVehicleClick={goToVehicle} />}
           {activeTab === "trend"    && <TrendTab key={dataVersion} onSerialClick={goToSerial} />}
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
-          {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
+          {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} onLoginClick={() => setShowLogin(true)} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
         </div>
       </main>

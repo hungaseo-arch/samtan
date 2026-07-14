@@ -254,7 +254,7 @@ export default function PressureTab() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* ── 1행: 권장 공기압 기준 + 상태 판정 기준 ── */}
+      {/* ── 1행: 권장 공기압 기준 + 공기압 이상 알림 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <motion.div variants={staggerItem}>
           <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
@@ -268,39 +268,6 @@ export default function PressureTab() {
                 </div>
                 <div className="pt-2 border-t border-border/60 text-xs font-mono text-muted-foreground">
                   {tx.position}: {s.pos}
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div variants={staggerItem}>
-          <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {JUDGE.map((j) => (
-              <div key={j.lvKey} className={`rounded-xl border p-4 text-center ${j.cls}`}>
-                <div className="flex items-baseline justify-center gap-2 mb-2">
-                  <span className="text-sm font-bold">{tx[j.lvKey]}</span>
-                  <span className="text-xs opacity-70">{tx[j.subKey]}</span>
-                </div>
-                <div className="text-xs font-mono mb-1">{tx[j.rangeKey]}</div>
-                <div className="text-xs opacity-80">{tx[j.descKey]}</div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
-
-      {/* ── 2행: 최근 공기압 점검 현황 + 공기압 이상 알림 ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <motion.div variants={staggerItem}>
-          <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
-          <div className="grid grid-cols-2 gap-3">
-            {kpis.map((k) => (
-              <div key={k.label} className={`rounded-xl border p-4 text-center ${k.cls}`}>
-                <div className="text-xs opacity-80 mb-1">{k.label} <span className="opacity-60">· {k.sub}</span></div>
-                <div className="font-mono text-2xl font-bold leading-none">
-                  {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
                 </div>
               </div>
             ))}
@@ -343,6 +310,39 @@ export default function PressureTab() {
             <p className="mt-3 text-xs text-muted-foreground">
               {tx.alertNote}
             </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* ── 2행: 최근 공기압 점검 현황 + 상태 판정 기준 ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
+          <div className="grid grid-cols-2 gap-3">
+            {kpis.map((k) => (
+              <div key={k.label} className={`rounded-xl border p-4 text-center ${k.cls}`}>
+                <div className="text-xs opacity-80 mb-1">{k.label} <span className="opacity-60">· {k.sub}</span></div>
+                <div className="font-mono text-2xl font-bold leading-none">
+                  {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        <motion.div variants={staggerItem}>
+          <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {JUDGE.map((j) => (
+              <div key={j.lvKey} className={`rounded-xl border p-4 text-center ${j.cls}`}>
+                <div className="flex items-baseline justify-center gap-2 mb-2">
+                  <span className="text-sm font-bold">{tx[j.lvKey]}</span>
+                  <span className="text-xs opacity-70">{tx[j.subKey]}</span>
+                </div>
+                <div className="text-xs font-mono mb-1">{tx[j.rangeKey]}</div>
+                <div className="text-xs opacity-80">{tx[j.descKey]}</div>
+              </div>
+            ))}
           </div>
         </motion.div>
       </div>
