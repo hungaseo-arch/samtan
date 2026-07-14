@@ -12,7 +12,7 @@ import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
-import { LogOut, LogIn, X } from "lucide-react";
+import { LogOut, LogIn, X, ChevronDown } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -44,6 +44,7 @@ export default function Index() {
   const { lang, setLang, t } = useLang();
   const { user, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("dash");
   // 전체 데이터는 Supabase에서 로드. version 변경 시 차트 탭 재렌더.
   const [dataVersion, setDataVersion] = useState(0);
@@ -78,7 +79,6 @@ export default function Index() {
   }, []);
 
   const active = TABS.find((t) => t.id === activeTab);
-  const activeGroup = GROUPS.find((g) => g.tabs.includes(activeTab)) ?? GROUPS[0];
 
   if (status !== "ready") {
     return (
@@ -166,57 +166,52 @@ export default function Index() {
           </div>
         </div>
 
-        {/* ── 1단: 상위 그룹 내비게이션 ── */}
+        {/* ── 그룹 내비게이션 (하위 탭은 드롭다운) ── */}
         <div className={CONTAINER}>
-          <nav className="overflow-x-auto">
-            <div className="flex gap-1 w-max mx-auto py-2">
-              {GROUPS.map((g) => {
-                const on = g.tabs.includes(activeTab);
-                return (
+          <nav className="flex flex-wrap justify-center gap-1 py-2">
+            {GROUPS.map((g) => {
+              const on = g.tabs.includes(activeTab);
+              const single = g.tabs.length === 1;
+              const selectTab = (tid: TabId) => { setFocusSerial(null); setFocusCh(null); setActiveTab(tid); setOpenMenu(null); };
+              return (
+                <div key={g.id} className="relative">
                   <button
-                    key={g.id}
-                    onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(g.tabs[0]); }}
-                    className={`px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                    onClick={() => (single ? selectTab(g.tabs[0]) : setOpenMenu(openMenu === g.id ? null : g.id))}
+                    className={`flex items-center gap-1 px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       on ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     }`}
                   >
                     {t(`nav.g.${g.id}`)}
+                    {!single && <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openMenu === g.id ? "rotate-180" : ""}`} />}
                   </button>
-                );
-              })}
-            </div>
+                  {!single && openMenu === g.id && (
+                    <>
+                      {/* 바깥 클릭 시 닫기 */}
+                      <div className="fixed inset-0 z-40" onClick={() => setOpenMenu(null)} />
+                      <div className="absolute left-1/2 -translate-x-1/2 mt-1 z-50 min-w-48 rounded-lg border border-border bg-card shadow-lg py-1">
+                        {g.tabs.map((tid) => {
+                          const tab = TABS.find((t) => t.id === tid)!;
+                          const cur = activeTab === tid;
+                          return (
+                            <button
+                              key={tid}
+                              onClick={() => selectTab(tid)}
+                              className={`w-full flex items-center gap-2 px-4 py-2 text-sm whitespace-nowrap text-left transition-colors ${
+                                cur ? "text-primary font-bold bg-primary/5" : "text-foreground hover:bg-muted/40"
+                              }`}
+                            >
+                              {tab.icon}
+                              {t(`tab.${tid}.label`)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </nav>
-        </div>
-
-        {/* ── 2단: 활성 그룹의 하위 탭 ── */}
-        <div className="border-t border-border/60 bg-muted/20">
-          <div className={CONTAINER}>
-            <nav className="overflow-x-auto">
-              <div className="flex gap-0 w-max mx-auto">
-                {activeGroup.tabs.map((tid) => {
-                  const tab = TABS.find((t) => t.id === tid)!;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tab.id); }}
-                      className={`
-                        flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold whitespace-nowrap
-                        border-b-2 transition-all duration-200
-                        ${activeTab === tab.id
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                        }
-                      `}
-                    >
-                      {tab.icon}
-                      <span className="hidden sm:inline">{t(`tab.${tab.id}.label`)}</span>
-                      <span className="sm:hidden">{tab.sub}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </nav>
-          </div>
         </div>
       </header>
 
