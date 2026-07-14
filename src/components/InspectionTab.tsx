@@ -298,7 +298,7 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
             <button
               key={u.ch}
               onClick={() => setSelCh(u.ch)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-mono font-bold border transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
                 selCh === u.ch
                   ? "bg-primary text-primary-foreground border-primary shadow-lg"
                   : "bg-muted/30 border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -316,21 +316,21 @@ export default function InspectionTab({ onSaved }: { onSaved?: () => void }) {
                 onKeyDown={(e) => { if (e.key === "Enter") handleAddVehicle(); if (e.key === "Escape") { setAdding(false); setNewCh(""); } }}
                 placeholder={tx.addPh}
                 autoFocus
-                className="w-24 px-2 py-1.5 rounded-lg border border-border text-sm font-mono"
+                className="w-24 px-2 py-1.5 rounded-lg border border-border text-xs font-mono"
               />
               <button
                 onClick={handleAddVehicle}
                 disabled={addBusy || !newCh.trim()}
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold disabled:opacity-50"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
               >
                 {addBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{tx.addBtn}
               </button>
-              <button onClick={() => { setAdding(false); setNewCh(""); }} className="px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground">{tx.addCancel}</button>
+              <button onClick={() => { setAdding(false); setNewCh(""); }} className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground">{tx.addCancel}</button>
             </span>
           ) : (
             <button
               onClick={() => setAdding(true)}
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
             >
               <Plus className="w-3.5 h-3.5" /> {tx.addVehicle}
             </button>
