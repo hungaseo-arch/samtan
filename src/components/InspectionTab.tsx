@@ -30,6 +30,7 @@ const TX = {
     addFail: "차량 추가 실패: ",
     needLogin: "점검 입력·수정은 로그인이 필요합니다.",
     loginBtn: "로그인",
+    readOnly: "읽기 전용 권한입니다. 입력·수정은 staff/admin 계정이 필요합니다.",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
     inspDate: "점검일",
@@ -86,6 +87,7 @@ const TX = {
     addFail: "Gagal menambah unit: ",
     needLogin: "Input·edit inspeksi memerlukan login.",
     loginBtn: "Masuk",
+    readOnly: "Hanya baca. Input·edit memerlukan akun staff/admin.",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
     inspDate: "Tgl inspeksi",
@@ -148,7 +150,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void; onLoginClick?: () => void }) {
   const { lang } = useLang();
   const tx = TX[lang];
-  const { user } = useAuth();
+  const { user, canWrite, canDelete } = useAuth();
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
   const [date, setDate] = useState(todayISO());
   const [hm, setHm] = useState("");
@@ -311,8 +313,8 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
               CH {u.ch}
             </button>
           ))}
-          {/* 차량(CH) 추가 — 로그인 사용자만 */}
-          {user && (adding ? (
+          {/* 차량(CH) 추가 — 입력 권한(staff/admin)만 */}
+          {canWrite && (adding ? (
             <span className="flex items-center gap-1">
               <input
                 value={newCh}
@@ -352,7 +354,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
             <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${formOpen ? "" : "-rotate-90"}`} />
           </button>
 
-          {formOpen && (user ? (
+          {formOpen && (canWrite ? (
           <>
           {/* 회차 메타 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
@@ -440,6 +442,10 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
             </span>
           </div>
           </>
+          ) : user ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <p className="text-sm text-muted-foreground">{tx.readOnly}</p>
+            </div>
           ) : (
             <div className="flex flex-col items-center gap-3 py-8">
               <p className="text-sm text-muted-foreground">{tx.needLogin}</p>
@@ -541,7 +547,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
                       {meta.km != null && ` · KM ${meta.km.toLocaleString("ko-KR")}`}
                     </span>
                     <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{rows.length}{tx.countSuffix}</span>
-                    {user && (
+                    {canDelete && (
                       <button
                         onClick={() => handleDelete(d)}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"

@@ -6,6 +6,7 @@ import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
+import { useAuth } from "@/auth/AuthProvider";
 
 const TX = {
   ko: {
@@ -155,6 +156,7 @@ const STATUS_STYLE: Record<LifeRecord["status"], string> = {
 
 export default function LifeTab({ focusSerial }: { focusSerial?: string | null }) {
   const { lang } = useLang();
+  const { canDownload } = useAuth();
   const tx = TX[lang];
   const [lifeFilter, setLifeFilter] = useState<string>("ALL");
 
@@ -268,17 +270,20 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
               <option value="Spare">Spare</option>
               <option value="Not Install">Not Install</option>
             </select>
-            <button
-              onClick={exportExcel}
-              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {tx.excelDownload}
-            </button>
+            {/* 엑셀 다운로드 — staff/admin 권한만 */}
+            {canDownload && (
+              <button
+                onClick={exportExcel}
+                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                {tx.excelDownload}
+              </button>
+            )}
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full min-w-[760px] table-fixed text-xs border-collapse font-mono">
+          <table className="w-full min-w-190 table-fixed text-xs border-collapse font-mono">
             <colgroup>
               {["4%", "13%", "11%", "9%", "9%", "9%", "9%", "9%", "9%", "18%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />
