@@ -158,7 +158,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
   const [adding, setAdding] = useState(false);
   const [newCh, setNewCh] = useState("");
   const [addBusy, setAddBusy] = useState(false);
-  const [formOpen, setFormOpen] = useState(true); // 입력 폼 아코디언
+  const [formOpen, setFormOpen] = useState(false); // 입력 폼 아코디언 (기본 닫힘)
   const [detail, setDetail] = useState<number | null>(null); // 배치도 타이어 상세 모달(포지션 번호)
 
   const [history, setHistory] = useState<InspectionRow[]>([]);

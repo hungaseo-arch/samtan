@@ -50,7 +50,8 @@ export default function TireSchematic({ cells, onCellClick, caption }: Props) {
                 {AXLES.map((axle, ai) => (
                   <div key={ai} className="flex flex-row items-center justify-center gap-1 h-7">
                     <div className="flex flex-row gap-1">
-                      {[...axle.bot].reverse().map((p) => (
+                      {/* 좌측(R): 바깥쪽(Out) → 안쪽(In). 라벨(중앙)에 가까울수록 In */}
+                      {axle.bot.map((p) => (
                         <Cell key={p} pos={p} cells={cells} onCellClick={onCellClick} />
                       ))}
                     </div>
