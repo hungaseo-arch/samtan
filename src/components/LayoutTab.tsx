@@ -99,8 +99,8 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
     { name: "Head", sub: tx.primeMover, cls: "border-primary", labelCls: "text-primary", size: TMS_DATA.tire.size, isHead: true,
       axles: [
         { label: "①", steer: true, top: [1], bot: [2] },
-        { label: "②", top: [3, 4], bot: [6, 5] },
-        { label: "③", top: [7, 8], bot: [10, 9] },
+        { label: "②", top: [3, 4], bot: [5, 6] },
+        { label: "③", top: [7, 8], bot: [9, 10] },
       ],
     },
     { name: "Trailer 1", sub: tx.trailer1, cls: "border-primary", labelCls: "text-primary", size: "12.00R24", isHead: false,

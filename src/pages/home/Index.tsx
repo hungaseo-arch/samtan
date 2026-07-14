@@ -129,8 +129,8 @@ export default function Index() {
               title="홈"
               className="hidden sm:flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
             >
-              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="h-6 w-auto shrink-0" />
-              <span className="h-5 w-1 bg-border shrink-0" aria-hidden="true" />
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="hidden lg:block h-6 w-auto shrink-0" />
+              <span className="hidden lg:block h-5 w-1 bg-border shrink-0" aria-hidden="true" />
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-primary leading-none shrink-0">TMS</h1>
             </button>
           </div>
