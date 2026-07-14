@@ -1,7 +1,9 @@
 // @section: i18n
 // 경량 다국어(한국어/인도네시아어) — Context + localStorage 영속화.
 // 사용: const { lang, setLang, t } = useLang();  t("tab.dash.label")
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+// Provider 컴포넌트는 react-refresh(only-export-components) 규칙 때문에 별도 파일(./provider)로 분리.
+// 이 파일은 상수·타입·훅(비컴포넌트)만 export 한다.
+import { createContext, useContext } from "react";
 
 export type Lang = "ko" | "id";
 
@@ -66,39 +68,24 @@ const ID: Dict = {
   "auth.failed": "Gagal masuk — periksa email/kata sandi.",
 };
 
-const DICT: Record<Lang, Dict> = { ko: KO, id: ID };
-const STORAGE_KEY = "tms.lang";
+export const DICT: Record<Lang, Dict> = { ko: KO, id: ID };
+export const STORAGE_KEY = "tms.lang";
 
-function readStored(): Lang {
+export function readStored(): Lang {
   if (typeof window === "undefined") return "ko";
   const v = window.localStorage.getItem(STORAGE_KEY);
   return v === "id" || v === "ko" ? v : "ko";
 }
 
-interface LangCtx {
+export interface LangCtx {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string) => string;
 }
 
-const Ctx = createContext<LangCtx | null>(null);
+export const Ctx = createContext<LangCtx | null>(null);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(readStored);
-
-  useEffect(() => {
-    if (typeof document !== "undefined") document.documentElement.lang = lang;
-  }, [lang]);
-
-  const setLang = useCallback((l: Lang) => {
-    setLangState(l);
-    if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, l);
-  }, []);
-
-  const t = useCallback((key: string) => DICT[lang][key] ?? DICT.ko[key] ?? key, [lang]);
-
-  return <Ctx.Provider value={{ lang, setLang, t }}>{children}</Ctx.Provider>;
-}
+// LanguageProvider 컴포넌트는 ./provider 로 이동 (react-refresh 규칙).
 
 export function useLang(): LangCtx {
   const c = useContext(Ctx);

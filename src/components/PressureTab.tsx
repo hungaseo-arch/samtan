@@ -408,7 +408,7 @@ export default function PressureTab() {
             <span className="text-sm font-bold">{tx.secSymTitle}</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] table-fixed text-sm border-collapse">
+            <table className="w-full min-w-140 table-fixed text-sm border-collapse">
               <colgroup>
                 {["22%", "26%", "26%", "26%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />
