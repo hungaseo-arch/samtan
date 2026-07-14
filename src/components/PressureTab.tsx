@@ -314,13 +314,13 @@ export default function PressureTab() {
         </motion.div>
       </div>
 
-      {/* ── 2행: 최근 공기압 점검 현황 + 상태 판정 기준 ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <motion.div variants={staggerItem}>
+      {/* ── 2행: 최근 공기압 점검 현황 + 상태 판정 기준 (행 높이 맞춤) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <motion.div variants={staggerItem} className="flex flex-col">
           <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-fr">
             {kpis.map((k) => (
-              <div key={k.label} className={`rounded-xl border p-4 text-center ${k.cls}`}>
+              <div key={k.label} className={`rounded-xl border p-4 text-center flex flex-col justify-center ${k.cls}`}>
                 <div className="text-xs opacity-80 mb-1">{k.label} <span className="opacity-60">· {k.sub}</span></div>
                 <div className="font-mono text-2xl font-bold leading-none">
                   {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
@@ -330,11 +330,11 @@ export default function PressureTab() {
           </div>
         </motion.div>
 
-        <motion.div variants={staggerItem}>
+        <motion.div variants={staggerItem} className="flex flex-col">
           <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 auto-rows-fr">
             {JUDGE.map((j) => (
-              <div key={j.lvKey} className={`rounded-xl border p-4 text-center ${j.cls}`}>
+              <div key={j.lvKey} className={`rounded-xl border p-4 text-center flex flex-col justify-center ${j.cls}`}>
                 <div className="flex items-baseline justify-center gap-2 mb-2">
                   <span className="text-sm font-bold">{tx[j.lvKey]}</span>
                   <span className="text-xs opacity-70">{tx[j.subKey]}</span>
