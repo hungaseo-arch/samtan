@@ -12,9 +12,6 @@ import { useLang } from "@/i18n";
 
 const TX = {
   ko: {
-    bannerTitle: "타이어 공기압 관리",
-    bannerDesc1: "현장 관리자(Pengawas)용 공기압 점검 기준 · 절차 · 대응 참조 페이지입니다.",
-    bannerDesc2: "회차 점검 시 본 기준에 따라 측정·기록하고, 이상 발견 시 즉시 감독자에게 보고하십시오.",
 
     secStdTitle: "권장 공기압 기준",
     position: "포지션",
@@ -96,9 +93,6 @@ const TX = {
     sym4action: "동일 축 좌우 공기압 균등화",
   },
   id: {
-    bannerTitle: "Manajemen Tekanan Ban",
-    bannerDesc1: "Halaman referensi kriteria · prosedur · tindakan cek tekanan untuk Pengawas lapangan.",
-    bannerDesc2: "Saat inspeksi berkala, ukur·catat sesuai kriteria ini, dan segera lapor ke pengawas bila ada anomali.",
 
     secStdTitle: "Standar tekanan rekomendasi",
     position: "Posisi",

@@ -18,9 +18,6 @@ import { useLang } from "@/i18n";
 
 const TX = {
   ko: {
-    inputTitle: "점검 입력",
-    inputDesc:
-      "차량을 선택하고 점검일·가동시간·주행거리와 포지션별 공기압(psi)·트레드(mm)를 입력해 저장합니다. 저장 데이터는 Supabase에 보관되며, 동일 (차량·점검일·포지션)은 자동 갱신됩니다.",
     unitLabel: "차량(CH):",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
@@ -63,9 +60,6 @@ const TX = {
     confirmDelete: "점검 회차를 삭제하시겠습니까?",
   },
   id: {
-    inputTitle: "Input Inspeksi",
-    inputDesc:
-      "Pilih unit lalu masukkan tgl inspeksi·jam operasi·jarak tempuh dan tekanan(psi)·tapak(mm) per posisi untuk disimpan. Data tersimpan di Supabase, dan (unit·tgl inspeksi·posisi) yang sama diperbarui otomatis.",
     unitLabel: "Unit(CH):",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
