@@ -14,7 +14,7 @@
 -- ============================================================
 
 -- 편의: 현재 사용자의 role
-create or replace function public.current_role() returns text
+create or replace function public.app_role() returns text
   language sql stable
   set search_path = ''
 as $$ select coalesce(auth.jwt() -> 'app_metadata' ->> 'role', 'user') $$;
@@ -28,12 +28,12 @@ drop policy if exists "inspections write update" on public.inspections;
 drop policy if exists "inspections write delete" on public.inspections;
 
 create policy "inspections write insert" on public.inspections
-  for insert to authenticated with check (public.current_role() in ('staff','admin'));
+  for insert to authenticated with check (public.app_role() in ('staff','admin'));
 create policy "inspections write update" on public.inspections
-  for update to authenticated using (public.current_role() in ('staff','admin'))
-  with check (public.current_role() in ('staff','admin'));
+  for update to authenticated using (public.app_role() in ('staff','admin'))
+  with check (public.app_role() in ('staff','admin'));
 create policy "inspections write delete" on public.inspections
-  for delete to authenticated using (public.current_role() = 'admin');
+  for delete to authenticated using (public.app_role() = 'admin');
 
 -- ── 참조 데이터(6개 테이블): 동일 정책 ──
 do $$
@@ -48,8 +48,8 @@ begin
     execute format('drop policy if exists "%s write update" on public.%I', t, t);
     execute format('drop policy if exists "%s write delete" on public.%I', t, t);
 
-    execute format('create policy "%s write insert" on public.%I for insert to authenticated with check (public.current_role() in (''staff'',''admin''))', t, t);
-    execute format('create policy "%s write update" on public.%I for update to authenticated using (public.current_role() in (''staff'',''admin'')) with check (public.current_role() in (''staff'',''admin''))', t, t);
-    execute format('create policy "%s write delete" on public.%I for delete to authenticated using (public.current_role() = ''admin'')', t, t);
+    execute format('create policy "%s write insert" on public.%I for insert to authenticated with check (public.app_role() in (''staff'',''admin''))', t, t);
+    execute format('create policy "%s write update" on public.%I for update to authenticated using (public.app_role() in (''staff'',''admin'')) with check (public.app_role() in (''staff'',''admin''))', t, t);
+    execute format('create policy "%s write delete" on public.%I for delete to authenticated using (public.app_role() = ''admin'')', t, t);
   end loop;
 end $$;
