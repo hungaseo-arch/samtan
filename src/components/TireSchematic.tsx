@@ -44,20 +44,21 @@ export default function TireSchematic({ cells, onCellClick, caption }: Props) {
             <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background px-2 text-xs font-black text-primary">
               Head
             </span>
+            {/* 시계방향 90° 회전 배치 — 축(①②③)은 위→아래, 각 축의 셀은 좌우(R | 라벨 | L). 셀·글자는 가로 유지 */}
             <div className="flex-1 flex items-center justify-center">
-              <div className="flex gap-3 items-center">
+              <div className="flex flex-col gap-2 items-center">
                 {AXLES.map((axle, ai) => (
-                  <div key={ai} className="flex flex-col items-center gap-1">
-                    <div className="flex flex-col gap-1">
-                      {axle.top.map((p) => (
+                  <div key={ai} className="flex flex-row items-center justify-center gap-1 h-7">
+                    <div className="flex flex-row gap-1">
+                      {[...axle.bot].reverse().map((p) => (
                         <Cell key={p} pos={p} cells={cells} onCellClick={onCellClick} />
                       ))}
                     </div>
-                    <div className="flex items-center justify-center h-5 text-base font-bold text-muted-foreground leading-none">
+                    <div className="flex items-center justify-center w-6 text-base font-bold text-muted-foreground leading-none">
                       {axle.label}
                     </div>
-                    <div className="flex flex-col gap-1">
-                      {axle.bot.map((p) => (
+                    <div className="flex flex-row gap-1">
+                      {[...axle.top].reverse().map((p) => (
                         <Cell key={p} pos={p} cells={cells} onCellClick={onCellClick} />
                       ))}
                     </div>
