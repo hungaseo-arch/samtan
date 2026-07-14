@@ -293,7 +293,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
 
   // 조회(이력)는 로그인 없이 가능. 데이터 CRUD(입력·저장·삭제·차량추가)는 로그인 사용자만.
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="hidden" className="space-y-6">
+    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
       {/* 차량 선택 */}
       <motion.div variants={staggerItem}>
         <div className="flex flex-wrap items-center gap-2">
