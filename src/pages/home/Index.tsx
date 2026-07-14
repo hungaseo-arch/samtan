@@ -30,8 +30,8 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
 ];
 
 // 상위 그룹(3~4개) → 하위 탭 배치. label은 i18n `nav.g.<id>`.
+// 대시보드(dash)는 '홈' 화면 — 로고 클릭으로 이동하며 그룹 탭에는 넣지 않음.
 const GROUPS: { id: string; tabs: TabId[] }[] = [
-  { id: "overview", tabs: ["dash"] },
   { id: "vehicle",  tabs: ["layout", "load"] },
   { id: "tire",     tabs: ["repl", "life"] },
   { id: "inspect",  tabs: ["input", "trend", "pressure"] },
@@ -78,7 +78,6 @@ export default function Index() {
     setActiveTab("layout");
   }, []);
 
-  const active = TABS.find((t) => t.id === activeTab);
 
   if (status !== "ready") {
     return (
@@ -115,60 +114,19 @@ export default function Index() {
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="w-full relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-5">
-          {/* 1단: 로고 + 상세페이지(현재 탭) 정보 (좌) */}
-          <div className="flex items-center gap-3 min-w-0">
-            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고" className="h-6 w-auto shrink-0" />
+          {/* 좌: 로고 + TMS 제목 (클릭 시 홈=대시보드로 이동) */}
+          <button
+            onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setOpenMenu(null); }}
+            title="홈"
+            className="flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
+          >
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="h-6 w-auto shrink-0" />
             <span className="h-5 w-1 bg-border shrink-0" aria-hidden="true" />
-            <span className="text-base font-bold text-primary leading-tight truncate min-w-0">{active ? t(`tab.${active.id}.label`) : ""}</span>
-          </div>
+            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-primary leading-none shrink-0">TMS</h1>
+          </button>
 
-          {/* 2단: 홈페이지 제목 (가로 화면 가운데) */}
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-extrabold tracking-tight text-primary leading-none whitespace-nowrap sm:absolute sm:left-1/2 sm:-translate-x-1/2 pointer-events-none">
-            Tire Monitoring System (TMS)
-          </h1>
-
-          {/* 3단: 언어 전환(KO/ID) + 로그인 정보 (우) */}
-          <div className="flex items-center gap-3">
-            {/* 언어 토글 (KO / ID) */}
-            <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label={t("lang.aria")}>
-              {LANGS.map((l) => (
-                <button
-                  key={l.code}
-                  onClick={() => setLang(l.code)}
-                  aria-pressed={lang === l.code}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
-                >
-                  <span className="text-sm leading-none">{l.flag}</span>
-                  {l.code.toUpperCase()}
-                </button>
-              ))}
-            </div>
-            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 / 비로그인 시 로그인 버튼 */}
-            {user ? (
-              <button
-                onClick={() => signOut()}
-                title={user.email ?? undefined}
-                className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
-                <span className="md:hidden">{t("auth.logout")}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                {t("auth.login")}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── 그룹 내비게이션 (하위 탭은 드롭다운) ── */}
-        <div className={CONTAINER}>
-          <nav className="flex flex-wrap justify-center gap-1 py-2">
+          {/* 가운데: 그룹 내비게이션 (하위 탭은 드롭다운) */}
+          <nav className="flex flex-wrap justify-center gap-1 order-last w-full sm:order-none sm:w-auto">
             {GROUPS.map((g) => {
               const on = g.tabs.includes(activeTab);
               const single = g.tabs.length === 1;
@@ -212,6 +170,44 @@ export default function Index() {
               );
             })}
           </nav>
+
+          {/* 우: 언어 전환(KO/ID) + 로그인 정보 */}
+          <div className="flex items-center gap-3">
+            {/* 언어 토글 (KO / ID) */}
+            <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label={t("lang.aria")}>
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLang(l.code)}
+                  aria-pressed={lang === l.code}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
+                >
+                  <span className="text-sm leading-none">{l.flag}</span>
+                  {l.code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 / 비로그인 시 로그인 버튼 */}
+            {user ? (
+              <button
+                onClick={() => signOut()}
+                title={user.email ?? undefined}
+                className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
+                <span className="md:hidden">{t("auth.logout")}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLogin(true)}
+                className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                {t("auth.login")}
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
