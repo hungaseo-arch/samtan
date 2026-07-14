@@ -12,7 +12,7 @@ import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
-import { LogOut, LogIn, X, ChevronDown, Menu } from "lucide-react";
+import { LogOut, X, ChevronDown, Menu } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -197,8 +197,8 @@ export default function Index() {
                 </button>
               ))}
             </div>
-            {/* 로그인 상태 — 로그인 시 이메일·로그아웃 / 비로그인 시 로그인 버튼 */}
-            {user ? (
+            {/* 로그인 시 이메일·로그아웃만 표시 (로그인은 점검 입력 탭의 버튼 → 모달) */}
+            {user && (
               <button
                 onClick={() => signOut()}
                 title={user.email ?? undefined}
@@ -207,14 +207,6 @@ export default function Index() {
                 <LogOut className="w-3.5 h-3.5" />
                 <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
                 <span className="md:hidden">{t("auth.logout")}</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="flex items-center gap-1 shrink-0 px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                {t("auth.login")}
               </button>
             )}
           </div>
