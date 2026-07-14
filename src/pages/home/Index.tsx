@@ -29,6 +29,14 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
   { id: "pressure", sub: "Pressure",    icon: <Gauge className="w-4 h-4" /> },
 ];
 
+// 상위 그룹(3~4개) → 하위 탭 배치. label은 i18n `nav.g.<id>`.
+const GROUPS: { id: string; tabs: TabId[] }[] = [
+  { id: "overview", tabs: ["dash"] },
+  { id: "vehicle",  tabs: ["layout", "load"] },
+  { id: "tire",     tabs: ["repl", "life"] },
+  { id: "inspect",  tabs: ["input", "trend", "pressure"] },
+];
+
 // 공통 컨테이너 폭 — 헤더·탭내비·배너·메인·푸터 5곳에서 재사용 (정렬 일치 보장)
 const CONTAINER = "max-w-6xl mx-auto px-6";
 
@@ -70,6 +78,7 @@ export default function Index() {
   }, []);
 
   const active = TABS.find((t) => t.id === activeTab);
+  const activeGroup = GROUPS.find((g) => g.tabs.includes(activeTab)) ?? GROUPS[0];
 
   if (status !== "ready") {
     return (
@@ -157,31 +166,57 @@ export default function Index() {
           </div>
         </div>
 
-        {/* ── 탭 내비게이션 (STI Corp 스타일: 언더라인) ── */}
+        {/* ── 1단: 상위 그룹 내비게이션 ── */}
         <div className={CONTAINER}>
-          {/* overflow 시에도 첫 탭(대시보드)이 잘리지 않도록 내부 래퍼를 w-max mx-auto로 (justify-center + overflow 클리핑 회피) */}
           <nav className="overflow-x-auto">
-            <div className="flex gap-0 w-max mx-auto">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tab.id); }}
-                  className={`
-                    flex items-center gap-1.5 px-5 py-3 text-sm font-semibold whitespace-nowrap
-                    border-b-2 transition-all duration-200
-                    ${activeTab === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                    }
-                  `}
-                >
-                  {tab.icon}
-                  <span className="hidden sm:inline">{t(`tab.${tab.id}.label`)}</span>
-                  <span className="sm:hidden">{tab.sub}</span>
-                </button>
-              ))}
+            <div className="flex gap-1 w-max mx-auto py-2">
+              {GROUPS.map((g) => {
+                const on = g.tabs.includes(activeTab);
+                return (
+                  <button
+                    key={g.id}
+                    onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(g.tabs[0]); }}
+                    className={`px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
+                      on ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    {t(`nav.g.${g.id}`)}
+                  </button>
+                );
+              })}
             </div>
           </nav>
+        </div>
+
+        {/* ── 2단: 활성 그룹의 하위 탭 ── */}
+        <div className="border-t border-border/60 bg-muted/20">
+          <div className={CONTAINER}>
+            <nav className="overflow-x-auto">
+              <div className="flex gap-0 w-max mx-auto">
+                {activeGroup.tabs.map((tid) => {
+                  const tab = TABS.find((t) => t.id === tid)!;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tab.id); }}
+                      className={`
+                        flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold whitespace-nowrap
+                        border-b-2 transition-all duration-200
+                        ${activeTab === tab.id
+                          ? "border-primary text-primary"
+                          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                        }
+                      `}
+                    >
+                      {tab.icon}
+                      <span className="hidden sm:inline">{t(`tab.${tab.id}.label`)}</span>
+                      <span className="sm:hidden">{tab.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </nav>
+          </div>
         </div>
       </header>
 
