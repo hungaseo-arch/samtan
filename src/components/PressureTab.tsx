@@ -254,13 +254,13 @@ export default function PressureTab() {
   return (
     <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
 
-      {/* ── 1행: 권장 공기압 기준 + 공기압 이상 알림 ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        <motion.div variants={staggerItem}>
+      {/* ── 1행: 권장 공기압 기준 + 공기압 이상 알림 (행 높이 맞춤) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <motion.div variants={staggerItem} className="flex flex-col">
           <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 auto-rows-fr">
             {PRESSURE_STD.map((s) => (
-              <div key={s.key} className="rounded-xl border border-border bg-card p-4 text-center">
+              <div key={s.key} className="rounded-xl border border-border bg-card p-4 text-center flex flex-col justify-center">
                 <div className="text-sm font-bold text-foreground">{tx[s.key]}</div>
                 <div className="text-xs text-muted-foreground">{s.sub}</div>
                 <div className="font-mono text-2xl font-bold text-primary leading-none my-2">
@@ -274,9 +274,9 @@ export default function PressureTab() {
           </div>
         </motion.div>
 
-        <motion.div variants={staggerItem}>
+        <motion.div variants={staggerItem} className="flex flex-col">
           <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-yellow-500" />} ko={tx.alertTitle} />
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="rounded-xl border border-border bg-card p-5 flex-1">
             <div className="flex items-center justify-end mb-2">
               <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alerts.length}{tx.alertCount}</span>
             </div>
