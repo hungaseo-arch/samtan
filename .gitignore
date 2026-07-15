@@ -97,6 +97,9 @@ cypress/downloads/
 Thumbs.db
 .node_repl_history
 
+# --- Agent tooling (may contain credentials in permission rules) ---
+.claude/
+
 # --- Uploaded Files ---
 uploaded_files/
 
