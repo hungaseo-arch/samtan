@@ -20,10 +20,11 @@ const STATUS_STYLE: Record<TireStatus, string> = {
 };
 
 // Head 축 배열 (LayoutTab.LAYOUT[0].axles 와 동일 물리 배치)
+// top = L측(바깥→안), bot = R측(안→바깥)
 const AXLES: { label: string; top: number[]; bot: number[] }[] = [
   { label: "①", top: [1], bot: [2] },
-  { label: "②", top: [3, 4], bot: [6, 5] },
-  { label: "③", top: [7, 8], bot: [10, 9] },
+  { label: "②", top: [3, 4], bot: [5, 6] },
+  { label: "③", top: [7, 8], bot: [9, 10] },
 ];
 
 interface Props {
@@ -44,14 +45,14 @@ export default function TireSchematic({ cells, onCellClick, caption }: Props) {
             <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background px-2 text-xs font-black text-primary">
               Head
             </span>
-            {/* 시계방향 90° 회전 배치 — 축(①②③)은 위→아래, 각 축의 셀은 좌우(R | 라벨 | L). 셀·글자는 가로 유지 */}
+            {/* Head를 위로 둔 평면도 — 축(①②③)은 위→아래, 각 축의 셀은 좌우(L | 라벨 | R). 셀·글자는 가로 유지 */}
             <div className="flex-1 flex items-center justify-center">
               <div className="flex flex-col gap-2 items-center">
                 {AXLES.map((axle, ai) => (
                   <div key={ai} className="flex flex-row items-center justify-center gap-1 h-7">
                     <div className="flex flex-row gap-1">
-                      {/* 좌측(R): 바깥쪽(Out) → 안쪽(In). 라벨(중앙)에 가까울수록 In */}
-                      {axle.bot.map((p) => (
+                      {/* 좌측(L): 바깥쪽(Out) → 안쪽(In). 라벨(중앙)에 가까울수록 In */}
+                      {axle.top.map((p) => (
                         <Cell key={p} pos={p} cells={cells} onCellClick={onCellClick} />
                       ))}
                     </div>
@@ -59,7 +60,8 @@ export default function TireSchematic({ cells, onCellClick, caption }: Props) {
                       {axle.label}
                     </div>
                     <div className="flex flex-row gap-1">
-                      {[...axle.top].reverse().map((p) => (
+                      {/* 우측(R): 안쪽(In) → 바깥쪽(Out) */}
+                      {axle.bot.map((p) => (
                         <Cell key={p} pos={p} cells={cells} onCellClick={onCellClick} />
                       ))}
                     </div>

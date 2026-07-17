@@ -96,11 +96,12 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
   const u = unitByCh(selCh);
 
   const LAYOUT = [
+    // Head를 왼쪽에 둔 평면도 — top = R측(바깥→안), bot = L측(안→바깥). 축 레이블에 가까울수록 In
     { name: "Head", sub: tx.primeMover, cls: "border-primary", labelCls: "text-primary", size: TMS_DATA.tire.size, isHead: true,
       axles: [
-        { label: "①", steer: true, top: [1], bot: [2] },
-        { label: "②", top: [3, 4], bot: [5, 6] },
-        { label: "③", top: [7, 8], bot: [9, 10] },
+        { label: "①", steer: true, top: [2], bot: [1] },
+        { label: "②", top: [6, 5], bot: [4, 3] },
+        { label: "③", top: [10, 9], bot: [8, 7] },
       ],
     },
     { name: "Trailer 1", sub: tx.trailer1, cls: "border-primary", labelCls: "text-primary", size: "12.00R24", isHead: false,
