@@ -36,8 +36,11 @@ const TX = {
     inspDate: "점검일",
     hmLabel: "HM (가동시간)",
     kmLabel: "KM (주행거리)",
+    driverLabel: "차량 운전자",
     hmPh: "예: 2565.4",
     kmPh: "예: 736453",
+    driverPh: "예: 홍길동",
+    driverShort: "운전자",
     colPos: "포지션",
     colTarget: "권장압",
     colPressure: "공기압 (psi)",
@@ -93,8 +96,11 @@ const TX = {
     inspDate: "Tgl inspeksi",
     hmLabel: "HM (Jam operasi)",
     kmLabel: "KM (Jarak tempuh)",
+    driverLabel: "Pengemudi unit",
     hmPh: "cth: 2565.4",
     kmPh: "cth: 736453",
+    driverPh: "cth: Budi",
+    driverShort: "Pengemudi",
     colPos: "Posisi",
     colTarget: "Rekomendasi",
     colPressure: "Tekanan (psi)",
@@ -155,6 +161,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
   const [date, setDate] = useState(todayISO());
   const [hm, setHm] = useState("");
   const [km, setKm] = useState("");
+  const [driver, setDriver] = useState("");
   const [cells, setCells] = useState<Record<string, FormCell>>({});
   const [saving, setSaving] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -223,6 +230,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
       inspection_date: date,
       hm: numOrNull(hm),
       km: numOrNull(km),
+      driver: driver.trim() || null,
       pos,
       serial: cells[pos]?.serial?.trim() || null,
       pressure: numOrNull(cells[pos]?.pressure ?? ""),
@@ -357,7 +365,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
           {formOpen && (canWrite ? (
           <>
           {/* 회차 메타 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <Field label={tx.inspDate}>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT_CLS} />
             </Field>
@@ -366,6 +374,9 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
             </Field>
             <Field label={tx.kmLabel}>
               <input type="number" inputMode="decimal" value={km} onChange={(e) => setKm(e.target.value)} placeholder={tx.kmPh} className={INPUT_CLS} />
+            </Field>
+            <Field label={tx.driverLabel}>
+              <input type="text" value={driver} onChange={(e) => setDriver(e.target.value)} placeholder={tx.driverPh} className={INPUT_CLS} />
             </Field>
           </div>
 
@@ -543,8 +554,11 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
                   <div className="flex items-center gap-2 bg-muted/30 px-3 py-2">
                     <span className="font-mono text-sm font-bold text-primary">{d}</span>
                     <span className="text-xs text-muted-foreground">
-                      {meta.hm != null && `HM ${meta.hm.toLocaleString("ko-KR")}`}
-                      {meta.km != null && ` · KM ${meta.km.toLocaleString("ko-KR")}`}
+                      {[
+                        meta.hm != null && `HM ${meta.hm.toLocaleString("ko-KR")}`,
+                        meta.km != null && `KM ${meta.km.toLocaleString("ko-KR")}`,
+                        meta.driver && `${tx.driverShort} ${meta.driver}`,
+                      ].filter(Boolean).join(" · ")}
                     </span>
                     <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{rows.length}{tx.countSuffix}</span>
                     {canDelete && (

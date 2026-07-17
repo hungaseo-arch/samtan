@@ -8,6 +8,7 @@ export interface InspectionRow {
   inspection_date: string; // YYYY-MM-DD
   hm: number | null;
   km: number | null;
+  driver: string | null; // 회차 메타 — 같은 (ch, 점검일) 행에 동일 값
   pos: string;
   serial: string | null;
   pressure: number | null; // psi (null = N/A / 미측정)
