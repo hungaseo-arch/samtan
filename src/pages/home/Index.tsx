@@ -12,7 +12,8 @@ import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
-import { LogOut, X, ChevronDown, Menu } from "lucide-react";
+import AdminUsersModal from "@/components/AdminUsersModal";
+import { LogOut, X, ChevronDown, Menu, ShieldCheck } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -49,7 +50,8 @@ const ROLE_BADGE_BG: Record<Role, string> = {
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, role, signOut } = useAuth();
+  const { user, role, isAdmin, signOut } = useAuth();
+  const [showUsers, setShowUsers] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -214,6 +216,17 @@ export default function Index() {
                 {t(`role.${role}`)}
               </span>
             )}
+            {/* 사용자 관리 — admin 에게만 노출(실제 권한 검사는 Edge Function) */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowUsers(true)}
+                title={t("admin.users")}
+                aria-label={t("admin.users")}
+                className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ShieldCheck className="w-4 h-4" />
+              </button>
+            )}
             {user && (
               <button
                 onClick={() => signOut()}
@@ -309,6 +322,9 @@ export default function Index() {
           </div>
         </div>
       )}
+
+      {/* ── 사용자 관리 모달 (admin 전용) ── */}
+      {showUsers && isAdmin && <AdminUsersModal onClose={() => setShowUsers(false)} />}
     </div>
   );
 }
