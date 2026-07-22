@@ -9,7 +9,7 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn, Lock as LockIcon } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn, Lock as LockIcon, UserRound } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
@@ -42,6 +42,8 @@ const TX = {
     kmPh: "예: 736453",
     driverPh: "예: 홍길동",
     driverShort: "운전자",
+    uploaderShort: "입력자",
+    editorShort: "수정",
     colPos: "포지션",
     colTarget: "권장압",
     colPressure: "공기압 (psi)",
@@ -102,6 +104,8 @@ const TX = {
     kmPh: "cth: 736453",
     driverPh: "cth: Budi",
     driverShort: "Pengemudi",
+    uploaderShort: "Diinput oleh",
+    editorShort: "Diubah",
     colPos: "Posisi",
     colTarget: "Rekomendasi",
     colPressure: "Tekanan (psi)",
@@ -563,6 +567,23 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
                         meta.driver && `${tx.driverShort} ${meta.driver}`,
                       ].filter(Boolean).join(" · ")}
                     </span>
+                    {/* 입력자(감사 추적) — 0009 이전 데이터는 값이 없어 표시하지 않는다 */}
+                    {meta.created_by_email && (
+                      <span
+                        title={
+                          meta.updated_by_email && meta.updated_by_email !== meta.created_by_email
+                            ? `${tx.editorShort}: ${meta.updated_by_email}`
+                            : undefined
+                        }
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+                      >
+                        <UserRound className="w-3 h-3 shrink-0" />
+                        {tx.uploaderShort} {meta.created_by_email}
+                        {meta.updated_by_email && meta.updated_by_email !== meta.created_by_email && (
+                          <span className="opacity-70">({tx.editorShort} {meta.updated_by_email})</span>
+                        )}
+                      </span>
+                    )}
                     <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{rows.length}{tx.countSuffix}</span>
                     {canDelete && (
                       <button

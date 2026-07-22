@@ -16,6 +16,11 @@ export interface InspectionRow {
   remark: string | null;
   created_at?: string;
   updated_at?: string;
+  // 감사 추적(0009) — 트리거가 JWT에서 채우므로 저장 시 보내지 않는다(보내도 무시됨).
+  created_by?: string | null;
+  updated_by?: string | null;
+  created_by_email?: string | null;
+  updated_by_email?: string | null;
 }
 
 const TABLE = "inspections";
