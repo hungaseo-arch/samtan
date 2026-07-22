@@ -100,6 +100,9 @@ Thumbs.db
 # --- Agent tooling (may contain credentials in permission rules) ---
 .claude/
 
+# --- Supabase CLI 작업 파일 (프로젝트 ref 등 로컬 상태) ---
+supabase/.temp/
+
 # --- Uploaded Files ---
 uploaded_files/
 
