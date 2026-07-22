@@ -51,7 +51,21 @@ export function setUserRole(userId: string, role: Role): Promise<{ ok: true }> {
   return call({ action: "setRole", userId, role });
 }
 
-/** 초대 메일 발송 + 역할 부여. */
+/**
+ * 초대 메일 발송 + 역할 부여.
+ * redirectTo: 초대 수락 후 돌아올 주소. 현재 앱 주소를 그대로 넘겨 dev(8080)·배포(gh-pages)
+ *   양쪽에서 동작하게 한다. 지정하지 않으면 Supabase 의 Site URL 로 가버린다.
+ *   ⚠ 이 주소는 Supabase 대시보드의 Redirect URLs 허용목록에 있어야 적용된다.
+ */
 export function inviteUser(email: string, role: Role): Promise<{ ok: true; userId: string | null }> {
-  return call({ action: "invite", email, role });
+  const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  return call({ action: "invite", email, role, redirectTo });
+}
+
+/**
+ * 계정 삭제(되돌릴 수 없음). 자기 자신은 서버에서 거부(self_delete).
+ * 이 사용자가 입력한 점검 데이터는 남으며, 기록된 입력자 이메일도 그대로 보존된다.
+ */
+export function deleteUser(userId: string): Promise<{ ok: true }> {
+  return call({ action: "delete", userId });
 }

@@ -55,13 +55,13 @@ Deno.serve(async (req) => {
   // 3) 여기서부터 service_role 사용 (RLS 우회 — admin 확인 이후에만).
   const admin = createClient(url, service, { auth: { persistSession: false } });
 
-  let body: { action?: string; email?: string; userId?: string; role?: string };
+  let body: { action?: string; email?: string; userId?: string; role?: string; redirectTo?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
-  const { action, email, userId, role } = body;
+  const { action, email, userId, role, redirectTo } = body;
 
   if (action === "list") {
     const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -90,7 +90,12 @@ Deno.serve(async (req) => {
 
   if (action === "invite") {
     if (!email || !ROLES.includes(role as Role)) return json({ error: "invalid_args" }, 400);
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(email);
+    // redirectTo 를 주지 않으면 대시보드의 Site URL 로 돌아간다(기본 localhost:3000).
+    // 이 주소는 Supabase Redirect URLs 허용목록에 있어야 실제로 적용된다.
+    const { data, error } = await admin.auth.admin.inviteUserByEmail(
+      email,
+      redirectTo ? { redirectTo } : undefined,
+    );
     if (error) return json({ error: error.message }, 500);
     // 초대 메일 발송 후 역할 부여 (invite 호출은 app_metadata 를 받지 않는다).
     if (data.user && role !== "user") {
@@ -100,6 +105,15 @@ Deno.serve(async (req) => {
       if (rErr) return json({ error: rErr.message }, 500);
     }
     return json({ ok: true, userId: data.user?.id ?? null });
+  }
+
+  if (action === "delete") {
+    if (!userId) return json({ error: "invalid_args" }, 400);
+    // 자기 자신은 지울 수 없다 — 마지막 admin 이 사라지면 관리 화면에 아무도 못 들어간다.
+    if (userId === me.user.id) return json({ error: "self_delete" }, 400);
+    const { error } = await admin.auth.admin.deleteUser(userId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
   }
 
   return json({ error: "unknown_action" }, 400);
