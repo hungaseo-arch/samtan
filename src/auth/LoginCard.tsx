@@ -5,12 +5,24 @@ import { useLang } from "@/i18n";
 import { LogIn, Loader2 } from "lucide-react";
 
 export default function LoginCard({ onSuccess, heading, className }: { onSuccess?: () => void; heading?: string; className?: string }) {
-  const { signIn } = useAuth();
+  const { signIn, sendPasswordReset } = useAuth();
   const { t } = useLang();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const handleReset = async () => {
+    const to = email.trim();
+    setErr(""); setNote("");
+    if (!to) { setErr(t("pw.resetNeedEmail")); return; }
+    setBusy(true);
+    const { error } = await sendPasswordReset(to);
+    setBusy(false);
+    if (error) setErr(error);
+    else setNote(t("pw.resetSent"));
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +65,7 @@ export default function LoginCard({ onSuccess, heading, className }: { onSuccess
           />
         </div>
         {err && <p className="text-xs text-destructive font-semibold">{err}</p>}
+        {note && <p className="text-xs text-primary font-semibold">{note}</p>}
         <button
           type="submit"
           disabled={busy}
@@ -60,6 +73,15 @@ export default function LoginCard({ onSuccess, heading, className }: { onSuccess
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <LogIn className="w-4 h-4" />}
           {busy ? t("auth.signingIn") : t("auth.signIn")}
+        </button>
+        {/* 비밀번호 재설정 — 입력된 이메일로 메일 발송 */}
+        <button
+          type="button"
+          onClick={handleReset}
+          disabled={busy}
+          className="w-full text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-60"
+        >
+          {t("pw.forgot")}
         </button>
       </form>
     </div>
