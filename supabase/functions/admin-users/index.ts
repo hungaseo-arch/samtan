@@ -7,13 +7,18 @@
 //   서버 측 시크릿으로 두고 이 함수에서만 사용한다.
 //
 // 요청: POST { action: "list" }
-//            { action: "invite",  email, role }
+//            { action: "create",  email, role, password? }
 //            { action: "setRole", userId, role }
+//            { action: "delete",  userId }
 // 인증: Authorization: Bearer <호출자 JWT> — app_metadata.role === "admin" 이어야 함.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 type Role = "admin" | "staff" | "user";
 const ROLES: Role[] = ["admin", "staff", "user"];
+
+// 관리자가 계정을 만들 때 부여하는 공통 초기 비밀번호.
+// 공유값이므로 첫 로그인 시 변경을 강제한다(user_metadata.must_change_password).
+const DEFAULT_PASSWORD = "Ascendo123";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -55,13 +60,13 @@ Deno.serve(async (req) => {
   // 3) 여기서부터 service_role 사용 (RLS 우회 — admin 확인 이후에만).
   const admin = createClient(url, service, { auth: { persistSession: false } });
 
-  let body: { action?: string; email?: string; userId?: string; role?: string; redirectTo?: string };
+  let body: { action?: string; email?: string; userId?: string; role?: string; password?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
-  const { action, email, userId, role, redirectTo } = body;
+  const { action, email, userId, role, password } = body;
 
   if (action === "list") {
     const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -88,22 +93,19 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  if (action === "invite") {
+  if (action === "create") {
     if (!email || !ROLES.includes(role as Role)) return json({ error: "invalid_args" }, 400);
-    // redirectTo 를 주지 않으면 대시보드의 Site URL 로 돌아간다(기본 localhost:3000).
-    // 이 주소는 Supabase Redirect URLs 허용목록에 있어야 실제로 적용된다.
-    const { data, error } = await admin.auth.admin.inviteUserByEmail(
+    // 메일 인증 없이 바로 쓰는 계정 — email_confirm 으로 확인 절차를 건너뛴다.
+    // 초기 비밀번호는 모든 계정이 공통이므로, 첫 로그인 때 변경하도록 표시를 남긴다.
+    // (user_metadata 는 본인이 수정할 수 있어야 하므로 app_metadata 가 아닌 여기에 둔다)
+    const { data, error } = await admin.auth.admin.createUser({
       email,
-      redirectTo ? { redirectTo } : undefined,
-    );
+      password: password || DEFAULT_PASSWORD,
+      email_confirm: true,
+      app_metadata: { role },
+      user_metadata: { must_change_password: true },
+    });
     if (error) return json({ error: error.message }, 500);
-    // 초대 메일 발송 후 역할 부여 (invite 호출은 app_metadata 를 받지 않는다).
-    if (data.user && role !== "user") {
-      const { error: rErr } = await admin.auth.admin.updateUserById(data.user.id, {
-        app_metadata: { role },
-      });
-      if (rErr) return json({ error: rErr.message }, 500);
-    }
     return json({ ok: true, userId: data.user?.id ?? null });
   }
 

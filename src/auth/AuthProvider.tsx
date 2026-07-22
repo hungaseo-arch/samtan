@@ -58,9 +58,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  /** 현재 로그인 세션의 비밀번호 변경(초대 수락 시 최초 설정도 동일 경로). */
+  /**
+   * 현재 로그인 세션의 비밀번호 변경(계정 생성 후 최초 설정도 동일 경로).
+   * 관리자가 만든 계정은 공통 초기 비밀번호를 쓰므로 변경과 동시에 강제 표시를 해제한다.
+   */
   const updatePassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password });
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { must_change_password: false },
+    });
     if (!error) setNeedsPassword(false);
     return { error: error?.message };
   };
@@ -74,6 +80,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const user = session?.user ?? null;
+  // 관리자가 만든 계정은 공통 초기 비밀번호를 쓰므로 첫 로그인 때 변경을 요구한다.
+  const mustChange = user?.user_metadata?.must_change_password === true;
   const raw = user?.app_metadata?.role;
   const role: Role = raw === "admin" || raw === "staff" ? raw : "user"; // 비로그인/미지정 = user(읽기)
   const canWrite = role === "admin" || role === "staff";
@@ -83,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={{
       user, loading, role, canWrite, canDelete, canDownload, isAdmin: role === "admin",
-      needsPassword, dismissNeedsPassword: () => setNeedsPassword(false),
+      needsPassword: needsPassword || mustChange,
+      dismissNeedsPassword: () => setNeedsPassword(false),
       signIn, signOut, updatePassword, sendPasswordReset,
     }}>
       {children}

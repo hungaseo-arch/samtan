@@ -51,15 +51,15 @@ export function setUserRole(userId: string, role: Role): Promise<{ ok: true }> {
   return call({ action: "setRole", userId, role });
 }
 
+/** 관리자가 계정 생성 시 부여하는 공통 초기 비밀번호(첫 로그인 때 변경을 요구한다). */
+export const INITIAL_PASSWORD = "Ascendo123";
+
 /**
- * 초대 메일 발송 + 역할 부여.
- * redirectTo: 초대 수락 후 돌아올 주소. 현재 앱 주소를 그대로 넘겨 dev(8080)·배포(gh-pages)
- *   양쪽에서 동작하게 한다. 지정하지 않으면 Supabase 의 Site URL 로 가버린다.
- *   ⚠ 이 주소는 Supabase 대시보드의 Redirect URLs 허용목록에 있어야 적용된다.
+ * 계정 직접 생성 — 메일 인증 절차 없이 바로 로그인 가능한 상태로 만든다.
+ * 비밀번호는 INITIAL_PASSWORD 로 시작하며, 첫 로그인 시 변경 화면이 뜬다.
  */
-export function inviteUser(email: string, role: Role): Promise<{ ok: true; userId: string | null }> {
-  const redirectTo = `${window.location.origin}${import.meta.env.BASE_URL}`;
-  return call({ action: "invite", email, role, redirectTo });
+export function createUser(email: string, role: Role): Promise<{ ok: true; userId: string | null }> {
+  return call({ action: "create", email, role });
 }
 
 /**

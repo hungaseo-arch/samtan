@@ -7,7 +7,7 @@ import { X, RefreshCw, Loader2, UserPlus, ShieldCheck, Trash2 } from "lucide-rea
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import type { Role } from "@/auth/AuthProvider";
-import { listUsers, setUserRole, inviteUser, deleteUser, type ManagedUser } from "@/api/adminUsers";
+import { listUsers, setUserRole, createUser, deleteUser, INITIAL_PASSWORD, type ManagedUser } from "@/api/adminUsers";
 import { friendlyAuthError } from "@/lib/authErrors";
 
 const TX = {
@@ -17,17 +17,19 @@ const TX = {
     colRole: "권한",
     colLastSignIn: "최근 로그인",
     never: "―",
-    pending: "초대 대기",
+    pending: "미확인",
     me: "나",
-    invite: "사용자 초대",
+    invite: "사용자 추가",
     invitePh: "이메일 주소",
-    inviteBtn: "초대",
-    inviteOk: "초대 메일을 보냈습니다",
+    inviteBtn: "추가",
+    inviteOk: "계정을 만들었습니다",
     cancel: "취소",
     roleChanged: "권한을 변경했습니다",
     loadFail: "목록을 불러오지 못했습니다: ",
     saveFail: "변경 실패: ",
-    inviteFail: "초대 실패: ",
+    inviteFail: "생성 실패: ",
+    initialPw: "초기 비밀번호",
+    initialPwNote: "첫 로그인 시 비밀번호 변경 화면이 표시됩니다.",
     selfDemote: "자신의 관리자 권한은 해제할 수 없습니다.",
     reloginNote: "권한 변경은 해당 사용자가 로그아웃 후 재로그인해야 적용됩니다.",
     empty: "사용자가 없습니다.",
@@ -44,17 +46,19 @@ const TX = {
     colRole: "Izin",
     colLastSignIn: "Masuk terakhir",
     never: "―",
-    pending: "Menunggu undangan",
+    pending: "Belum dikonfirmasi",
     me: "Saya",
-    invite: "Undang pengguna",
+    invite: "Tambah pengguna",
     invitePh: "Alamat email",
-    inviteBtn: "Undang",
-    inviteOk: "Email undangan terkirim",
+    inviteBtn: "Tambah",
+    inviteOk: "Akun dibuat",
     cancel: "Batal",
     roleChanged: "Izin diubah",
     loadFail: "Gagal memuat daftar: ",
     saveFail: "Gagal mengubah: ",
-    inviteFail: "Gagal mengundang: ",
+    inviteFail: "Gagal membuat: ",
+    initialPw: "Kata sandi awal",
+    initialPwNote: "Layar ubah kata sandi muncul saat login pertama.",
     selfDemote: "Anda tidak dapat mencabut izin admin sendiri.",
     reloginNote: "Perubahan izin berlaku setelah pengguna keluar dan masuk kembali.",
     empty: "Tidak ada pengguna.",
@@ -142,8 +146,8 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
     if (!email) return;
     setInviteBusy(true);
     try {
-      await inviteUser(email, newRole);
-      toast.success(`${tx.inviteOk} — ${email}`);
+      await createUser(email, newRole);
+      toast.success(`${tx.inviteOk} — ${email} · ${tx.initialPw}: ${INITIAL_PASSWORD}`);
       setNewEmail(""); setAdding(false);
       await load();
     } catch (e) {
@@ -220,6 +224,11 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
             >
               {tx.cancel}
             </button>
+            {/* 관리자가 본인에게 직접 전달해야 하므로 초기 비밀번호를 화면에 노출한다 */}
+            <p className="w-full text-[11px] text-muted-foreground">
+              {tx.initialPw}: <span className="font-mono font-bold text-foreground">{INITIAL_PASSWORD}</span>
+              {" · "}{tx.initialPwNote}
+            </p>
           </div>
         )}
 
