@@ -5,7 +5,8 @@ import { HEAD_MAP } from "@/data/tmsData";
 
 export class DuplicateVehicleError extends Error {}
 
-/** 새 차량(CH)과 표준 10개 포지션을 생성. 중복 시 DuplicateVehicleError. */
+/** 새 차량(CH)과 표준 10개 포지션을 생성. 중복 시 DuplicateVehicleError.
+ *  ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선 */
 export async function createVehicle(ch: string): Promise<void> {
   const c = ch.trim();
   if (!c) throw new Error("빈 차량 번호");

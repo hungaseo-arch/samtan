@@ -33,7 +33,8 @@ export async function listInspections(ch?: string): Promise<InspectionRow[]> {
   return (data ?? []) as InspectionRow[];
 }
 
-/** 한 회차(여러 포지션) 저장 — (ch, inspection_date, pos) 충돌 시 갱신(upsert). */
+/** 한 회차(여러 포지션) 저장 — (ch, inspection_date, pos) 충돌 시 갱신(upsert).
+ *  ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선 */
 export async function saveInspectionRound(
   rows: InspectionRow[]
 ): Promise<InspectionRow[]> {
@@ -45,7 +46,8 @@ export async function saveInspectionRound(
   return (data ?? []) as InspectionRow[];
 }
 
-/** 특정 차량의 특정 점검일 회차 전체 삭제. */
+/** 특정 차량의 특정 점검일 회차 전체 삭제.
+ *  ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선 */
 export async function deleteInspectionRound(
   ch: string,
   date: string
