@@ -14,21 +14,22 @@ const TX = {
     chVehicle: "차량",
     position: "포지션",
     install1: "1차 장착일",
-    serial1: "1차 시리얼",
     install2: "2차 장착일",
-    serial2: "2차 시리얼",
-    reason2: "2차 교체사유",
     install3: "3차 장착일",
-    serial3: "3차 시리얼",
-    reason3: "3차 교체사유",
     footnote1: "교체가 실제 있었던 (차량·포지션)만 표시합니다.",
     footnoteOriginal: "원본 타이어",
     footnoteReplaced: "교체 장착 타이어",
     footnote2: "교체사유는 직전 타이어가 내려간 사유(폐기 시 손상코드, 그 외 \"로테이션\")입니다.",
-    footnote3: "차량은 배치도로, 시리얼은 수명 DB로 이동하며, 손상코드를 클릭하면 설명 모달이 열립니다.",
+    footnote3: "차량은 배치도로 이동하고, 장착일을 클릭하면 시리얼·교체사유 상세가 열립니다.",
     serialTitle: "수명 DB 보기",
     vehicleTitle: "배치도 보기",
     codeTitle: "손상 코드",
+    detailTitle: "교체 상세",
+    stage: "차",
+    stageOriginal: "원본 타이어",
+    colSerial: "시리얼",
+    colReason: "교체사유",
+    colInstall: "장착일",
   },
   id: {
     title: "Riwayat Penggantian Ban",
@@ -37,23 +38,38 @@ const TX = {
     chVehicle: "Unit",
     position: "Posisi",
     install1: "Tgl pasang 1",
-    serial1: "Serial 1",
     install2: "Tgl pasang 2",
-    serial2: "Serial 2",
-    reason2: "Alasan ganti 2",
     install3: "Tgl pasang 3",
-    serial3: "Serial 3",
-    reason3: "Alasan ganti 3",
     footnote1: "Hanya menampilkan (Unit·Posisi) yang benar-benar diganti.",
     footnoteOriginal: "Ban asli",
     footnoteReplaced: "Ban pengganti",
     footnote2: "Alasan ganti adalah alasan ban sebelumnya dilepas (Kode kerusakan saat afkir, selainnya \"Rotasi\").",
-    footnote3: "Unit → Tata Letak, Serial → DB Umur, dan klik kode kerusakan untuk buka modal keterangan.",
+    footnote3: "Unit → Tata Letak. Klik tanggal pasang untuk melihat serial·alasan ganti.",
     serialTitle: "Lihat DB Umur",
     vehicleTitle: "Lihat Tata Letak",
     codeTitle: "Kode Kerusakan",
+    detailTitle: "Detail Penggantian",
+    stage: "",
+    stageOriginal: "Ban asli",
+    colSerial: "Serial",
+    colReason: "Alasan ganti",
+    colInstall: "Tgl pasang",
   },
 } as const;
+
+interface ReplStage {
+  date: string;
+  serial: string;
+  reason: { text: string; scrap: boolean };
+}
+interface ReplChain {
+  ch: string;
+  pos: string;
+  firstSerial: string | null;
+  firstInstall: string;
+  stages: ReplStage[];
+  lastDate: string;
+}
 
 export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   onSerialClick?: (serial: string) => void;
@@ -65,6 +81,8 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   const [showCodes, setShowCodes] = useState(false);
   const [hiCode, setHiCode] = useState<string | null>(null);
   const openCodes = (code: string | null) => { setHiCode(code); setShowCodes(true); };
+  // 교체 상세 모달 — 클릭한 (차량·포지션) 체인과 강조할 회차
+  const [detail, setDetail] = useState<{ chain: ReplChain; stageIdx: number } | null>(null);
 
   // 교체 이력을 (차량·포지션)별 체인으로 묶어 1차 → 2차 → 3차 … 단계 구성
   const reasonOf = (serial: string | null) => {
@@ -111,12 +129,13 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
             {TMS_DATA.repl.length}{tx.countSuffix}
           </span>
         </div>
+        {/* 가로 폭을 줄이기 위해 표에는 장착일까지만 두고, 시리얼·교체사유는 모달로 뺀다 */}
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] table-fixed text-sm border-collapse">
+          <table className="w-full table-fixed text-sm border-collapse">
             <colgroup>
               {(has3rd
-                ? ["7%", "6%", "9%", "13%", "9%", "13%", "10%", "9%", "13%", "11%"]
-                : ["9%", "9%", "13%", "19%", "13%", "19%", "18%"]
+                ? ["16%", "16%", "23%", "23%", "22%"]
+                : ["20%", "20%", "30%", "30%"]
               ).map((w, i) => (
                 <col key={i} style={{ width: w }} />
               ))}
@@ -124,8 +143,8 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
             <thead>
               <tr className="border-b border-border">
                 {(has3rd
-                  ? [tx.chVehicle, tx.position, tx.install1, tx.serial1, tx.install2, tx.serial2, tx.reason2, tx.install3, tx.serial3, tx.reason3]
-                  : [tx.chVehicle, tx.position, tx.install1, tx.serial1, tx.install2, tx.serial2, tx.reason2]
+                  ? [tx.chVehicle, tx.position, tx.install1, tx.install2, tx.install3]
+                  : [tx.chVehicle, tx.position, tx.install1, tx.install2]
                 ).map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
@@ -135,34 +154,28 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
             </thead>
             <tbody>
               {replChains.map((c, i) => {
-                const serialCell = (s: string | null) => s ? (
-                  <button className="text-primary hover:underline" title={`${s} · ${tx.serialTitle}`} onClick={() => onSerialClick?.(s)}>{s}</button>
-                ) : <span className="text-muted-foreground">−</span>;
-                const reasonCell = (r?: { text: string; scrap: boolean }) => !r ? <span className="text-muted-foreground/40">−</span> : (
-                  r.scrap
-                    ? <button className="text-destructive font-bold hover:underline" onClick={() => openCodes(r.text.split(" ")[0])}>{r.text}</button>
-                    : <span className="text-muted-foreground">{r.text}</span>
-                );
-                const s2 = c.stages[0];
-                const s3 = c.stages[1];
+                // 장착일 셀 — 클릭 시 해당 회차를 펼친 상세 모달을 연다.
+                const dateCell = (date: string | undefined, stageIdx: number) =>
+                  date && date !== "−" ? (
+                    <button
+                      className="font-mono text-xs text-foreground hover:text-primary hover:underline"
+                      title={tx.detailTitle}
+                      onClick={() => setDetail({ chain: c, stageIdx })}
+                    >
+                      {date}
+                    </button>
+                  ) : (
+                    <span className="text-muted-foreground">−</span>
+                  );
                 return (
                 <tr key={i} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
                   <td className="px-3 py-2 font-mono font-bold text-primary">
                     <button className="hover:underline" title={`CH ${c.ch} ${tx.vehicleTitle}`} onClick={() => onVehicleClick?.(c.ch)}>CH {c.ch}</button>
                   </td>
                   <td className="px-3 py-2 font-mono text-sm">{c.pos}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{c.firstInstall}</td>
-                  <td className="px-3 py-2 font-mono text-xs truncate">{serialCell(c.firstSerial)}</td>
-                  <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{s2?.date ?? "−"}</td>
-                  <td className="px-3 py-2 font-mono text-xs truncate">{serialCell(s2?.serial ?? null)}</td>
-                  <td className="px-3 py-2 text-xs">{reasonCell(s2?.reason)}</td>
-                  {has3rd && (
-                    <>
-                      <td className="px-3 py-2 font-mono text-xs text-muted-foreground">{s3?.date ?? "−"}</td>
-                      <td className="px-3 py-2 font-mono text-xs truncate">{serialCell(s3?.serial ?? null)}</td>
-                      <td className="px-3 py-2 text-xs">{reasonCell(s3?.reason)}</td>
-                    </>
-                  )}
+                  <td className="px-3 py-2">{dateCell(c.firstInstall, 0)}</td>
+                  <td className="px-3 py-2">{dateCell(c.stages[0]?.date, 1)}</td>
+                  {has3rd && <td className="px-3 py-2">{dateCell(c.stages[1]?.date, 2)}</td>}
                 </tr>
                 );
               })}
@@ -175,6 +188,90 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           {tx.footnote3}
         </p>
       </div>
+
+      {/* 교체 상세 모달 — 표에서 뺀 시리얼·교체사유를 회차별로 보여준다 */}
+      <AnimatePresence>
+        {detail && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setDetail(null)}
+          >
+            <motion.div
+              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-foreground">{tx.detailTitle}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-mono">
+                    CH {detail.chain.ch} · {detail.chain.pos}
+                  </p>
+                </div>
+                <button onClick={() => setDetail(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {[
+                  { idx: 0, date: detail.chain.firstInstall, serial: detail.chain.firstSerial, reason: undefined as ReplStage["reason"] | undefined },
+                  ...detail.chain.stages.map((s, i) => ({ idx: i + 1, date: s.date, serial: s.serial, reason: s.reason })),
+                ].map((st) => {
+                  const on = st.idx === detail.stageIdx;
+                  return (
+                    <div
+                      key={st.idx}
+                      className={`rounded-lg border px-4 py-3 ${on ? "border-primary bg-primary/5" : "border-border/60 bg-muted/20"}`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`text-xs font-black ${on ? "text-primary" : "text-muted-foreground"}`}>
+                          {st.idx + 1}{tx.stage}
+                        </span>
+                        {st.idx === 0 && (
+                          <span className="text-[10px] text-muted-foreground">({tx.stageOriginal})</span>
+                        )}
+                      </div>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                        <dt className="text-muted-foreground">{tx.colInstall}</dt>
+                        <dd className="font-mono">{st.date || "−"}</dd>
+                        <dt className="text-muted-foreground">{tx.colSerial}</dt>
+                        <dd className="font-mono">
+                          {st.serial ? (
+                            <button
+                              className="text-primary hover:underline"
+                              title={`${st.serial} · ${tx.serialTitle}`}
+                              onClick={() => { setDetail(null); onSerialClick?.(st.serial!); }}
+                            >
+                              {st.serial}
+                            </button>
+                          ) : <span className="text-muted-foreground">−</span>}
+                        </dd>
+                        <dt className="text-muted-foreground">{tx.colReason}</dt>
+                        <dd>
+                          {!st.reason ? (
+                            <span className="text-muted-foreground/50">−</span>
+                          ) : st.reason.scrap ? (
+                            <button
+                              className="text-destructive font-bold hover:underline"
+                              onClick={() => openCodes(st.reason!.text.split(" ")[0])}
+                            >
+                              {st.reason.text}
+                            </button>
+                          ) : (
+                            <span className="text-muted-foreground">{st.reason.text}</span>
+                          )}
+                        </dd>
+                      </dl>
+                    </div>
+                  );
+                })}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 손상 코드 모달 */}
       <AnimatePresence>
