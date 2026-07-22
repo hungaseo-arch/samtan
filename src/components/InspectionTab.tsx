@@ -11,6 +11,7 @@ import {
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
 import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
+import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -256,7 +257,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
         return n;
       });
     } catch (e) {
-      toast.error(tx.saveFail + (e instanceof Error ? e.message : tx.errGeneric));
+      toast.error(tx.saveFail + friendlyAuthError(e, lang));
     } finally {
       setSaving(false);
     }
@@ -275,7 +276,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
       setSelCh(c);      // 새 차량 선택
     } catch (e) {
       if (e instanceof DuplicateVehicleError) toast.error(tx.addDup);
-      else toast.error(tx.addFail + (e instanceof Error ? e.message : tx.errGeneric));
+      else toast.error(tx.addFail + friendlyAuthError(e, lang));
     } finally {
       setAddBusy(false);
     }
@@ -289,7 +290,7 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
       await loadHistory();
       onSaved?.();
     } catch (e) {
-      toast.error(tx.deleteFail + (e instanceof Error ? e.message : tx.errGeneric));
+      toast.error(tx.deleteFail + friendlyAuthError(e, lang));
     }
   };
 
