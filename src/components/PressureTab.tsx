@@ -173,6 +173,87 @@ const TX = {
     sym4risk: "Kemudi menarik · kestabilan jalan terganggu",
     sym4action: "Samakan tekanan kiri-kanan pada poros yang sama",
   },
+  en: {
+
+    secStdTitle: "Recommended pressure standard",
+    position: "Position",
+
+    secStatusTitle: "Latest pressure inspection status",
+    kpiMeasured: "Tires measured",
+    kpiNormal: "Normal",
+    kpiWarn: "Deviation caution",
+    kpiDanger: "Low-pressure risk",
+    unitCount: "pcs",
+    alertTitle: "Pressure anomaly alerts",
+    alertCount: "cases",
+    noAlert: "No pressure anomalies at present.",
+    badgeLow: "Low pressure",
+    badgeDev: "Deviation",
+    rec: "Recommended",
+    alertNote: "Criteria: Low pressure = below 85% of recommended · Deviation = beyond ±15% of recommended (based on each vehicle's latest measured round)",
+
+    secJudgeTitle: "Status criteria",
+
+    secProcTitle: "Pressure inspection procedure",
+
+    secEquipTitle: "Measuring equipment management",
+
+    secSymTitle: "Symptoms and actions",
+    thSym: "Symptom",
+    thCause: "Cause",
+    thRisk: "Risk",
+    thAction: "Action",
+
+    secLineTitle: "Inspection reporting line",
+    lineNote: "Inspection cycle: round inspection roughly every 2 weeks · report anomalies Foreman → Manager",
+
+    // PRESSURE_STD
+    stdSteering: "Steer axle",
+    stdDrive: "Drive axle",
+    // JUDGE
+    judgeNormal: "Normal",
+    judgeWarn: "Caution",
+    judgeDanger: "Danger",
+    judgeNormalRange: "Within ±5% of recommended",
+    judgeNormalDesc: "In spec — no action needed",
+    judgeWarnRange: "±5~15% deviation from recommended",
+    judgeWarnDesc: "Re-measure · top-up recommended",
+    judgeDangerRange: "Low pressure below 85% or over-inflation above +15%",
+    judgeDangerDesc: "Act immediately before operation",
+    // PROCEDURE
+    pc1: "Measure cold (do not measure right after operation)",
+    pc2: "Record measured pressure at each position — steer axle 100 / drive axle 116 psi standard",
+    pc3: "Inner dual (In) tires are excluded from measurement (N/A)",
+    pc4: "Check gauge accuracy (calibration within ±5%)",
+    pc5: "Confirm the compressor can reach a maximum of 130 psi",
+    pc6: "On low pressure or irregular wear, top up immediately and report to the supervisor",
+    pc7: "Record measured values on the OTR Data Tracking Sheet",
+    // EQUIP
+    eqCompLabel: "Compressor max pressure",
+    eqCompNote: "Must be able to reach the ETCrane target pressure. If not, consider auxiliary (portable) equipment",
+    eqGaugeLabel: "Gauge accuracy",
+    eqGaugeValue: "Within ±5%",
+    eqGaugeNote: "Periodic calibration — check the last calibration date",
+    eqOpLabel: "Current operating pressure",
+    eqOpNote: "Previously 125psi → lowered to 116 psi for the ETCrane trial",
+    // SYMPTOMS
+    sym1: "Low pressure (Under-inflation)",
+    sym1cause: "Puncture · valve leak · not topped up",
+    sym1risk: "Shoulder wear · heat build-up · sidewall damage",
+    sym1action: "Top up immediately, then check for leaks",
+    sym2: "Over-inflation",
+    sym2cause: "Over-filling · high-temperature expansion",
+    sym2risk: "Center wear · impact damage · tread cut",
+    sym2action: "Bleed down to the specified pressure",
+    sym3: "Irregular wear / TOE IN",
+    sym3cause: "Poor alignment (toe)",
+    sym3risk: "Early 0mm wear on one side",
+    sym3action: "Report to supervisor · alignment service (e.g. CH 839 L1)",
+    sym4: "Left-right deviation",
+    sym4cause: "Uneven top-up",
+    sym4risk: "Steering pull · unstable running",
+    sym4action: "Equalize left and right pressure on the same axle",
+  },
 } as const;
 
 // ── 권장 공기압 기준 ──────────────────────────────────────────

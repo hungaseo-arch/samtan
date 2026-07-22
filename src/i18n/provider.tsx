@@ -15,7 +15,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, l);
   }, []);
 
-  const t = useCallback((key: string) => DICT[lang][key] ?? DICT.ko[key] ?? key, [lang]);
+  const t = useCallback((key: string) => DICT[lang][key] ?? DICT.id[key] ?? key, [lang]);
 
   return <Ctx.Provider value={{ lang, setLang, t }}>{children}</Ctx.Provider>;
 }

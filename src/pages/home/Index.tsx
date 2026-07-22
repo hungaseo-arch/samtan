@@ -45,14 +45,14 @@ const CONTAINER = "max-w-6xl mx-auto px-6";
 
 // 역할 배지 배경 — 프로젝트 팔레트(연한 배경 + 어두운 청회색 텍스트 #546E7A)
 const ROLE_BADGE_BG: Record<Role, string> = {
-  admin: "#E3F2FD", // SOFT BLUE
-  staff: "#E8F5E9", // SAGE GREEN
-  user: "#ECEFF1",  // PASTEL BLUE-GREY
+  admin: "#E3F2FD",     // SOFT BLUE
+  inspector: "#E8F5E9", // SAGE GREEN
+  viewer: "#ECEFF1",    // PASTEL BLUE-GREY
 };
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword } = useAuth();
+  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword, displayName } = useAuth();
   const [showUsers, setShowUsers] = useState(false);
   const [showPwChange, setShowPwChange] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -112,8 +112,9 @@ export default function Index() {
         {authLoading ? (
           <RefreshCw className="w-8 h-8 text-primary animate-spin" />
         ) : (
+          // 로그인 화면은 언어 선택 없이 항상 영어로 — 국적이 섞인 첫 접점이라 중립 언어를 쓴다.
           <LoginCard
-            heading={t("auth.login")}
+            forceEn
             className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
           />
         )}
@@ -273,11 +274,11 @@ export default function Index() {
             {user && (
               <button
                 onClick={() => signOut()}
-                title={user.email ?? undefined}
+                title={`${displayName}${user.email ? ` · ${user.email}` : ""}`}
                 className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden md:inline max-w-28 truncate">{user.email}</span>
+                <span className="hidden md:inline max-w-28 truncate">{displayName}</span>
                 <span className="md:hidden">{t("auth.logout")}</span>
               </button>
             )}

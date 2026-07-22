@@ -13,8 +13,11 @@
 // 인증: Authorization: Bearer <호출자 JWT> — app_metadata.role === "admin" 이어야 함.
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-type Role = "admin" | "staff" | "user";
-const ROLES: Role[] = ["admin", "staff", "user"];
+type Role = "admin" | "inspector" | "viewer";
+const ROLES: Role[] = ["admin", "inspector", "viewer"];
+
+// 구 명칭 호환 — 아직 옛 값이 남은 계정이 있을 수 있다(마이그레이션 0010).
+const LEGACY: Record<string, Role> = { staff: "inspector", user: "viewer" };
 
 // 관리자가 계정을 만들 때 부여하는 공통 초기 비밀번호.
 // 공유값이므로 첫 로그인 시 변경을 강제한다(user_metadata.must_change_password).
@@ -34,7 +37,8 @@ const json = (body: unknown, status = 200) =>
 
 const roleOf = (u: { app_metadata?: Record<string, unknown> } | null): Role => {
   const r = u?.app_metadata?.role;
-  return r === "admin" || r === "staff" ? r : "user";
+  const n = typeof r === "string" && LEGACY[r] ? LEGACY[r] : r;
+  return n === "admin" || n === "inspector" ? n : "viewer";
 };
 
 Deno.serve(async (req) => {
@@ -107,6 +111,21 @@ Deno.serve(async (req) => {
     });
     if (error) return json({ error: error.message }, 500);
     return json({ ok: true, userId: data.user?.id ?? null });
+  }
+
+  if (action === "resetPassword") {
+    if (!userId) return json({ error: "invalid_args" }, 400);
+    // 메일 발송(SMTP)이 없으므로 관리자가 초기 비밀번호로 되돌려 직접 전달한다.
+    // 되돌린 뒤에는 계정 생성 때와 마찬가지로 첫 로그인에서 변경을 강제한다.
+    // user_metadata 는 통째로 대체되므로 기존 값(display_name 등)을 먼저 읽어 병합한다.
+    const { data: cur, error: getErr } = await admin.auth.admin.getUserById(userId);
+    if (getErr) return json({ error: getErr.message }, 500);
+    const { error } = await admin.auth.admin.updateUserById(userId, {
+      password: DEFAULT_PASSWORD,
+      user_metadata: { ...(cur.user?.user_metadata ?? {}), must_change_password: true },
+    });
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
   }
 
   if (action === "delete") {

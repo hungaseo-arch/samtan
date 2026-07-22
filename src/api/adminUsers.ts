@@ -63,6 +63,15 @@ export function createUser(email: string, role: Role): Promise<{ ok: true; userI
 }
 
 /**
+ * 비밀번호를 초기값(INITIAL_PASSWORD)으로 되돌린다.
+ * 메일 발송(SMTP)이 없어 자가 재설정이 불가하므로 관리자가 대신 처리하는 경로다.
+ * 되돌린 계정은 첫 로그인에서 다시 비밀번호를 정해야 한다.
+ */
+export function resetUserPassword(userId: string): Promise<{ ok: true }> {
+  return call({ action: "resetPassword", userId });
+}
+
+/**
  * 계정 삭제(되돌릴 수 없음). 자기 자신은 서버에서 거부(self_delete).
  * 이 사용자가 입력한 점검 데이터는 남으며, 기록된 입력자 이메일도 그대로 보존된다.
  */

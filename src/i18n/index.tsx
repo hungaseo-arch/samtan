@@ -1,15 +1,18 @@
 // @section: i18n
-// 경량 다국어(한국어/인도네시아어) — Context + localStorage 영속화.
+// 경량 다국어(인도네시아어/한국어/영어) — Context + localStorage 영속화.
+// 로그인 후 앱의 기본 언어는 인도네시아어(현장 사용자 기준). 헤더 토글로 변경하면 localStorage 에 남는다.
+// 로그인 화면만은 언어 토글이 없어 항상 영어로 표시한다(LoginCard forceEn).
 // 사용: const { lang, setLang, t } = useLang();  t("tab.dash.label")
 // Provider 컴포넌트는 react-refresh(only-export-components) 규칙 때문에 별도 파일(./provider)로 분리.
 // 이 파일은 상수·타입·훅(비컴포넌트)만 export 한다.
 import { createContext, useContext } from "react";
 
-export type Lang = "ko" | "id";
+export type Lang = "id" | "ko" | "en";
 
 export const LANGS: { code: Lang; label: string; flag: string }[] = [
-  { code: "ko", label: "한국어", flag: "🇰🇷" },
   { code: "id", label: "Bahasa", flag: "🇮🇩" },
+  { code: "ko", label: "한국어", flag: "🇰🇷" },
+  { code: "en", label: "English", flag: "🇬🇧" },
 ];
 
 type Dict = Record<string, string>;
@@ -43,6 +46,9 @@ const KO: Dict = {
   "pw.setTitle": "비밀번호 설정",
   "pw.changeTitle": "비밀번호 변경",
   "pw.desc": "8자 이상으로 설정하세요.",
+  "pw.name": "이름",
+  "pw.namePh": "예: 홍길동",
+  "pw.needName": "이름을 입력하세요.",
   "pw.new": "새 비밀번호",
   "pw.confirm": "새 비밀번호 확인",
   "pw.save": "저장",
@@ -51,13 +57,11 @@ const KO: Dict = {
   "pw.mismatch": "두 비밀번호가 일치하지 않습니다.",
   "pw.changed": "비밀번호를 변경했습니다.",
   "pw.inviteTitle": "환영합니다 — 비밀번호를 설정하세요",
-  "pw.forgot": "비밀번호를 잊으셨나요?",
-  "pw.resetSent": "재설정 메일을 보냈습니다. 메일함을 확인하세요.",
-  "pw.resetNeedEmail": "이메일을 먼저 입력하세요.",
+  "pw.forgot": "비밀번호를 잊으셨나요? 관리자에게 초기화를 요청하세요.",
   "auth.gateDesc": "계속하려면 로그인하세요.",
   "role.admin": "관리자",
-  "role.staff": "실무자",
-  "role.user": "조회",
+  "role.inspector": "점검",
+  "role.viewer": "조회",
   "role.badge.aria": "현재 권한 등급",
 };
 
@@ -90,6 +94,9 @@ const ID: Dict = {
   "pw.setTitle": "Atur kata sandi",
   "pw.changeTitle": "Ubah kata sandi",
   "pw.desc": "Gunakan minimal 8 karakter.",
+  "pw.name": "Nama",
+  "pw.namePh": "cth: Budi",
+  "pw.needName": "Masukkan nama Anda.",
   "pw.new": "Kata sandi baru",
   "pw.confirm": "Konfirmasi kata sandi",
   "pw.save": "Simpan",
@@ -98,23 +105,72 @@ const ID: Dict = {
   "pw.mismatch": "Kata sandi tidak cocok.",
   "pw.changed": "Kata sandi diubah.",
   "pw.inviteTitle": "Selamat datang — atur kata sandi Anda",
-  "pw.forgot": "Lupa kata sandi?",
-  "pw.resetSent": "Email pengaturan ulang terkirim. Periksa kotak masuk.",
-  "pw.resetNeedEmail": "Masukkan email terlebih dahulu.",
+  "pw.forgot": "Lupa kata sandi? Minta administrator untuk mereset.",
   "auth.gateDesc": "Masuk untuk melanjutkan.",
   "role.admin": "Admin",
-  "role.staff": "Staf",
-  "role.user": "Lihat",
+  "role.inspector": "Inspektur",
+  "role.viewer": "Pelihat",
   "role.badge.aria": "Tingkat izin saat ini",
 };
 
-export const DICT: Record<Lang, Dict> = { ko: KO, id: ID };
+const EN: Dict = {
+  "tab.dash.label": "Dashboard",
+  "tab.layout.label": "Vehicle Layout",
+  "tab.load.label": "Load Calculation",
+  "tab.repl.label": "Replacement History",
+  "tab.life.label": "Tire Lifetime DB",
+  "tab.input.label": "Inspection Input",
+  "tab.trend.label": "Pressure·Tread Trend",
+  "tab.pressure.label": "Tire Pressure Management",
+  "loading": "Loading data…",
+  "error.title": "Failed to load data.",
+  "error.retry": "Retry",
+  "lang.aria": "Select language",
+  "nav.g.vehicle": "Vehicle",
+  "nav.g.tire": "Tire",
+  "nav.g.inspect": "Inspection",
+  "auth.login": "Sign in",
+  "auth.logout": "Sign out",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.signIn": "Sign in",
+  "auth.signingIn": "Signing in…",
+  "auth.required": "Inspection input requires sign-in.",
+  "auth.desc": "Sign in with your field supervisor account.",
+  "auth.failed": "Sign-in failed — check your email/password.",
+  "admin.users": "User Management",
+  "pw.setTitle": "Set password",
+  "pw.changeTitle": "Change password",
+  "pw.desc": "Use at least 8 characters.",
+  "pw.name": "Name",
+  "pw.namePh": "e.g. John Doe",
+  "pw.needName": "Please enter your name.",
+  "pw.new": "New password",
+  "pw.confirm": "Confirm password",
+  "pw.save": "Save",
+  "pw.cancel": "Cancel",
+  "pw.tooShort": "Password must be at least 8 characters.",
+  "pw.mismatch": "Passwords do not match.",
+  "pw.changed": "Password changed.",
+  "pw.inviteTitle": "Welcome — set your password",
+  "pw.forgot": "Forgot your password? Ask an administrator to reset it.",
+  "auth.gateDesc": "Sign in to continue.",
+  "role.admin": "Admin",
+  "role.inspector": "Inspector",
+  "role.viewer": "Viewer",
+  "role.badge.aria": "Current permission level",
+};
+
+export const DICT: Record<Lang, Dict> = { id: ID, ko: KO, en: EN };
 export const STORAGE_KEY = "tms.lang";
 
+/** 날짜·숫자 서식용 BCP-47 로케일 — Intl 계열 API 에 넘긴다. */
+export const LOCALE: Record<Lang, string> = { id: "id-ID", ko: "ko-KR", en: "en-US" };
+
 export function readStored(): Lang {
-  if (typeof window === "undefined") return "ko";
+  if (typeof window === "undefined") return "id";
   const v = window.localStorage.getItem(STORAGE_KEY);
-  return v === "id" || v === "ko" ? v : "ko";
+  return v === "id" || v === "ko" || v === "en" ? v : "id";
 }
 
 export interface LangCtx {

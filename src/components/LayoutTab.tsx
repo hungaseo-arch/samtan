@@ -68,6 +68,36 @@ const TX = {
     pressTrend: "Tren tekanan (psi)",
     noData: "Tidak ada data",
   },
+  en: {
+    unitCh: "Vehicle (CH):",
+    roadTrainImgAlt: "Road Train vehicle",
+    layoutTitle: "Road Train vehicle layout",
+    direction: "← Travel direction",
+    primeMover: "Prime Mover",
+    trailer1: "Trailer 1",
+    dolly: "Dolly",
+    trailer2: "Trailer 2",
+    statusOk: "Normal",
+    statusWarn: "Caution",
+    statusDanger: "Replace recommended",
+    statusNone: "Not tested",
+    legendNone: "Not tested (12.00R24)",
+    footnoteA: "Head 10 pcs = TECHKING ETCrane 385/95R24(14.00R24); Vessel·Dolly are 12.00R24 and ",
+    footnoteB: "not included in the test",
+    recPress: "Recommended pressure",
+    serial: "Serial",
+    serialHint: "Click → view lifetime DB",
+    latestPress: "Latest pressure",
+    latestTread: "Latest tread",
+    newPrefix: "new ",
+    remark: "Remark",
+    scrap: "Scrap",
+    lifetime: "lifetime ",
+    lifetimeHours: "hours",
+    treadTrend: "Tread trend (mm)",
+    pressTrend: "Pressure trend (psi)",
+    noData: "No data",
+  },
 } as const;
 
 const STATUS_STYLE: Record<TireStatus, string> = {
@@ -79,6 +109,7 @@ const STATUS_STYLE: Record<TireStatus, string> = {
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
   ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
   id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, danger: TX.id.statusDanger, none: TX.id.statusNone },
+  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, danger: TX.en.statusDanger, none: TX.en.statusNone },
 };
 
 interface ModalInfo {

@@ -3,11 +3,11 @@
 // 실제 권한 검사는 Edge Function(admin-users)에서 수행한다 — 이 화면은 UX 층일 뿐이며,
 // 화면을 우회해 직접 호출해도 admin 이 아니면 403 이다.
 import { useCallback, useEffect, useState } from "react";
-import { X, RefreshCw, Loader2, UserPlus, ShieldCheck, Trash2 } from "lucide-react";
+import { X, RefreshCw, Loader2, UserPlus, ShieldCheck, Trash2, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { useLang } from "@/i18n";
+import { useLang, LOCALE } from "@/i18n";
 import type { Role } from "@/auth/AuthProvider";
-import { listUsers, setUserRole, createUser, deleteUser, INITIAL_PASSWORD, type ManagedUser } from "@/api/adminUsers";
+import { listUsers, setUserRole, createUser, deleteUser, resetUserPassword, INITIAL_PASSWORD, type ManagedUser } from "@/api/adminUsers";
 import { friendlyAuthError } from "@/lib/authErrors";
 
 const TX = {
@@ -39,6 +39,10 @@ const TX = {
     delOk: "계정을 삭제했습니다",
     delFail: "삭제 실패: ",
     selfDelete: "자기 자신의 계정은 삭제할 수 없습니다.",
+    pwReset: "비밀번호 초기화",
+    pwResetConfirm: "비밀번호를 초기값으로 되돌리시겠습니까?\n해당 사용자는 다음 로그인에서 새 비밀번호를 정해야 합니다.",
+    pwResetOk: "비밀번호를 초기화했습니다",
+    pwResetFail: "초기화 실패: ",
   },
   id: {
     title: "Manajemen Pengguna",
@@ -68,16 +72,53 @@ const TX = {
     delOk: "Akun dihapus",
     delFail: "Gagal menghapus: ",
     selfDelete: "Anda tidak dapat menghapus akun sendiri.",
+    pwReset: "Reset kata sandi",
+    pwResetConfirm: "Kembalikan kata sandi ke nilai awal?\nPengguna harus menetapkan kata sandi baru saat login berikutnya.",
+    pwResetOk: "Kata sandi direset",
+    pwResetFail: "Gagal mereset: ",
+  },
+  en: {
+    title: "User Management",
+    colEmail: "Email",
+    colRole: "Permission",
+    colLastSignIn: "Last sign-in",
+    never: "―",
+    pending: "Unconfirmed",
+    me: "Me",
+    invite: "Add user",
+    invitePh: "Email address",
+    inviteBtn: "Add",
+    inviteOk: "Account created",
+    cancel: "Cancel",
+    roleChanged: "Permission changed",
+    loadFail: "Failed to load the list: ",
+    saveFail: "Change failed: ",
+    inviteFail: "Creation failed: ",
+    initialPw: "Initial password",
+    initialPwNote: "The password change screen appears at first sign-in.",
+    selfDemote: "You cannot revoke your own admin permission.",
+    reloginNote: "Permission changes apply after the user signs out and signs back in.",
+    empty: "No users.",
+    refresh: "Refresh",
+    del: "Delete account",
+    delConfirm: "Delete this account?\nThis cannot be undone. Inspection data entered by this user is kept.",
+    delOk: "Account deleted",
+    delFail: "Delete failed: ",
+    selfDelete: "You cannot delete your own account.",
+    pwReset: "Reset password",
+    pwResetConfirm: "Reset this password to the initial value?\nThe user must set a new password at next sign-in.",
+    pwResetOk: "Password reset",
+    pwResetFail: "Reset failed: ",
   },
 } as const;
 
 const ROLE_BADGE_BG: Record<Role, string> = {
   admin: "#E3F2FD",
-  staff: "#E8F5E9",
-  user: "#ECEFF1",
+  inspector: "#E8F5E9",
+  viewer: "#ECEFF1",
 };
 
-const ROLES: Role[] = ["admin", "staff", "user"];
+const ROLES: Role[] = ["admin", "inspector", "viewer"];
 
 export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
   const { lang, t } = useLang();
@@ -89,7 +130,7 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState<Role>("staff");
+  const [newRole, setNewRole] = useState<Role>("inspector");
   const [inviteBusy, setInviteBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -119,6 +160,19 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
       setUsers(prev); // 롤백
       const msg = e instanceof Error && e.message === "self_demote" ? tx.selfDemote : tx.saveFail + friendlyAuthError(e, lang);
       toast.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleResetPw = async (u: ManagedUser) => {
+    if (!confirm(`${tx.pwResetConfirm}\n\n${u.email}`)) return;
+    setBusyId(u.id);
+    try {
+      await resetUserPassword(u.id);
+      toast.success(`${tx.pwResetOk} — ${u.email} · ${tx.initialPw}: ${INITIAL_PASSWORD}`);
+    } catch (e) {
+      toast.error(tx.pwResetFail + friendlyAuthError(e, lang));
     } finally {
       setBusyId(null);
     }
@@ -158,7 +212,7 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
   };
 
   const fmtDate = (s: string | null) =>
-    s ? new Date(s).toLocaleDateString(lang === "ko" ? "ko-KR" : "id-ID") : tx.never;
+    s ? new Date(s).toLocaleDateString(LOCALE[lang]) : tx.never;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
@@ -224,11 +278,6 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
             >
               {tx.cancel}
             </button>
-            {/* 관리자가 본인에게 직접 전달해야 하므로 초기 비밀번호를 화면에 노출한다 */}
-            <p className="w-full text-[11px] text-muted-foreground">
-              {tx.initialPw}: <span className="font-mono font-bold text-foreground">{INITIAL_PASSWORD}</span>
-              {" · "}{tx.initialPwNote}
-            </p>
           </div>
         )}
 
@@ -246,7 +295,7 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
                   <th className="px-2 py-2 text-left font-semibold">{tx.colEmail}</th>
                   <th className="px-2 py-2 text-left font-semibold w-32">{tx.colRole}</th>
                   <th className="px-2 py-2 text-right font-semibold w-28">{tx.colLastSignIn}</th>
-                  <th className="px-2 py-2 w-10" aria-label={tx.del} />
+                  <th className="px-2 py-2 w-20" aria-label={tx.del} />
                 </tr>
               </thead>
               <tbody>
@@ -257,7 +306,7 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
                       <td className="px-2 py-2.5">
                         <span className="font-medium">{u.email}</span>
                         {isMe && (
-                          <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: ROLE_BADGE_BG.user, color: "#546E7A" }}>
+                          <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-bold" style={{ backgroundColor: ROLE_BADGE_BG.viewer, color: "#546E7A" }}>
                             {tx.me}
                           </span>
                         )}
@@ -280,7 +329,17 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
                       <td className="px-2 py-2.5 text-right text-xs text-muted-foreground tabular-nums">
                         {fmtDate(u.lastSignInAt)}
                       </td>
-                      <td className="px-2 py-2.5 text-right">
+                      <td className="px-2 py-2.5 text-right whitespace-nowrap">
+                        {/* 비밀번호 초기화 — 메일 발송이 불가하므로 관리자가 대신 되돌린다 */}
+                        <button
+                          onClick={() => handleResetPw(u)}
+                          disabled={busyId === u.id}
+                          title={tx.pwReset}
+                          aria-label={tx.pwReset}
+                          className="p-1 text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
+                        >
+                          <KeyRound className="w-3.5 h-3.5" />
+                        </button>
                         {/* 자기 자신은 삭제 불가(서버에서도 거부) */}
                         {!isMe && (
                           <button
@@ -304,9 +363,14 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <p className="px-5 py-3 text-[11px] text-muted-foreground border-t border-border mt-3">
-          ⚠ {tx.reloginNote}
-        </p>
+        {/* 새 계정 발급 시 관리자가 그대로 전달해야 하는 값이라 항상 보이게 둔다 */}
+        <div className="px-5 py-3 border-t border-border mt-3 space-y-1">
+          <p className="text-[11px] text-muted-foreground">
+            🔑 {tx.initialPw}: <span className="font-mono font-bold text-foreground">{INITIAL_PASSWORD}</span>
+            {" · "}{tx.initialPwNote}
+          </p>
+          <p className="text-[11px] text-muted-foreground">⚠ {tx.reloginNote}</p>
+        </div>
       </div>
     </div>
   );

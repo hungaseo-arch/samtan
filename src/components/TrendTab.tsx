@@ -49,6 +49,24 @@ const TX = {
     lifeDb: "Lihat DB umur",
     tableFoot: "Nilai ukur per sesi. Tapak berdasarkan nilai min dari 4 alur.",
   },
+  en: {
+    vehicle: "Vehicle (CH):",
+    item: "Item:",
+    treadOpt: "Tread (mm)",
+    pressOpt: "Pressure (psi)",
+    treadTrend: "Tread trend (mm)",
+    pressTrend: "Pressure trend (psi)",
+    warn: "Caution",
+    replace: "Replace",
+    treadFoot: `Tread spec: new ${NEW_TREAD}mm · caution ≤${TREAD_WARN}mm · replace recommended ≤${TREAD_DANGER}mm`,
+    pressFoot: "Recommended pressure: steer axle (L1/R1) 100psi · drive axle 116psi | N/A = inner dual tire (not measured)",
+    detailTitle: "Detail data by round",
+    position: "Position",
+    serial: "Serial",
+    trend: "Trend",
+    lifeDb: "View lifetime DB",
+    tableFoot: "Measured values by round. Tread is the minimum of the 4 grooves.",
+  },
 } as const;
 
 export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: string) => void }) {

@@ -21,6 +21,11 @@ export default function SetPasswordCard({
 }) {
   const { updatePassword, user } = useAuth();
   const { t } = useLang();
+  // 이름은 헤더 표시에 쓰이므로 비밀번호 변경 시 반드시 받는다(기존 값이 있으면 미리 채움).
+  const [name, setName] = useState(() => {
+    const n = user?.user_metadata?.display_name as string | undefined;
+    return n?.trim() ?? "";
+  });
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [err, setErr] = useState("");
@@ -29,10 +34,11 @@ export default function SetPasswordCard({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
+    if (!name.trim()) { setErr(t("pw.needName")); return; }
     if (pw.length < MIN_LEN) { setErr(t("pw.tooShort")); return; }
     if (pw !== pw2) { setErr(t("pw.mismatch")); return; }
     setBusy(true);
-    const { error } = await updatePassword(pw);
+    const { error } = await updatePassword(pw, name);
     setBusy(false);
     if (error) { setErr(error); return; }
     onDone?.();
@@ -48,6 +54,18 @@ export default function SetPasswordCard({
         {user?.email ? `${user.email} · ` : ""}{t("pw.desc")}
       </p>
       <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1">{t("pw.name")}</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoComplete="name"
+            placeholder={t("pw.namePh")}
+            className="w-full text-sm bg-muted/30 border border-border rounded-lg px-3 py-2 text-foreground"
+          />
+        </div>
         <div>
           <label className="block text-xs font-semibold text-muted-foreground mb-1">{t("pw.new")}</label>
           <input

@@ -24,6 +24,13 @@ const TX = {
     treadTrend: "Tren tapak (mm)", pressTrend: "Tren tekanan (psi)", noData: "Tidak ada data",
     statusOk: "Normal", statusWarn: "Perhatian", statusDanger: "Rekomendasi ganti", statusNone: "Non-uji",
   },
+  en: {
+    recPress: "Recommended pressure", serial: "Serial", serialHint: "Click → view lifetime DB",
+    latestPress: "Latest pressure", latestTread: "Latest tread", newPrefix: "new ",
+    remark: "Remark", scrap: "Scrap", lifetime: "lifetime ", lifetimeHours: "hours",
+    treadTrend: "Tread trend (mm)", pressTrend: "Pressure trend (psi)", noData: "No data",
+    statusOk: "Normal", statusWarn: "Caution", statusDanger: "Replace recommended", statusNone: "Not tested",
+  },
 } as const;
 
 const STATUS_STYLE: Record<TireStatus, string> = {
@@ -35,6 +42,7 @@ const STATUS_STYLE: Record<TireStatus, string> = {
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
   ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
   id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, danger: TX.id.statusDanger, none: TX.id.statusNone },
+  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, danger: TX.en.statusDanger, none: TX.en.statusNone },
 };
 
 export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {

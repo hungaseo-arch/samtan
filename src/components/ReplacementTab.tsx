@@ -3,8 +3,9 @@ import { useState } from "react";
 import { TMS_DATA } from "@/data/tmsData";
 import { codeName } from "@/data/tmsUtils";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
+import { useAuth } from "@/auth/AuthProvider";
 
 const TX = {
   ko: {
@@ -24,6 +25,7 @@ const TX = {
     serialTitle: "수명 DB 보기",
     vehicleTitle: "배치도 보기",
     codeTitle: "손상 코드",
+    excelDownload: "엑셀 다운로드",
     detailTitle: "교체 상세",
     stage: "차",
     stageOriginal: "원본 타이어",
@@ -48,12 +50,38 @@ const TX = {
     serialTitle: "Lihat DB Umur",
     vehicleTitle: "Lihat Tata Letak",
     codeTitle: "Kode Kerusakan",
+    excelDownload: "Unduh Excel",
     detailTitle: "Detail Penggantian",
     stage: "",
     stageOriginal: "Ban asli",
     colSerial: "Serial",
     colReason: "Alasan ganti",
     colInstall: "Tgl pasang",
+  },
+  en: {
+    title: "Tire Replacement History",
+    countSuffix: "cases",
+    rotation: "Rotation",
+    chVehicle: "Vehicle",
+    position: "Position",
+    install1: "1st install date",
+    install2: "2nd install date",
+    install3: "3rd install date",
+    footnote1: "Only (Vehicle·Position) pairs with an actual replacement are shown.",
+    footnoteOriginal: "Original tire",
+    footnoteReplaced: "Replacement tire",
+    footnote2: "The replacement reason is why the previous tire was removed (damage code on scrap, otherwise \"Rotation\").",
+    footnote3: "Vehicle opens the layout; clicking an install date opens the serial·replacement reason details.",
+    serialTitle: "View lifetime DB",
+    vehicleTitle: "View layout",
+    codeTitle: "Damage code",
+    excelDownload: "Excel download",
+    detailTitle: "Replacement details",
+    stage: "",
+    stageOriginal: "Original tire",
+    colSerial: "Serial",
+    colReason: "Replacement reason",
+    colInstall: "Install date",
   },
 } as const;
 
@@ -77,6 +105,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
 }) {
   const { lang } = useLang();
   const tx = TX[lang];
+  const { canDownload } = useAuth();
   // 손상 코드 모달
   const [showCodes, setShowCodes] = useState(false);
   const [hiCode, setHiCode] = useState<string | null>(null);
@@ -118,6 +147,41 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   })();
   const has3rd = replChains.some((c) => c.stages.length >= 2);
 
+  // 엑셀 내보내기 — 화면에서는 모달로 뺀 시리얼·교체사유까지 한 행에 모두 담는다.
+  // (xlsx 는 클릭 시 동적 로드 — LifeTab 과 동일 방식)
+  const exportExcel = async () => {
+    const rows = replChains.map((c) => {
+      const row: Record<string, string | number> = {
+        [tx.chVehicle]: `CH ${c.ch}`,
+        [tx.position]: c.pos,
+        [tx.install1]: c.firstInstall === "−" ? "" : c.firstInstall,
+        [`1${tx.stage} ${tx.colSerial}`]: c.firstSerial ?? "",
+      };
+      // 회차 수는 행마다 다르므로 표시 중인 최대 회차까지 열을 맞춘다.
+      const maxStages = has3rd ? 2 : 1;
+      for (let i = 0; i < maxStages; i++) {
+        const s = c.stages[i];
+        const n = i + 2; // 2차·3차
+        row[`${n}${tx.stage} ${tx.colInstall}`] = s?.date ?? "";
+        row[`${n}${tx.stage} ${tx.colSerial}`] = s?.serial ?? "";
+        row[`${n}${tx.stage} ${tx.colReason}`] = s?.reason.text ?? "";
+      }
+      return row;
+    });
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws["!cols"] = [
+      { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 20 },
+      { wch: 12 }, { wch: 20 }, { wch: 14 },
+      ...(has3rd ? [{ wch: 12 }, { wch: 20 }, { wch: 14 }] : []),
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Replacement");
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    XLSX.writeFile(wb, `TireReplacement_${stamp}.xlsx`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card p-5">
@@ -125,9 +189,19 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           <span className="text-xs font-bold text-primary uppercase tracking-widest">
             {tx.title}
           </span>
-          <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
+          <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
             {TMS_DATA.repl.length}{tx.countSuffix}
           </span>
+          {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
+          {canDownload && (
+            <button
+              onClick={exportExcel}
+              className="ml-auto inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              {tx.excelDownload}
+            </button>
+          )}
         </div>
         {/* 가로 폭을 줄이기 위해 표에는 장착일까지만 두고, 시리얼·교체사유는 모달로 뺀다 */}
         <div className="overflow-x-auto">
