@@ -39,6 +39,10 @@ const KO: Dict = {
   "auth.required": "점검 입력은 로그인이 필요합니다.",
   "auth.desc": "현장 관리자 계정으로 로그인하세요.",
   "auth.failed": "로그인 실패 — 이메일/비밀번호를 확인하세요.",
+  "role.admin": "관리자",
+  "role.staff": "실무자",
+  "role.user": "조회",
+  "role.badge.aria": "현재 권한 등급",
 };
 
 const ID: Dict = {
@@ -66,6 +70,10 @@ const ID: Dict = {
   "auth.required": "Input inspeksi memerlukan login.",
   "auth.desc": "Masuk dengan akun pengawas lapangan.",
   "auth.failed": "Gagal masuk — periksa email/kata sandi.",
+  "role.admin": "Admin",
+  "role.staff": "Staf",
+  "role.user": "Lihat",
+  "role.badge.aria": "Tingkat izin saat ini",
 };
 
 export const DICT: Record<Lang, Dict> = { ko: KO, id: ID };

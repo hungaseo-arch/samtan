@@ -10,7 +10,7 @@ import PressureTab from "@/components/PressureTab";
 import InspectionTab from "@/components/InspectionTab";
 import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
-import { useAuth } from "@/auth/AuthProvider";
+import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
 import { LogOut, X, ChevronDown, Menu } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
@@ -40,9 +40,16 @@ const GROUPS: { id: string; tabs: TabId[] }[] = [
 // 공통 컨테이너 폭 — 헤더·탭내비·배너·메인·푸터 5곳에서 재사용 (정렬 일치 보장)
 const CONTAINER = "max-w-6xl mx-auto px-6";
 
+// 역할 배지 배경 — 프로젝트 팔레트(연한 배경 + 어두운 청회색 텍스트 #546E7A)
+const ROLE_BADGE_BG: Record<Role, string> = {
+  admin: "#E3F2FD", // SOFT BLUE
+  staff: "#E8F5E9", // SAGE GREEN
+  user: "#ECEFF1",  // PASTEL BLUE-GREY
+};
+
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -197,7 +204,16 @@ export default function Index() {
                 </button>
               ))}
             </div>
-            {/* 로그인 시 이메일·로그아웃만 표시 (로그인은 점검 입력 탭의 버튼 → 모달) */}
+            {/* 로그인 시 역할 배지·이메일·로그아웃 표시 (로그인은 점검 입력 탭의 버튼 → 모달) */}
+            {user && (
+              <span
+                aria-label={t("role.badge.aria")}
+                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
+                style={{ backgroundColor: ROLE_BADGE_BG[role], color: "#546E7A" }}
+              >
+                {t(`role.${role}`)}
+              </span>
+            )}
             {user && (
               <button
                 onClick={() => signOut()}
