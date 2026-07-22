@@ -9,7 +9,7 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn, Lock as LockIcon } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
@@ -31,7 +31,7 @@ const TX = {
     addFail: "차량 추가 실패: ",
     needLogin: "점검 입력·수정은 로그인이 필요합니다.",
     loginBtn: "로그인",
-    readOnly: "읽기 전용 권한입니다. 입력·수정은 staff/admin 계정이 필요합니다.",
+    readOnly: "조회 권한 계정입니다. 입력·수정은 실무자(staff) 이상 권한이 필요합니다.",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
     inspDate: "점검일",
@@ -91,7 +91,7 @@ const TX = {
     addFail: "Gagal menambah unit: ",
     needLogin: "Input·edit inspeksi memerlukan login.",
     loginBtn: "Masuk",
-    readOnly: "Hanya baca. Input·edit memerlukan akun staff/admin.",
+    readOnly: "Akun hanya-baca. Input memerlukan izin staf ke atas.",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
     inspDate: "Tgl inspeksi",
@@ -455,7 +455,9 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
           </div>
           </>
           ) : user ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-center">
+            // 로그인은 했으나 쓰기 권한 없음 — 왜 폼이 없는지 안내(로그인 유도 아님)
+            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 my-4">
+              <LockIcon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">{tx.readOnly}</p>
             </div>
           ) : (
