@@ -3,11 +3,11 @@
 // 실제 권한 검사는 Edge Function(admin-users)에서 수행한다 — 이 화면은 UX 층일 뿐이며,
 // 화면을 우회해 직접 호출해도 admin 이 아니면 403 이다.
 import { useCallback, useEffect, useState } from "react";
-import { X, RefreshCw, Loader2, UserPlus, ShieldCheck } from "lucide-react";
+import { X, RefreshCw, Loader2, UserPlus, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import type { Role } from "@/auth/AuthProvider";
-import { listUsers, setUserRole, inviteUser, type ManagedUser } from "@/api/adminUsers";
+import { listUsers, setUserRole, inviteUser, deleteUser, type ManagedUser } from "@/api/adminUsers";
 import { friendlyAuthError } from "@/lib/authErrors";
 
 const TX = {
@@ -32,6 +32,11 @@ const TX = {
     reloginNote: "권한 변경은 해당 사용자가 로그아웃 후 재로그인해야 적용됩니다.",
     empty: "사용자가 없습니다.",
     refresh: "새로고침",
+    del: "계정 삭제",
+    delConfirm: "계정을 삭제하시겠습니까?\n되돌릴 수 없습니다. 이 사용자가 입력한 점검 데이터는 그대로 남습니다.",
+    delOk: "계정을 삭제했습니다",
+    delFail: "삭제 실패: ",
+    selfDelete: "자기 자신의 계정은 삭제할 수 없습니다.",
   },
   id: {
     title: "Manajemen Pengguna",
@@ -54,6 +59,11 @@ const TX = {
     reloginNote: "Perubahan izin berlaku setelah pengguna keluar dan masuk kembali.",
     empty: "Tidak ada pengguna.",
     refresh: "Muat ulang",
+    del: "Hapus akun",
+    delConfirm: "Hapus akun ini?\nTidak dapat dibatalkan. Data inspeksi yang diinput tetap tersimpan.",
+    delOk: "Akun dihapus",
+    delFail: "Gagal menghapus: ",
+    selfDelete: "Anda tidak dapat menghapus akun sendiri.",
   },
 } as const;
 
@@ -104,6 +114,23 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
     } catch (e) {
       setUsers(prev); // 롤백
       const msg = e instanceof Error && e.message === "self_demote" ? tx.selfDemote : tx.saveFail + friendlyAuthError(e, lang);
+      toast.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (u: ManagedUser) => {
+    if (!confirm(`${tx.delConfirm}\n\n${u.email}`)) return;
+    setBusyId(u.id);
+    try {
+      await deleteUser(u.id);
+      setUsers((list) => list.filter((x) => x.id !== u.id));
+      toast.success(`${tx.delOk} — ${u.email}`);
+    } catch (e) {
+      const msg = e instanceof Error && e.message === "self_delete"
+        ? tx.selfDelete
+        : tx.delFail + friendlyAuthError(e, lang);
       toast.error(msg);
     } finally {
       setBusyId(null);
@@ -210,6 +237,7 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
                   <th className="px-2 py-2 text-left font-semibold">{tx.colEmail}</th>
                   <th className="px-2 py-2 text-left font-semibold w-32">{tx.colRole}</th>
                   <th className="px-2 py-2 text-right font-semibold w-28">{tx.colLastSignIn}</th>
+                  <th className="px-2 py-2 w-10" aria-label={tx.del} />
                 </tr>
               </thead>
               <tbody>
@@ -242,6 +270,22 @@ export default function AdminUsersModal({ onClose }: { onClose: () => void }) {
                       </td>
                       <td className="px-2 py-2.5 text-right text-xs text-muted-foreground tabular-nums">
                         {fmtDate(u.lastSignInAt)}
+                      </td>
+                      <td className="px-2 py-2.5 text-right">
+                        {/* 자기 자신은 삭제 불가(서버에서도 거부) */}
+                        {!isMe && (
+                          <button
+                            onClick={() => handleDelete(u)}
+                            disabled={busyId === u.id}
+                            title={tx.del}
+                            aria-label={tx.del}
+                            className="p-1 text-muted-foreground hover:text-destructive disabled:opacity-40 transition-colors"
+                          >
+                            {busyId === u.id
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
