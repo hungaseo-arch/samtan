@@ -12,8 +12,10 @@ import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
+import SetPasswordCard from "@/auth/SetPasswordCard";
+import { toast } from "sonner";
 import AdminUsersModal from "@/components/AdminUsersModal";
-import { LogOut, X, ChevronDown, Menu, ShieldCheck } from "lucide-react";
+import { LogOut, X, ChevronDown, Menu, ShieldCheck, KeyRound } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
 type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
@@ -50,9 +52,9 @@ const ROLE_BADGE_BG: Record<Role, string> = {
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, role, isAdmin, signOut } = useAuth();
+  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword } = useAuth();
   const [showUsers, setShowUsers] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showPwChange, setShowPwChange] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("dash");
@@ -88,6 +90,36 @@ export default function Index() {
     setActiveTab("layout");
   }, []);
 
+
+  // 초대 수락·비밀번호 재설정 링크로 들어온 경우 — 비밀번호부터 정하게 한다.
+  if (needsPassword) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="h-1 w-full bg-primary fixed top-0 left-0" />
+        <SetPasswordCard
+          heading={t("pw.inviteTitle")}
+          className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
+        />
+      </div>
+    );
+  }
+
+  // 로그인 전에는 앱을 노출하지 않는다 — 접속 즉시 로그인 화면.
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="h-1 w-full bg-primary fixed top-0 left-0" />
+        {authLoading ? (
+          <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+        ) : (
+          <LoginCard
+            heading={t("auth.login")}
+            className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
+          />
+        )}
+      </div>
+    );
+  }
 
   if (status !== "ready") {
     return (
@@ -216,6 +248,17 @@ export default function Index() {
                 {t(`role.${role}`)}
               </span>
             )}
+            {/* 비밀번호 변경 */}
+            {user && (
+              <button
+                onClick={() => setShowPwChange(true)}
+                title={t("pw.changeTitle")}
+                aria-label={t("pw.changeTitle")}
+                className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <KeyRound className="w-4 h-4" />
+              </button>
+            )}
             {/* 사용자 관리 — admin 에게만 노출(실제 권한 검사는 Edge Function) */}
             {isAdmin && (
               <button
@@ -282,7 +325,7 @@ export default function Index() {
           {activeTab === "repl"     && <ReplacementTab key={dataVersion} onSerialClick={goToSerial} onVehicleClick={goToVehicle} />}
           {activeTab === "trend"    && <TrendTab key={dataVersion} onSerialClick={goToSerial} />}
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
-          {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} onLoginClick={() => setShowLogin(true)} />}
+          {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
         </div>
       </main>
@@ -300,23 +343,24 @@ export default function Index() {
         </div>
       </footer>
 
-      {/* ── 로그인 모달 (헤더 로그인 버튼) ── */}
-      {showLogin && !user && (
+      {/* ── 비밀번호 변경 모달 (헤더) ── */}
+      {showPwChange && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-          onClick={() => setShowLogin(false)}
+          onClick={() => setShowPwChange(false)}
         >
           <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setShowLogin(false)}
+              onClick={() => setShowPwChange(false)}
               aria-label="close"
               className="absolute -top-3 -right-3 z-10 p-1.5 rounded-full bg-card border border-border shadow hover:bg-muted/50 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
-            <LoginCard
-              heading={t("auth.login")}
-              onSuccess={() => setShowLogin(false)}
+            <SetPasswordCard
+              heading={t("pw.changeTitle")}
+              onDone={() => { setShowPwChange(false); toast.success(t("pw.changed")); }}
+              onCancel={() => setShowPwChange(false)}
               className="rounded-2xl border border-border bg-card p-6 shadow-2xl"
             />
           </div>

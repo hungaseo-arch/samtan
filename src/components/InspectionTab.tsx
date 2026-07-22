@@ -9,7 +9,7 @@ import {
   type InspectionRow,
 } from "@/api/inspections";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, LogIn, Lock as LockIcon, UserRound } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, Lock as LockIcon, UserRound } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
@@ -29,8 +29,6 @@ const TX = {
     addOk: "차량 추가 완료",
     addDup: "이미 존재하는 차량입니다.",
     addFail: "차량 추가 실패: ",
-    needLogin: "점검 입력·수정은 로그인이 필요합니다.",
-    loginBtn: "로그인",
     readOnly: "조회 권한 계정입니다. 입력·수정은 실무자(staff) 이상 권한이 필요합니다.",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
@@ -91,8 +89,6 @@ const TX = {
     addOk: "Unit ditambahkan",
     addDup: "Unit sudah ada.",
     addFail: "Gagal menambah unit: ",
-    needLogin: "Input·edit inspeksi memerlukan login.",
-    loginBtn: "Masuk",
     readOnly: "Akun hanya-baca. Input memerlukan izin staf ke atas.",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
@@ -158,10 +154,10 @@ interface FormCell {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
-export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void; onLoginClick?: () => void }) {
+export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void }) {
   const { lang } = useLang();
   const tx = TX[lang];
-  const { user, canWrite, canDelete } = useAuth();
+  const { canWrite, canDelete } = useAuth();
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
   const [date, setDate] = useState(todayISO());
   const [hm, setHm] = useState("");
@@ -458,21 +454,11 @@ export default function InspectionTab({ onSaved, onSerialClick, onLoginClick }: 
             </span>
           </div>
           </>
-          ) : user ? (
-            // 로그인은 했으나 쓰기 권한 없음 — 왜 폼이 없는지 안내(로그인 유도 아님)
+          ) : (
+            // 앱 전체가 로그인 뒤에 있으므로 여기서는 권한 부족만 안내한다.
             <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 my-4">
               <LockIcon className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
               <p className="text-sm text-muted-foreground">{tx.readOnly}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center gap-3 py-8">
-              <p className="text-sm text-muted-foreground">{tx.needLogin}</p>
-              <button
-                onClick={onLoginClick}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
-              >
-                <LogIn className="w-4 h-4" /> {tx.loginBtn}
-              </button>
             </div>
           ))}
         </div>
