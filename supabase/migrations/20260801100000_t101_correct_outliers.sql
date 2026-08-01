@@ -3,7 +3,7 @@
 --
 -- 근거: docs/audit-report.md (T-002 진단, 읽기 전용)
 -- 승인: 사용자 확인 2026-08-01
---   · 공기압 이상치 2건 → 120 psi 로 정정
+--   · 공기압 이상치 2건 정정 — CH 834 → 110 psi · CH 835 → 120 psi
 --   · 트레드 22.00 mm 9건 중 "신품 추정" 6건은 정정 대상에서 제외하고,
 --     CH 835 의 3개 회차(04-26 · 05-10 · 05-23)만 검토 대상으로 표기
 --
@@ -46,16 +46,15 @@ create policy "audit_log admin select" on public.audit_log
 -- 클라이언트의 직접 쓰기는 허용하지 않는다. 기록은 마이그레이션과 트리거만 수행한다.
 
 -- ── 1. 공기압 이상치 정정 (2건) ──────────────────────────────
--- CH 834 / 2026-05-10 / R3 Out : 10 psi  → 120 psi
---   같은 회차 후륜은 114~115 psi 다. 자릿수 누락(110)일 가능성도 있으나
---   사용자 확인값 120 을 적용한다.
+-- CH 834 / 2026-05-10 / R3 Out : 10 psi  → 110 psi
+--   같은 회차 후륜은 114~115 psi. 앞자리 1 누락(110 → 10)으로 보고 110 을 적용한다.
 -- CH 835 / 2026-07-05 / R3 Out : 13 psi  → 120 psi
 --   같은 회차 후륜은 106~128 psi 로, 120 이 그 범위 안에 든다.
 with corrected as (
   update public.inspections i
      set pressure = v.new_pressure
     from (values
-            ('834', date '2026-05-10', 'R3 Out', 10::numeric, 120::numeric),
+            ('834', date '2026-05-10', 'R3 Out', 10::numeric, 110::numeric),
             ('835', date '2026-07-05', 'R3 Out', 13::numeric, 120::numeric)
          ) as v(ch, inspection_date, pos, old_pressure, new_pressure)
    where i.ch              = v.ch

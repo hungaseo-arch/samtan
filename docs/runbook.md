@@ -92,15 +92,17 @@ psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -At -f docs/schem
 
 **사용자 승인 후에만 실행합니다.**
 
-> ⚠️ **현재 `supabase db push`를 사용하면 안 됩니다.** 로컬 `0001`~`0010`이 원격 이력에 기록되어 있지
-> 않아, push 시 10개 전부가 프로덕션에 재실행됩니다. `0003`·`0004`의 일괄 `UPDATE`가 운영 중 수정된
-> 값을 되돌릴 수 있습니다. 상세와 해소 방안은 `docs/decisions.md` U-1 참조.
-
 ```bash
 supabase migration list                # 먼저 로컬/원격 이력 분기 여부 확인
 supabase db push --dry-run             # 적용될 마이그레이션 목록 확인 (필수 선행)
-supabase db push                       # 실제 적용 — U-1 해소 후에만
+supabase db push                       # 실제 적용
 ```
+
+`--dry-run`이 의도한 파일만 나열하는지 반드시 확인하고 실행합니다.
+`Remote migration versions not found in local`이 뜨면 원격에만 있는 버전이 있다는 뜻이며,
+CLI가 안내하는 `migration repair --status reverted <version>`으로 정합화합니다 (2026-08-01 U-1 사례).
+`repair`는 `supabase_migrations.schema_migrations` 메타데이터만 바꾸므로 업무 데이터에 영향이 없습니다.
+다만 되돌릴 버전의 SQL이 정말 로컬 파일과 중복인지 `statements`를 먼저 대조해야 합니다.
 
 ### 2.5 롤백
 
