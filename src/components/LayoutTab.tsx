@@ -19,10 +19,11 @@ const TX = {
     trailer2: "트레일러 2",
     statusOk: "정상",
     statusWarn: "주의",
-    statusDanger: "교체권장",
+    statusOrder: "발주",
+    statusDanger: "즉시 교체",
     statusNone: "시험 외",
     legendNone: "시험 외 (12.00R24)",
-    footnoteA: "Head 10본 = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly는 12.00R24으로 ",
+    footnoteA: "Head 10본 = TECHKING ETCrane 14.00R24, Vessel·Dolly는 12.00R24으로 ",
     footnoteB: "시험 미포함",
     recPress: "권장 공기압",
     serial: "시리얼",
@@ -49,10 +50,11 @@ const TX = {
     trailer2: "Trailer 2",
     statusOk: "Normal",
     statusWarn: "Perhatian",
-    statusDanger: "Rekomendasi ganti",
+    statusOrder: "Pesan ban",
+    statusDanger: "Ganti segera",
     statusNone: "Non-uji",
     legendNone: "Non-uji (12.00R24)",
-    footnoteA: "Head 10 ban = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly 12.00R24 ",
+    footnoteA: "Head 10 ban = TECHKING ETCrane 14.00R24, Vessel·Dolly 12.00R24 ",
     footnoteB: "Tidak termasuk uji",
     recPress: "Tekanan rekomendasi",
     serial: "Serial",
@@ -79,10 +81,11 @@ const TX = {
     trailer2: "Trailer 2",
     statusOk: "Normal",
     statusWarn: "Caution",
-    statusDanger: "Replace recommended",
+    statusOrder: "Order tire",
+    statusDanger: "Replace now",
     statusNone: "Not tested",
     legendNone: "Not tested (12.00R24)",
-    footnoteA: "Head 10 pcs = TECHKING ETCrane 385/95R24(14.00R24); Vessel·Dolly are 12.00R24 and ",
+    footnoteA: "Head 10 pcs = TECHKING ETCrane 14.00R24; Vessel·Dolly are 12.00R24 and ",
     footnoteB: "not included in the test",
     recPress: "Recommended pressure",
     serial: "Serial",
@@ -100,16 +103,18 @@ const TX = {
   },
 } as const;
 
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
   ok: "border-green-600 bg-green-50 text-green-700",
   warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
+  order: "border-orange-500 bg-orange-50 text-orange-700",
   danger: "border-red-500 bg-red-50 text-red-700",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
-  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
-  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, danger: TX.id.statusDanger, none: TX.id.statusNone },
-  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, danger: TX.en.statusDanger, none: TX.en.statusNone },
+  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, order: TX.ko.statusOrder, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
+  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, order: TX.id.statusOrder, danger: TX.id.statusDanger, none: TX.id.statusNone },
+  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, order: TX.en.statusOrder, danger: TX.en.statusDanger, none: TX.en.statusNone },
 };
 
 interface ModalInfo {

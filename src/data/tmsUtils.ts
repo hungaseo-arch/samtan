@@ -1,8 +1,16 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, TREAD_WARN, TREAD_DANGER, NEW_TREAD, recPsi } from "./tmsData";
-import type { Unit, TirePosition } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
+import type { Unit, TirePosition, TreadLevel } from "./tmsData";
 
-export type TireStatus = "ok" | "warn" | "danger" | "none";
+/** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
+export type TireStatus = TreadLevel | "none";
+
+const SEVERITY: Record<TireStatus, number> = { none: -1, ok: 0, warn: 1, order: 2, danger: 3 };
+
+/** 여러 판정 중 더 심각한 쪽을 남긴다. */
+function worst(a: TireStatus, b: TireStatus): TireStatus {
+  return SEVERITY[b] > SEVERITY[a] ? b : a;
+}
 
 export interface HeadPosData {
   rp: string;
@@ -71,16 +79,12 @@ export function statusOf(d: HeadPosData | null, pos: number): TireStatus {
   if (!d) return "none";
   let st: TireStatus = "ok";
 
-  if (d.latestTread != null) {
-    if (d.latestTread <= TREAD_DANGER) st = "danger";
-    else if (d.latestTread <= TREAD_WARN) st = "warn";
-  }
+  if (d.latestTread != null) st = worst(st, treadLevel(d.latestTread));
 
   if (typeof d.latestPress === "number") {
     const r = recPsi(pos);
-    if (d.latestPress < r * 0.85) st = "danger";
-    else if (Math.abs(d.latestPress - r) / r > 0.15 && st !== "danger")
-      st = "warn";
+    if (d.latestPress < r * 0.85) st = worst(st, "danger");
+    else if (Math.abs(d.latestPress - r) / r > 0.15) st = worst(st, "warn");
   }
 
   if (
@@ -108,15 +112,12 @@ export function statusFromValues(
   if (tread == null && press == null) return "none";
   let st: TireStatus = "ok";
 
-  if (tread != null) {
-    if (tread <= TREAD_DANGER) st = "danger";
-    else if (tread <= TREAD_WARN) st = "warn";
-  }
+  if (tread != null) st = worst(st, treadLevel(tread));
 
   if (typeof press === "number") {
     const r = recPsi(pos);
-    if (press < r * 0.85) st = "danger";
-    else if (Math.abs(press - r) / r > 0.15 && st !== "danger") st = "warn";
+    if (press < r * 0.85) st = worst(st, "danger");
+    else if (Math.abs(press - r) / r > 0.15) st = worst(st, "warn");
   }
 
   return st;
@@ -449,10 +450,9 @@ export function tireHistory(serial: string): TireHistory | null {
 }
 
 export function getUnitAlerts(u: Unit) {
-  const alerts: { lv: "danger" | "warn"; text: string }[] = [];
+  const alerts: { lv: "danger" | "order" | "warn"; text: string }[] = [];
   for (let p = 1; p <= 10; p++) {
     const d = headPosData(u, p);
-    const st = statusOf(d, p);
     if (!d) continue;
 
     const scrap = d.serial
@@ -464,16 +464,26 @@ export function getUnitAlerts(u: Unit) {
         lv: "danger",
         text: `CH ${u.ch} · ${d.rp} (#${p}) 폐기 — ${codeName(scrap.damage)} / 수명 ${scrap.lifetime}시간`,
       });
-    } else if (st === "danger" && d.latestTread != null && d.latestTread <= TREAD_DANGER) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${d.latestTread}mm — 교체권장`,
-      });
-    } else if (st === "warn" && d.latestTread != null) {
-      alerts.push({
-        lv: "warn",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${d.latestTread}mm — 마모 진행`,
-      });
+    } else if (d.latestTread != null) {
+      // 트레드 경보는 측정값 자체로 판정한다. st 는 공기압 이상까지 섞인 값이라
+      // 트레드가 정상인데 트레드 경보가 나가는 것을 막는다.
+      const lv = treadLevel(d.latestTread);
+      if (lv === "danger") {
+        alerts.push({
+          lv: "danger",
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 즉시 교체`,
+        });
+      } else if (lv === "order") {
+        alerts.push({
+          lv: "order",
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 교체 타이어 발주`,
+        });
+      } else if (lv === "warn") {
+        alerts.push({
+          lv: "warn",
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 마모 진행`,
+        });
+      }
     }
 
     if (

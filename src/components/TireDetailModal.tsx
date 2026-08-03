@@ -15,34 +15,36 @@ const TX = {
     latestPress: "최근 공기압", latestTread: "최근 트레드", newPrefix: "신품 ",
     remark: "비고", scrap: "폐기", lifetime: "수명 ", lifetimeHours: "시간",
     treadTrend: "트레드 추이 (mm)", pressTrend: "공기압 추이 (psi)", noData: "데이터 없음",
-    statusOk: "정상", statusWarn: "주의", statusDanger: "교체권장", statusNone: "시험 외",
+    statusOk: "정상", statusWarn: "주의", statusOrder: "발주", statusDanger: "즉시 교체", statusNone: "시험 외",
   },
   id: {
     recPress: "Tekanan rekomendasi", serial: "Serial", serialHint: "Klik → lihat DB umur",
     latestPress: "Tekanan terkini", latestTread: "Tapak terkini", newPrefix: "baru ",
     remark: "Catatan", scrap: "Afkir", lifetime: "umur ", lifetimeHours: "jam",
     treadTrend: "Tren tapak (mm)", pressTrend: "Tren tekanan (psi)", noData: "Tidak ada data",
-    statusOk: "Normal", statusWarn: "Perhatian", statusDanger: "Rekomendasi ganti", statusNone: "Non-uji",
+    statusOk: "Normal", statusWarn: "Perhatian", statusOrder: "Pesan ban", statusDanger: "Ganti segera", statusNone: "Non-uji",
   },
   en: {
     recPress: "Recommended pressure", serial: "Serial", serialHint: "Click → view lifetime DB",
     latestPress: "Latest pressure", latestTread: "Latest tread", newPrefix: "new ",
     remark: "Remark", scrap: "Scrap", lifetime: "lifetime ", lifetimeHours: "hours",
     treadTrend: "Tread trend (mm)", pressTrend: "Pressure trend (psi)", noData: "No data",
-    statusOk: "Normal", statusWarn: "Caution", statusDanger: "Replace recommended", statusNone: "Not tested",
+    statusOk: "Normal", statusWarn: "Caution", statusOrder: "Order tire", statusDanger: "Replace now", statusNone: "Not tested",
   },
 } as const;
 
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
   ok: "border-green-600 bg-green-50 text-green-700",
   warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
+  order: "border-orange-500 bg-orange-50 text-orange-700",
   danger: "border-red-500 bg-red-50 text-red-700",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
-  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
-  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, danger: TX.id.statusDanger, none: TX.id.statusNone },
-  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, danger: TX.en.statusDanger, none: TX.en.statusNone },
+  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, order: TX.ko.statusOrder, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
+  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, order: TX.id.statusOrder, danger: TX.id.statusDanger, none: TX.id.statusNone },
+  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, order: TX.en.statusOrder, danger: TX.en.statusDanger, none: TX.en.statusNone },
 };
 
 export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {

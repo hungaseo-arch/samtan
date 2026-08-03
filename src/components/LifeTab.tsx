@@ -1,6 +1,7 @@
 // @section: life-tab
 import { useState, useEffect, useRef } from "react";
-import { TMS_DATA, TREAD_WARN, TREAD_DANGER } from "@/data/tmsData";
+import { TMS_DATA, treadLevel, treadThresholds } from "@/data/tmsData";
+import type { TreadLevel } from "@/data/tmsData";
 import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
 import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,7 +9,15 @@ import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 
-const TX = {
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
+const TREAD_CLS: Record<TreadLevel, string> = {
+  ok: "text-green-600",
+  warn: "text-yellow-600 font-bold",
+  order: "text-orange-600 font-bold",
+  danger: "text-destructive font-bold",
+};
+
+const buildTX = () => ({
   ko: {
     dbTitle: "타이어 수명 DB",
     status: "상태",
@@ -34,7 +43,7 @@ const TX = {
     foot3a: "최근 수명(km·hr)",
     foot3b: " = 측정 시작(신품)부터 최신 회차까지 누적 주행거리·가동시간. ",
     foot3c: "최근 트레드",
-    foot3d: " = 해당 타이어의 가장 최근 측정값(≤8mm 주의, ≤5mm 교체권장).",
+    foot3d: ` = 해당 타이어의 가장 최근 측정값(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 즉시교체).`,
     foot4a: "HM Reset",
     foot4b: " = 운용 중 차량의 가동시간계(Hour Meter)·주행거리가 0으로 초기화된 차량(CH 832·835). 리셋 이전 누적 이력이 끊겨 수명·예상수명이 ",
     foot4c: "로 표시될 수 있습니다.",
@@ -101,7 +110,7 @@ const TX = {
     foot3a: "Umur terkini (km·hr)",
     foot3b: " = akumulasi jarak·jam dari awal ukur (baru) hingga sesi terbaru. ",
     foot3c: "Tapak terkini",
-    foot3d: " = nilai ukur paling baru ban tersebut (≤8mm perhatian, ≤5mm disarankan ganti).",
+    foot3d: ` = nilai ukur paling baru ban tersebut (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm ganti segera).`,
     foot4a: "HM Reset",
     foot4b: " = unit yang Hour Meter·jarak tempuhnya di-reset ke 0 saat operasi (CH 832·835). Riwayat akumulasi sebelum reset terputus sehingga umur·prediksi dapat ditampilkan ",
     foot4c: ".",
@@ -168,7 +177,7 @@ const TX = {
     foot3a: "Latest lifetime (km·hr)",
     foot3b: " = cumulative distance and operating hours from the first measurement (new tire) to the latest round. ",
     foot3c: "Latest tread",
-    foot3d: " = the most recent measured value for that tire (≤8mm caution, ≤5mm replace recommended).",
+    foot3d: ` = the most recent measured value for that tire (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm replace now).`,
     foot4a: "HM Reset",
     foot4b: " = vehicles whose Hour Meter and distance were reset to 0 during operation (CH 832·835). Cumulative history before the reset is broken, so lifetime and estimated lifetime may be shown as ",
     foot4c: ".",
@@ -210,7 +219,7 @@ const TX = {
     mCurrent: "Current",
     excelDownload: "Excel download",
   },
-} as const;
+} as const);
 
 const TARGET_KM = 75000; // 목표 수명 (km)
 
@@ -224,7 +233,8 @@ const STATUS_STYLE: Record<LifeRecord["status"], string> = {
 export default function LifeTab({ focusSerial }: { focusSerial?: string | null }) {
   const { lang } = useLang();
   const { canDownload } = useAuth();
-  const tx = TX[lang];
+  // 문구에 임계치가 들어가므로 DB 로드 후 렌더 시점에 만든다.
+  const tx = buildTX()[lang];
   const [lifeFilter, setLifeFilter] = useState<string>("ALL");
 
   const filtered = TMS_DATA.life.filter(
@@ -387,7 +397,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 const hmReset = unit?.hmReset;
                 const monitored = !!unit; // 모니터링 5대 장착 여부 (아니면 측정 외)
                 const tread = latestTreadOf(l.serial);
-                const treadCls = tread == null ? "" : tread <= TREAD_DANGER ? "text-destructive font-bold" : tread <= TREAD_WARN ? "text-yellow-600 font-bold" : "text-green-600";
+                const treadCls = tread == null ? "" : TREAD_CLS[treadLevel(tread)];
                 const damage = l.damage && l.damage !== "-" ? l.damage : null;
                 const isFocus = highlight != null && l.serial === highlight;
                 return (

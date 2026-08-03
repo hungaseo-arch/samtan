@@ -1,6 +1,7 @@
 // @section: trend-tab
 import { useState } from "react";
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, TREAD_WARN, TREAD_DANGER, recPsi } from "@/data/tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds } from "@/data/tmsData";
+import type { TreadLevel } from "@/data/tmsData";
 import { headPosData, validDates, fmtInt } from "@/data/tmsUtils";
 import { useLang } from "@/i18n";
 import {
@@ -12,7 +13,21 @@ const COLORS = [
   "#0891b2","#9333ea","#0284c7","#15803d","#b45309",
 ];
 
-const TX = {
+type Thresholds = ReturnType<typeof treadThresholds>;
+
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
+// recharts(SVG stroke/fill)는 Tailwind 클래스를 못 받으므로 hex 로 둔다.
+const LEVEL_HEX: Record<TreadLevel, string> = {
+  ok: "#4ade80", warn: "#eab308", order: "#f97316", danger: "#ef4444",
+};
+const LEVEL_CELL_CLS: Record<TreadLevel, string> = {
+  ok: "text-green-400",
+  warn: "text-yellow-400 font-bold",
+  order: "text-orange-400 font-bold",
+  danger: "text-destructive font-bold",
+};
+
+const buildTX = () => ({
   ko: {
     vehicle: "차량(CH):",
     item: "항목:",
@@ -21,9 +36,10 @@ const TX = {
     treadTrend: "트레드 추이 (mm)",
     pressTrend: "공기압 추이 (psi)",
     warn: "주의",
+    order: "발주",
     replace: "교체",
-    treadFoot: `트레드 기준: 신품 ${NEW_TREAD}mm · 주의 ≤${TREAD_WARN}mm · 교체권장 ≤${TREAD_DANGER}mm`,
-    pressFoot: "공기압 권장: 조향축(L1/R1) 100psi · 구동축 116psi | N/A = 내측 듀얼 타이어 (측정 제외)",
+    treadFoot: (t: Thresholds) => `트레드 기준: 신품 ${NEW_TREAD}mm · 주의 <${t.caution}mm · 발주 <${t.order}mm · 즉시교체 <${t.critical}mm`,
+    pressFoot: `공기압 권장: 조향축(L1/R1) ${recPsi(1)}psi · 구동축 ${recPsi(3)}psi | N/A = 내측 듀얼 타이어 (측정 제외)`,
     detailTitle: "회차별 상세 데이터",
     position: "포지션",
     serial: "시리얼",
@@ -39,9 +55,10 @@ const TX = {
     treadTrend: "Tren Tapak (mm)",
     pressTrend: "Tren Tekanan (psi)",
     warn: "Perhatian",
+    order: "Pesan",
     replace: "Ganti",
-    treadFoot: `Standar tapak: baru ${NEW_TREAD}mm · perhatian ≤${TREAD_WARN}mm · rekomendasi ganti ≤${TREAD_DANGER}mm`,
-    pressFoot: "Rekomendasi tekanan: poros kemudi(L1/R1) 100psi · poros penggerak 116psi | N/A = ban dual dalam (tidak diukur)",
+    treadFoot: (t: Thresholds) => `Standar tapak: baru ${NEW_TREAD}mm · perhatian <${t.caution}mm · pesan ban <${t.order}mm · ganti segera <${t.critical}mm`,
+    pressFoot: `Rekomendasi tekanan: poros kemudi(L1/R1) ${recPsi(1)}psi · poros penggerak ${recPsi(3)}psi | N/A = ban dual dalam (tidak diukur)`,
     detailTitle: "Data detail per sesi",
     position: "Posisi",
     serial: "Serial",
@@ -57,9 +74,10 @@ const TX = {
     treadTrend: "Tread trend (mm)",
     pressTrend: "Pressure trend (psi)",
     warn: "Caution",
+    order: "Order",
     replace: "Replace",
-    treadFoot: `Tread spec: new ${NEW_TREAD}mm · caution ≤${TREAD_WARN}mm · replace recommended ≤${TREAD_DANGER}mm`,
-    pressFoot: "Recommended pressure: steer axle (L1/R1) 100psi · drive axle 116psi | N/A = inner dual tire (not measured)",
+    treadFoot: (t: Thresholds) => `Tread spec: new ${NEW_TREAD}mm · caution <${t.caution}mm · order <${t.order}mm · replace now <${t.critical}mm`,
+    pressFoot: `Recommended pressure: steer axle (L1/R1) ${recPsi(1)}psi · drive axle ${recPsi(3)}psi | N/A = inner dual tire (not measured)`,
     detailTitle: "Detail data by round",
     position: "Position",
     serial: "Serial",
@@ -67,11 +85,13 @@ const TX = {
     lifeDb: "View lifetime DB",
     tableFoot: "Measured values by round. Tread is the minimum of the 4 grooves.",
   },
-} as const;
+} as const);
 
 export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: string) => void }) {
   const { lang } = useLang();
-  const tx = TX[lang];
+  // TMS_DATA.tire 가 로드된 뒤 렌더되므로, 문구는 렌더 시점에 DB 기준값으로 만든다.
+  const th = treadThresholds();
+  const tx = buildTX()[lang];
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
   const [metric, setMetric] = useState<"tread" | "press">("tread");
 
@@ -152,8 +172,9 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {metric === "tread" && (
               <>
-                <ReferenceLine y={TREAD_WARN} stroke="#eab308" strokeDasharray="6 3" label={{ value: `${tx.warn} ${TREAD_WARN}mm`, fill: "#eab308", fontSize: 10 }} />
-                <ReferenceLine y={TREAD_DANGER} stroke="#ef4444" strokeDasharray="6 3" label={{ value: `${tx.replace} ${TREAD_DANGER}mm`, fill: "#ef4444", fontSize: 10 }} />
+                <ReferenceLine y={th.caution} stroke={LEVEL_HEX.warn} strokeDasharray="6 3" label={{ value: `${tx.warn} ${th.caution}mm`, fill: LEVEL_HEX.warn, fontSize: 10 }} />
+                <ReferenceLine y={th.order} stroke={LEVEL_HEX.order} strokeDasharray="6 3" label={{ value: `${tx.order} ${th.order}mm`, fill: LEVEL_HEX.order, fontSize: 10 }} />
+                <ReferenceLine y={th.critical} stroke={LEVEL_HEX.danger} strokeDasharray="6 3" label={{ value: `${tx.replace} ${th.critical}mm`, fill: LEVEL_HEX.danger, fontSize: 10 }} />
               </>
             )}
             {metric === "press" && positions.slice(0, 2).map((_, i) => (
@@ -174,7 +195,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
           </LineChart>
         </ResponsiveContainer>
         <p className="mt-2 text-xs text-muted-foreground">
-          {metric === "tread" ? tx.treadFoot : tx.pressFoot}
+          {metric === "tread" ? tx.treadFoot(th) : tx.pressFoot}
         </p>
       </div>
 
@@ -227,9 +248,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                       const n = v as number;
                       let cls = "";
                       if (metric === "tread") {
-                        if (n <= TREAD_DANGER) cls = "text-destructive font-bold";
-                        else if (n <= TREAD_WARN) cls = "text-yellow-400 font-bold";
-                        else cls = "text-green-400";
+                        cls = LEVEL_CELL_CLS[treadLevel(n)];
                       }
                       return (
                         <td key={si} className={`px-2 py-1.5 text-center ${cls}`}>{metric === "tread" ? n.toFixed(1) : Math.round(n)}</td>
@@ -279,7 +298,7 @@ function TinySparkline({ pairs, metric }: { pairs: { d: string; v: number }[]; m
   const last = pairs[pairs.length - 1].v;
   const color =
     metric === "tread"
-      ? last <= TREAD_DANGER ? "#ef4444" : last <= TREAD_WARN ? "#eab308" : "#4ade80"
+      ? LEVEL_HEX[treadLevel(last)]
       : "#FFB800";
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-24 h-7">

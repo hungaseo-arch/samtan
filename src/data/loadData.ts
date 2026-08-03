@@ -9,8 +9,8 @@ import { listInspections, type InspectionRow } from "@/api/inspections";
 
 // ============================================================
 // 하중(축하중) 데이터 — Techking "Load Distribution Road Train unit" 시트 기준
-// 하중 그룹: ① 그룹 1 = Head + 트레일러 1 (Payload 55t, 총 94t)
-//            ② 그룹 2 = 돌리 + 트레일러 2 (Payload 65t, 총 96t)
+// 하중 그룹: ① 그룹 1 = Head + 트레일러 1 (Payload 55t, 총 94t) — 분배 Head 50% / 트레일러1 50%
+//            ② 그룹 2 = 돌리 + 트레일러 2 (Payload 65t, 총 96t) — 분배 50% / 50%
 // 정격(rated): 하중지수(LI) + 장착방식 기준
 //   · Head 385/95R24 단독(single) 6,000 kg/본
 //   · 트레일러·돌리 12.00R24 듀얼(dual) 4,500 kg/본 (단독 LI 162 = 4,750 → 듀얼 LI 160 = 4,500)
@@ -45,15 +45,16 @@ export const LOAD_GROUPS: LoadGroup[] = [
   { id: 2, name: "그룹 2 · 돌리 + 트레일러 2",  payload: 65000 },
 ];
 
-/** Head의 그룹 1 총중량 분배율 (나머지 50%는 트레일러 1). Head 하중 = 그룹1총중량 × 이 값 */
+/** Head의 그룹 1 총중량 분배율 (나머지 50%는 트레일러 1). Head 하중 = 그룹1총중량 × 이 값
+ *  근거: 고객 하중분배 시트(Load Distribution Road Train) — 그룹1 Head 50% / 트레일러1 50%. */
 export const HEAD_GROUP_SHARE = 0.5;
 
 export const LOAD_UNITS: LoadUnit[] = [
-  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (Head 20%)",          spec: "385/95R24(14.00R24)", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
-  { key: "headDrive", name: "Head Driving axis", sub: "L2·L3·R2·R3 · Single (Head 80%)",     spec: "385/95R24(14.00R24)", count: 8,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
-  { key: "trailer1",  name: "Trailer 1",  sub: "Trailer 1",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
-  { key: "trailer2",  name: "Trailer 2",  sub: "Trailer 2",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
-  { key: "dolly",     name: "Dolly",      sub: "Dolly",                               spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (Head 20%)",          spec: "14.00R24", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
+  { key: "headDrive", name: "Head Driving axis", sub: "L2·L3·R2·R3 · Dual (Head 80%)",       spec: "14.00R24", count: 8,  mount: "dual",   ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
+  { key: "trailer1",  name: "Trailer 1",  sub: "Trailer 1",                         spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
+  { key: "dolly",     name: "Dolly",      sub: "Dolly",                               spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "trailer2",  name: "Trailer 2",  sub: "Trailer 2",                         spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
 ];
 
 /** 그룹 총중량(kg) = 그룹 소속 유닛 공차 합 + 그룹 Payload */
@@ -140,6 +141,12 @@ export async function loadData(): Promise<void> {
       tubetype: cfg.data.tubetype,
       newTread: cfg.data.new_tread,
       capacity: cfg.data.capacity,
+      // 마이그레이션 미적용 환경에서는 컬럼 자체가 없으므로 ?? null 로 방어한다.
+      treadCaution: cfg.data.tread_caution ?? null,
+      treadOrder: cfg.data.tread_order ?? null,
+      treadCritical: cfg.data.tread_critical ?? null,
+      recPsiSteer: cfg.data.rec_psi_steer ?? null,
+      recPsiDrive: cfg.data.rec_psi_drive ?? null,
     };
   }
 

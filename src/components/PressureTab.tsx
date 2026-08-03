@@ -10,7 +10,7 @@ import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
 
-const TX = {
+const buildTX = () => ({
   ko: {
 
     secStdTitle: "권장 공기압 기준",
@@ -60,7 +60,7 @@ const TX = {
     judgeDangerDesc: "운행 전 즉시 조치",
     // PROCEDURE
     pc1: "냉간 상태에서 측정 (운행 직후 측정 금지)",
-    pc2: "각 포지션 실측 공기압 기록 — 조향축 100 / 구동축 116 psi 기준",
+    pc2: `각 포지션 실측 공기압 기록 — 조향축 ${recPsi(1)} / 구동축 ${recPsi(3)} psi 기준`,
     pc3: "내측 듀얼(In) 타이어는 측정 제외(N/A) 처리",
     pc4: "게이지 정확도 확인 (캘리브레이션 ±5% 이내)",
     pc5: "컴프레서 최대압 130 psi 도달 가능 여부 확인",
@@ -73,7 +73,7 @@ const TX = {
     eqGaugeValue: "±5% 이내",
     eqGaugeNote: "정기 캘리브레이션 — 최근 교정일 확인",
     eqOpLabel: "현재 운용압",
-    eqOpNote: "기존 125psi → ETCrane 시험 116 psi 하향",
+    eqOpNote: `기존 125psi → ETCrane 시험 ${recPsi(3)} psi 하향`,
     // SYMPTOMS
     sym1: "저압 (Under-inflation)",
     sym1cause: "펑크 · 밸브 누설 · 미보충",
@@ -141,7 +141,7 @@ const TX = {
     judgeDangerDesc: "Tindakan segera sebelum jalan",
     // PROCEDURE
     pc1: "Ukur saat ban dingin (dilarang ukur tepat setelah jalan)",
-    pc2: "Catat tekanan aktual per posisi — standar poros kemudi 100 / poros penggerak 116 psi",
+    pc2: `Catat tekanan aktual per posisi — standar poros kemudi ${recPsi(1)} / poros penggerak ${recPsi(3)} psi`,
     pc3: "Ban dual dalam (In) = tidak diukur (N/A)",
     pc4: "Cek akurasi gauge (kalibrasi dalam ±5%)",
     pc5: "Konfirmasi kompresor mampu mencapai tekanan maks 130 psi",
@@ -154,7 +154,7 @@ const TX = {
     eqGaugeValue: "Dalam ±5%",
     eqGaugeNote: "Kalibrasi berkala — cek tanggal kalibrasi terakhir",
     eqOpLabel: "Tekanan operasi saat ini",
-    eqOpNote: "Sebelumnya 125psi → uji ETCrane turun 116 psi",
+    eqOpNote: `Sebelumnya 125psi → uji ETCrane turun ${recPsi(3)} psi`,
     // SYMPTOMS
     sym1: "Tekanan rendah (Under-inflation)",
     sym1cause: "Bocor · kebocoran valve · belum ditambah angin",
@@ -222,7 +222,7 @@ const TX = {
     judgeDangerDesc: "Act immediately before operation",
     // PROCEDURE
     pc1: "Measure cold (do not measure right after operation)",
-    pc2: "Record measured pressure at each position — steer axle 100 / drive axle 116 psi standard",
+    pc2: `Record measured pressure at each position — steer axle ${recPsi(1)} / drive axle ${recPsi(3)} psi standard`,
     pc3: "Inner dual (In) tires are excluded from measurement (N/A)",
     pc4: "Check gauge accuracy (calibration within ±5%)",
     pc5: "Confirm the compressor can reach a maximum of 130 psi",
@@ -235,7 +235,7 @@ const TX = {
     eqGaugeValue: "Within ±5%",
     eqGaugeNote: "Periodic calibration — check the last calibration date",
     eqOpLabel: "Current operating pressure",
-    eqOpNote: "Previously 125psi → lowered to 116 psi for the ETCrane trial",
+    eqOpNote: `Previously 125psi → lowered to ${recPsi(3)} psi for the ETCrane trial`,
     // SYMPTOMS
     sym1: "Low pressure (Under-inflation)",
     sym1cause: "Puncture · valve leak · not topped up",
@@ -254,12 +254,12 @@ const TX = {
     sym4risk: "Steering pull · unstable running",
     sym4action: "Equalize left and right pressure on the same axle",
   },
-} as const;
+} as const);
 
 // ── 권장 공기압 기준 ──────────────────────────────────────────
-const PRESSURE_STD = [
-  { key: "stdSteering", sub: "Steering · As Kemudi", pos: "L1 · R1", psi: 100 },
-  { key: "stdDrive", sub: "Drive · As Penggerak", pos: "L2 · L3 · R2 · R3", psi: 116 },
+const pressureStd = () => [
+  { key: "stdSteering", sub: "Steering · As Kemudi", pos: "L1 · R1", psi: recPsi(1) },
+  { key: "stdDrive", sub: "Drive · As Penggerak", pos: "L2 · L3 · R2 · R3", psi: recPsi(3) },
 ] as const;
 
 // ── 상태 판정 기준 ────────────────────────────────────────────
@@ -284,7 +284,7 @@ const PROCEDURE = [
 const EQUIP = [
   { labelKey: "eqCompLabel", sub: "Tekanan maks kompresor", value: "130 psi", noteKey: "eqCompNote" },
   { labelKey: "eqGaugeLabel", sub: "Akurasi gauge", valueKey: "eqGaugeValue", noteKey: "eqGaugeNote" },
-  { labelKey: "eqOpLabel", sub: "Tekanan operasional", value: "116 psi", noteKey: "eqOpNote" },
+  { labelKey: "eqOpLabel", sub: "Tekanan operasional", valueFn: () => `${recPsi(3)} psi`, noteKey: "eqOpNote" },
 ] as const;
 
 // ── 이상 징후 및 대응 ─────────────────────────────────────────
@@ -297,7 +297,8 @@ const SYMPTOMS = [
 
 export default function PressureTab() {
   const { lang } = useLang();
-  const tx = TX[lang];
+  // 문구에 권장 공기압이 들어가므로 DB 로드 후 렌더 시점에 만든다.
+  const tx = buildTX()[lang];
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const toggle = (id: string) => setChecked((p) => ({ ...p, [id]: !p[id] }));
   const doneCount = PROCEDURE.filter((p) => checked[p.id]).length;
@@ -340,7 +341,7 @@ export default function PressureTab() {
         <motion.div variants={staggerItem} className="flex flex-col">
           <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 auto-rows-fr">
-            {PRESSURE_STD.map((s) => (
+            {pressureStd().map((s) => (
               <div key={s.key} className="rounded-xl border border-border bg-card p-4 text-center flex flex-col justify-center">
                 <div className="text-sm font-bold text-foreground">{tx[s.key]}</div>
                 <div className="text-xs text-muted-foreground">{s.sub}</div>
@@ -473,7 +474,7 @@ export default function PressureTab() {
             {EQUIP.map((e) => (
               <div key={e.labelKey} className="rounded-lg border border-border/60 bg-muted/20 p-3 text-center">
                 <div className="text-xs text-muted-foreground">{tx[e.labelKey]} <span className="opacity-60">· {e.sub}</span></div>
-                <div className="font-mono text-lg font-bold text-primary my-1">{"value" in e ? e.value : tx[e.valueKey]}</div>
+                <div className="font-mono text-lg font-bold text-primary my-1">{"valueFn" in e ? e.valueFn() : "value" in e ? e.value : tx[e.valueKey]}</div>
                 <div className="text-xs text-muted-foreground leading-relaxed">{tx[e.noteKey]}</div>
               </div>
             ))}

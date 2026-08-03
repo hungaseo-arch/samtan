@@ -113,6 +113,31 @@ PK: `id` · CHECK `id = 1` (싱글턴)
 | `tubetype` | `text` | NULL | — |
 | `new_tread` | `numeric` | NULL | — |
 | `capacity` | `numeric` | NULL | — |
+| `tread_caution` | `numeric` | NULL | — |
+| `tread_order` | `numeric` | NULL | — |
+| `tread_critical` | `numeric` | NULL | — |
+| `rec_psi_steer` | `numeric` | NULL | — |
+| `rec_psi_drive` | `numeric` | NULL | — |
+
+아래 5개 컬럼은 마이그레이션 `20260801120000_tire_config_thresholds.sql` 에서 추가되었습니다
+(운영 기준값을 코드 상수에서 DB로 이관 — 결정 X-6). 초기값은 `id = 1` 행에 대해
+`10 / 5 / 3 / 100 / 116`. NULL 이면 프론트엔드가 동일한 폴백값으로 동작합니다.
+
+| 컬럼 | 의미 |
+|---|---|
+| `tread_caution` | 이 값 **미만**이면 황색(주의). 초기 10 mm |
+| `tread_order` | 이 값 **미만**이면 주황 — **교체 타이어 발주 트리거**. 초기 5 mm |
+| `tread_critical` | 이 값 **미만**이면 적색 — 즉시 교체. 초기 3 mm |
+| `rec_psi_steer` | 조향축(L1·R1) 권장 공기압. 초기 100 psi |
+| `rec_psi_drive` | 구동축(그 외 8본) 권장 공기압. 초기 116 psi |
+
+CHECK 제약 2개가 함께 추가됩니다.
+
+- `tire_config_tread_order_check` — `tread_critical < tread_order < tread_caution` (셋 다 NOT NULL 인 경우).
+  경계가 뒤집히면 신호등이 무의미해지므로 순서를 강제합니다.
+- `tire_config_psi_range_check` — `rec_psi_steer`·`rec_psi_drive` 각각 60 ~ 200 psi.
+
+RLS: `UPDATE` 는 `inspector`·`admin` 에 허용되어 있으므로 관리자가 화면에서 조정할 수 있습니다.
 
 ## 7. `public.damage_codes` — 손상 코드
 
@@ -163,10 +188,11 @@ T-103에서 트리거 기반 자동 기록과 나머지 테이블로의 확장�
 | `vehicle_positions` | `vehicle_positions_ch_fkey` | `FOREIGN KEY (ch) REFERENCES vehicles(ch) ON DELETE CASCADE` |
 | `replacements` | `replacements_pkey` | `PRIMARY KEY (id)` |
 | `lifetimes` | `lifetimes_pkey` | `PRIMARY KEY (no)` |
-| `tire_config` | `tire_config_pkey` / `tire_config_singleton` | `PRIMARY KEY (id)` / `CHECK (id = 1)` |
+| `tire_config` | `tire_config_pkey` / `tire_config_singleton` / `tire_config_tread_order_check` / `tire_config_psi_range_check` | `PRIMARY KEY (id)` / `CHECK (id = 1)` / 임계치 순서 / psi 범위 |
 | `damage_codes` | `damage_codes_pkey` | `PRIMARY KEY (code)` |
 
-**CHECK 제약이 하나도 없습니다** (`tire_config_singleton` 제외). `pressure`·`tread`·`hm`·`km` 값 검증 부재 = P-2.
+**측정 테이블에는 CHECK 제약이 하나도 없습니다.** `pressure`·`tread`·`hm`·`km` 값 검증 부재 = P-2 (T-102에서 해소).
+`tire_config` 의 4개 제약(싱글턴 + 임계치 순서 + psi 범위)이 현재 유일한 CHECK 입니다.
 
 ## 10. 인덱스 현황
 

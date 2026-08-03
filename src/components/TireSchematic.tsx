@@ -12,9 +12,11 @@ export interface SchematicCell {
 }
 
 // 상태 → Tailwind 색상 (LayoutTab의 STATUS_STYLE과 동일)
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
   ok: "border-green-600 bg-green-50 text-green-700",
   warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
+  order: "border-orange-500 bg-orange-50 text-orange-700",
   danger: "border-red-500 bg-red-50 text-red-700",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
