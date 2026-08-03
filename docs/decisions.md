@@ -54,6 +54,10 @@
 | **X-8** | 부록 A 제약 중 3건 생략 | **`uq_inspection` · `idx_insp_ch_date` · `fk_vp_vehicle` 을 만들지 않음** | 2026-08-03 | 각각 `inspections_ch_date_pos_uniq` · `inspections_ch_date_idx` · `vehicle_positions_ch_fkey` 로 이미 존재. 추가하면 동일 인덱스가 2벌이 되어 쓰기 비용만 늘어남 |
 | **X-9** | `ck_meter` 의 NULL 처리 | **`(hm is null or hm >= 0) and (km is null or km >= 0)`** | 2026-08-03 | 부록 A 의 `hm >= 0 AND km >= 0` 은 한쪽이 NULL 이면 결과가 NULL 이라 CHECK 상 통과. 의도는 같으나 판정을 명시적으로 씀 |
 | **X-5** | `audit_log` 최초 생성 시점 | **T-103이 아닌 T-101 마이그레이션에서 생성** | 2026-08-01 | T-101 완료 조건이 "정정 전/후 값이 `audit_log`에 기록됨"인데 테이블은 T-103 산출물이라 순환 의존. T-101에서 최소 형태로 만들고 T-103이 트리거·타 테이블로 확장 |
+| **X-10** | 감사 컬럼 적용 범위 | **§1.2의 4개 테이블만.** `lifetimes`·`tire_config`·`damage_codes` 제외 | 2026-08-03 | 지시서 T-103이 명시한 범위. 나머지 3개는 §1.2 미기재 참조 테이블이며 변경 빈도가 사실상 0 |
+| **X-11** | 하드 삭제 차단 방식 | **DB 트리거로 무조건 차단** (`forbid_hard_delete()`) | 2026-08-03 | §3.1-3은 규칙 문서로만 존재했고 DB는 막지 않았다. 실제로 `deleteInspectionRound()`가 하드 `DELETE`를 실행 중이었음. 아래 X-11 참조 |
+| **X-12** | 소프트 삭제 권한 경계 | **삭제(NULL→값)는 `admin`만. 복원(값→NULL)은 `inspector`도 가능** | 2026-08-03 | 삭제를 `UPDATE`로 바꾸면 `UPDATE` 정책(`inspector`·`admin`)을 타 권한이 넓어짐. 컬럼 단위 판정은 RLS로 표현 불가하여 트리거로 원래 경계 복원. 아래 X-12 참조 |
+| **X-13** | `replacements.created_at` 추가 방식 | **NULL로 추가 → 교체일로 백필 → `NOT NULL DEFAULT now()`** (3단계) | 2026-08-03 | `not null default now()`로 한 번에 넣으면 기존 17행이 마이그레이션 실행 시각으로 굳어져 이후 되돌릴 행을 특정할 수 없음 |
 
 ### X-2 상세 — 지시서 전제와 실제 저장소의 차이
 
@@ -260,9 +264,61 @@ RLS 상 `tire_config` 의 UPDATE 는 `inspector` · `admin` 에 열려 있으므
 
 ---
 
+### X-11 상세 — 하드 삭제가 실제로 실행되고 있었다
+
+§3.1-3(`inspections`·`replacements` DELETE 금지, 소프트 삭제만 사용)은 규칙 문서로만 존재했고
+DB에는 아무 방어막이 없었습니다. T-103 착수 시점에 확인한 실제 상태:
+
+| 항목 | 적용 전 |
+|---|---|
+| `deleted_at` 컬럼 | **어느 테이블에도 없음** |
+| `src/api/inspections.ts:deleteInspectionRound()` | `supabase.from("inspections").delete()` — **하드 삭제** |
+| 호출 경로 | `src/components/InspectionTab.tsx` 회차 삭제 버튼 (`canDelete` 게이팅) |
+| RLS `DELETE` 정책 | `admin`만 허용 (`0010`) |
+
+즉 관리자가 회차 삭제 버튼을 누르면 점검 레코드 최대 10행이 복구 불가능하게 사라지는
+상태였습니다. T-103에서 컬럼·트리거·클라이언트를 함께 고쳤습니다.
+
+`forbid_hard_delete()`는 `BEFORE DELETE`에서 무조건 예외를 던집니다(`23001`). 조건부로 두지 않은
+이유는, 예외를 열어두는 순간 그 경로가 정상 경로로 쓰이기 때문입니다. 정말로 물리 삭제가
+필요해지면 그때 마이그레이션으로 트리거를 잠시 내리고 근거를 남기는 편이 안전합니다.
+
+### X-12 상세 — 소프트 삭제 전환이 권한을 넓히는 문제
+
+정책 구성상 `DELETE`는 `admin`, `UPDATE`는 `inspector`·`admin`입니다(`0010`).
+삭제를 `deleted_at`을 채우는 `UPDATE`로 바꾸면 **삭제 권한이 조용히 `inspector`까지 넓어집니다.**
+
+RLS 정책의 `WITH CHECK`는 새 행만 보므로 "`deleted_at`이 NULL에서 값으로 바뀌는 경우"를
+표현할 수 없습니다. `BEFORE UPDATE` 트리거 `guard_soft_delete()`가 대신 판정합니다.
+
+| 방향 | 허용 대상 | 근거 |
+|---|---|---|
+| NULL → 값 (삭제) | `admin` | 하드 삭제 시절 경계 유지 |
+| 값 → NULL (복원) | `inspector`·`admin` | 삭제된 날짜에 점검을 다시 입력하는 정상 흐름. UPSERT가 `deleted_at`을 NULL로 되돌림 |
+
+복원을 점검자에게 허용하면 관리자의 삭제를 점검자가 되돌릴 수 있습니다. 그 대신
+복원 행위도 `audit_log`에 `UPDATE`로 남으므로 추적은 가능합니다. 재입력 흐름을 막는 쪽이
+현장에서 더 큰 비용이라고 판단했습니다.
+
+`auth.uid()`가 NULL인 세션(마이그레이션·`service_role`)은 판정을 통과시킵니다 —
+그러지 않으면 마이그레이션 자신이 자기 트리거에 막힙니다.
+
+---
+
 ## 미결 사항 (사용자 승인 대기)
 
-_현재 없음._
+### U-5. `20260803110000_t103_audit_columns_triggers.sql` — **승인 대기**
+
+T-103 산출물. 로컬 검증 완료(`db reset` + pgTAP 43/43 통과), 프로덕션 미적용.
+
+| 영향 | 규모 |
+|---|---|
+| 컬럼 추가 | `vehicles`·`vehicle_positions`·`replacements` 각 7개, `inspections` 1개(`deleted_at`) |
+| 데이터 변경 | `inspections.created_at` 330행 · `replacements.created_at` 17행 (백필) |
+| 트리거 추가 | 16개 |
+| 함수 | `log_audit()`·`forbid_hard_delete()`·`guard_soft_delete()` 신규, `set_updated_at()` 재정의(`search_path` 고정) |
+
+---
 
 `pressure` 하한 60 psi 는 부록 A 값 그대로이며, 실운용 최저 공기압은 여전히 사용자 확인 대상입니다
 (승인을 막는 항목은 아니어서 미결로 두지 않고 여기에 남깁니다).

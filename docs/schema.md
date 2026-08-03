@@ -49,6 +49,10 @@ PK: `id`
 | `updated_by` | `uuid` | NULL | — | 동일 |
 | `created_by_email` | `text` | NULL | — | 표시용 이메일 스냅샷 |
 | `updated_by_email` | `text` | NULL | — | 동일 |
+| `deleted_at` | `timestamptz` | NULL | — | 소프트 삭제 시각. NULL = 유효 — T-103 |
+
+`created_at`은 T-103에서 점검일 기준으로 백필했습니다(§14). 그 이전 값은 일괄 적재를 실행한
+날짜였기 때문에 감사 자료로 쓸 수 없었습니다.
 
 ## 2. `public.vehicles` — 차량
 
@@ -59,6 +63,7 @@ PK: `ch`
 | `ch` | `text` | NOT NULL | — | PK. 차량번호 |
 | `seq` | `integer` | NULL | — | 표시 순서 |
 | `hm_reset` | `boolean` | NOT NULL | `false` | 계기 리셋 차량 (`832`, `835`) |
+| 감사 7개 컬럼 | | | | T-103에서 추가 — §14 참조 |
 
 ## 3. `public.vehicle_positions` — 차량 포지션
 
@@ -72,6 +77,7 @@ PK: `(ch, pos)` · FK: `ch` → `vehicles(ch)` `ON DELETE CASCADE`
 | `serial2` | `text` | NULL | — | 교체 후 시리얼. **P-4의 원인** (2회 교체까지만 표현 가능) |
 | `remark` | `text` | NULL | — | |
 | `seq` | `integer` | NULL | — | 표시 순서 |
+| 감사 7개 컬럼 | | | | T-103에서 추가 — §14 참조 |
 
 ## 4. `public.replacements` — 교체 이력
 
@@ -80,10 +86,15 @@ PK: `id`
 | 컬럼 | 타입 | NULL | 기본값 | 비고 |
 |---|---|:--:|---|---|
 | `id` | `uuid` | NOT NULL | `gen_random_uuid()` | PK |
-| `ch` | `text` | NOT NULL | — | FK 없음 (T-102 대상) |
-| `pos` | `text` | NOT NULL | — | FK 없음 (T-102 대상) |
+| `ch` | `text` | NOT NULL | — | FK → `vehicle_positions` (T-102) |
+| `pos` | `text` | NOT NULL | — | FK → `vehicle_positions` (T-102) |
 | `date` | `date` | NOT NULL | — | 교체일 |
 | `new_serial` | `text` | NULL | — | 신규 장착 시리얼 |
+| 감사 7개 컬럼 | | | | T-103에서 추가 — §14 참조 |
+
+`created_at`은 컬럼 추가와 동시에 `date`(교체일) 기준으로 채웠습니다.
+`not null default now()`로 한 번에 추가하면 기존 17행이 마이그레이션 실행 시각으로 굳어져
+이후 어떤 조건으로도 되돌릴 행을 특정할 수 없기 때문입니다.
 
 ## 5. `public.lifetimes` — 타이어 수명 원장
 
@@ -167,14 +178,23 @@ PK: `id` · 추가: `20260801100000_t101_correct_outliers.sql` (T-101) · 프로
 | `source` | `text` | NOT NULL | — |
 | `note` | `text` | NULL | — |
 | `changed_at` | `timestamptz` | NOT NULL | `now()` |
+| `op` | `text` | NULL | — | `INSERT` · `UPDATE` · `DELETE` — T-103. T-101이 직접 넣은 행은 NULL |
 
-`old_value`·`new_value`에는 **변경된 컬럼만** 담습니다. `actor`는 마이그레이션으로 수행한 변경에서는 NULL입니다.
-`source`는 변경 경로를 남깁니다 (`migration:<version>` · 이후 T-103에서 트리거 경로 추가).
+`source`는 변경 경로를 남깁니다 — `migration:<version>`(T-101이 직접 넣은 행) 또는 `trigger`(T-103).
+
+담기는 값의 범위가 경로마다 다릅니다.
+
+| `source` | `old_value` / `new_value` |
+|---|---|
+| `migration:<version>` | **변경된 컬럼만** |
+| `trigger` | **행 전체**. `INSERT`는 `new_value`만, `DELETE`는 `old_value`만 |
+
+`actor`는 마이그레이션으로 수행한 변경에서는 NULL이며, 트리거 경로에서는 JWT의 `sub`가 들어갑니다.
 
 RLS 정책은 다른 테이블과 다릅니다 — **`SELECT`는 `admin`만** 가능하며 클라이언트 쓰기 정책은 없습니다.
 전 이력이 고객사 계정에 노출되는 것을 막기 위한 것으로, §11의 `public` 전면 허용 패턴을 의도적으로 따르지 않았습니다.
-
-T-103에서 트리거 기반 자동 기록과 나머지 테이블로의 확장을 수행합니다.
+기록 함수 `log_audit()`는 `SECURITY DEFINER`이므로 정책과 무관하게 쓸 수 있고, 반대로 **그 함수를 거치지 않고는
+아무도 `audit_log`에 쓸 수 없습니다.**
 
 ---
 
@@ -222,6 +242,8 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 | `inspections` | `inspections_ch_date_idx` | `(ch, inspection_date DESC)` |
 | `inspections` | `idx_insp_serial` | `(serial)` — T-102 |
 | `inspections` | `idx_insp_date` | `(inspection_date DESC)` — T-102 |
+| `inspections` | `idx_insp_active` | `(ch, inspection_date DESC) WHERE deleted_at IS NULL` — T-103 |
+| `audit_log` | `audit_log_pk_idx` | `GIN (record_pk)` — T-103 |
 
 ---
 
@@ -240,6 +262,11 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 역할은 `auth.users.app_metadata.role`에 저장되고 `public.app_role()`이 읽습니다.
 `app_role()`은 구 값을 정규화합니다: `staff` → `inspector`, `user` → `viewer`, 미지정 → `viewer`.
 
+**T-103 이후 `DELETE` 행은 사실상 사문화되었습니다.** `inspections`·`replacements`의 하드 삭제는
+트리거가 무조건 막고, 실제 삭제는 `deleted_at`을 채우는 `UPDATE`로 수행됩니다. 그런데 `UPDATE`
+정책은 `inspector`까지 허용하므로, 그대로 두면 삭제 권한이 `admin`에서 `inspector`로 넓어집니다.
+컬럼 단위 판정은 RLS로 표현할 수 없어 트리거 `guard_soft_delete()`가 원래 경계를 대신 지킵니다(§14).
+
 ---
 
 ## 12. 작업지시서 §1.3 문제점 대조
@@ -247,10 +274,10 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 | # | 지시서의 문제 진술 | 실제 확인 결과 |
 |---|---|---|
 | P-1 | `inspections`에 UNIQUE 제약 없음 | **이미 해결됨.** `inspections_ch_date_pos_uniq`가 `(ch, inspection_date, pos)`에 존재 (`0001`). T-102의 `uq_inspection` 추가는 중복이므로 재검토 필요 |
-| P-2 | 값 검증 없음 | **유효.** `pressure`·`tread`·`hm`·`km` CHECK 제약 없음 |
+| P-2 | 값 검증 없음 | **해결됨.** T-102에서 `ck_pressure`·`ck_tread`·`ck_meter` 추가 |
 | P-3 | 더미 데이터 혼입 | T-002에서 실측 검증 |
 | P-4 | 타이어 이력 구조 파탄 | **유효.** `serial`/`serial2` 2열 구조 유지 중 |
-| P-5 | 감사 추적 불가 | **부분 해결.** `inspections`만 `created_at/by`·`updated_at/by` 보유. 나머지 6개 테이블은 감사 컬럼 없음 → T-103 범위 |
+| P-5 | 감사 추적 불가 | **해결됨.** T-103에서 §1.2의 4개 테이블에 감사 컬럼·`deleted_at`을 추가하고 `audit_log` 트리거를 붙였습니다. `lifetimes`·`damage_codes`·`tire_config`는 §1.2 범위 밖이라 제외 |
 | P-6 | 권한 분리 없음 | **부분 해결.** 3개 역할(`admin`/`inspector`/`viewer`) 운영 중. 지시서 T-301의 4개 역할·`user_profiles`·`customer_code` 체계와 불일치 |
 | P-7 | 마이그레이션 미사용 | **해결됨.** `0001`~`0010` 존재 |
 
@@ -258,4 +285,87 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 
 1. **`SELECT`가 `public` 역할에 무조건 허용되어 있습니다.** `anon` 키는 클라이언트 번들에 포함되어 공개 배포되므로, 현재 전 데이터가 사실상 공개 상태입니다. D-1(고객사 제공)에서 `customer_viewer`의 "자사 외 차량 0건 반환"(T-302 완료 조건)을 만족하려면 이 정책을 반드시 교체해야 합니다. **`finance` 스키마에는 이 패턴을 적용하지 않습니다.**
 2. **`lifetimes.install` / `lifetimes.scrap`이 `date`가 아닌 `text`입니다.** 날짜 연산·정렬이 문자열 기준으로 동작합니다. 타입 변경은 §3.1-4(컬럼 삭제 금지)에 저촉되지 않으므로 Phase 1에서 처리 가능하나, 값 형식이 전 행 `YYYY-MM-DD`인지 T-002에서 확인이 필요합니다.
-3. **`replacements`·`inspections`에 `(ch, pos)` FK가 없습니다.** T-102 부록 A 대상이며, T-002에서 고아 레코드를 먼저 확인해야 제약 추가가 실패하지 않습니다.
+3. ~~**`replacements`·`inspections`에 `(ch, pos)` FK가 없습니다.**~~ → T-102에서 `fk_insp_position`·`fk_repl_position` 추가로 해소 (고아 0건 확인 후 적용).
+
+---
+
+## 14. 감사 추적 (T-103)
+
+마이그레이션 `20260803110000_t103_audit_columns_triggers.sql`.
+대상은 작업지시서 §1.2의 4개 테이블 — `vehicles` · `vehicle_positions` · `inspections` · `replacements`.
+
+### 14.1 감사 컬럼
+
+4개 테이블 모두 아래 7개 컬럼을 갖습니다. 구성을 통일한 이유는 `set_audit_fields()` 트리거를
+공유하기 때문입니다 — `*_email` 하나만 빠져도 트리거가 런타임에 실패합니다.
+
+| 컬럼 | 타입 | 채우는 주체 |
+|---|---|---|
+| `created_at` | `timestamptz NOT NULL DEFAULT now()` | 기본값 |
+| `updated_at` | `timestamptz NOT NULL DEFAULT now()` | `set_updated_at()` (BEFORE UPDATE) |
+| `created_by` / `created_by_email` | `uuid` / `text` | `set_audit_fields()` (BEFORE INSERT) |
+| `updated_by` / `updated_by_email` | `uuid` / `text` | `set_audit_fields()` (BEFORE UPDATE) |
+| `deleted_at` | `timestamptz` | 애플리케이션 (소프트 삭제) |
+
+`*_by` 값은 트리거가 JWT에서 직접 읽어 **항상 덮어씁니다**. 클라이언트가 보낸 값은 무시되므로 위조할 수 없습니다.
+이메일을 함께 저장하는 것은 클라이언트가 `auth.users`를 조회할 수 없기 때문이며, 계정이 삭제돼도
+"누가 올렸는지"는 남습니다.
+
+### 14.2 트리거 구성
+
+| 트리거 | 시점 | 대상 | 함수 |
+|---|---|---|---|
+| `trg_<t>_updated_at` | BEFORE UPDATE | 4개 테이블 | `set_updated_at()` |
+| `trg_<t>_audit` | BEFORE INSERT·UPDATE | 4개 테이블 | `set_audit_fields()` |
+| `trg_<t>_log` | AFTER INSERT·UPDATE·DELETE | 4개 테이블 | `log_audit()` |
+| `trg_<t>_no_delete` | BEFORE DELETE | `inspections` · `replacements` | `forbid_hard_delete()` |
+| `trg_<t>_guard_delete` | BEFORE UPDATE | `inspections` · `replacements` | `guard_soft_delete()` |
+
+`log_audit()`는 PK 컬럼명을 트리거 인자(`TG_ARGV`)로 받아 테이블마다 재사용합니다.
+`vehicle_positions`처럼 복합 PK인 경우 `record_pk`에 두 컬럼이 모두 담깁니다 — `{"ch":"824","pos":"L1"}`.
+
+**값이 그대로인 `UPDATE`는 기록하지 않습니다.** 비교에서 `updated_at`·`updated_by`·`updated_by_email`은
+제외합니다 — `set_updated_at()`이 `updated_at`을 항상 새로 쓰기 때문에, 그대로 비교하면 모든 `UPDATE`가
+"변경"으로 잡혀 T-104의 멱등 UPSERT가 회차마다 60행씩 잡음을 남기게 됩니다.
+
+### 14.3 삭제 정책
+
+§3.1-3의 "측정 레코드 DELETE 금지"를 DB가 직접 강제합니다.
+
+| 동작 | 결과 |
+|---|---|
+| `DELETE FROM inspections` / `replacements` | 차단 (`23001 restrict_violation`) |
+| `deleted_at`을 NULL → 값 (삭제) | `admin`만 가능. 그 외 `42501 insufficient_privilege` |
+| `deleted_at`을 값 → NULL (복원) | `inspector`도 가능 |
+
+복원을 점검자에게도 허용하는 것은 **삭제한 날짜에 점검을 다시 입력하는 정상 흐름**이기 때문입니다.
+`saveInspectionRound()`의 UPSERT가 `deleted_at`을 NULL로 되돌리므로, 재입력하면 회차가 되살아납니다.
+복원 역시 `audit_log`에 그대로 남습니다.
+
+`auth.uid()`가 NULL인 경우(마이그레이션·`service_role`·서버 작업)는 판정을 통과시킵니다.
+
+### 14.4 `created_at` 백필
+
+일괄 적재로 들어온 기존 행의 `created_at`은 "적재를 실행한 날"이라 감사 자료가 되지 못합니다.
+업무상 실제 발생일 기준으로 되돌렸습니다. 저장은 UTC, 기준은 현장 시간대(WIB = UTC+7) 자정입니다.
+
+| 테이블 | 기준 컬럼 | 대상 | 조건 |
+|---|---|---|---|
+| `inspections` | `inspection_date` | 330행 (전부) | `created_at < 2026-08-01` 이고 값이 다른 행 |
+| `replacements` | `date` | 17행 (전부) | 컬럼 추가 시 NULL이던 행 |
+
+`inspections`는 `0001`부터 있던 컬럼이라 컷오프로 구분합니다 — 컷오프 이후 현장에서 입력된 행은
+점검일과 입력일이 다를 수 있고 그 차이 자체가 감사 정보이므로 건드리지 않습니다(적용 시점 해당 0건).
+
+백필은 트리거를 붙이기 **전에**, `inspections`는 `DISABLE TRIGGER USER`로 감싸 실행합니다.
+그러지 않으면 `set_updated_at()`이 적재 시각을 덮어쓰고 `set_audit_fields()`가 `updated_by`를 NULL로 만듭니다.
+
+### 14.5 클라이언트 반영
+
+| 파일 | 변경 |
+|---|---|
+| `src/api/inspections.ts` | `deleteInspectionRound()`를 하드 `DELETE` → `deleted_at` `UPDATE`로 전환. `listInspections()`에 `deleted_at IS NULL` 필터. UPSERT가 `deleted_at: null`을 함께 써 재입력 시 복원 |
+| `src/data/loadData.ts` | `replacements` 조회에 `deleted_at IS NULL` 필터 |
+
+`deleteInspectionRound()`는 UI에서 `canDelete`(= `admin`)로 게이팅되어 있고, `guard_soft_delete()`가
+DB에서 같은 경계를 다시 확인합니다.

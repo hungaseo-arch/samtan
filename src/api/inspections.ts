@@ -21,15 +21,19 @@ export interface InspectionRow {
   updated_by?: string | null;
   created_by_email?: string | null;
   updated_by_email?: string | null;
+  /** 소프트 삭제 시각(T-103). null = 유효한 레코드. */
+  deleted_at?: string | null;
 }
 
 const TABLE = "inspections";
 
-/** 차량(ch) 기준 점검 이력 조회. ch 미지정 시 전체. */
+/** 차량(ch) 기준 점검 이력 조회. ch 미지정 시 전체.
+ *  소프트 삭제(deleted_at)된 회차는 제외한다. */
 export async function listInspections(ch?: string): Promise<InspectionRow[]> {
   let q = supabase
     .from(TABLE)
     .select("*")
+    .is("deleted_at", null)
     .order("inspection_date", { ascending: false })
     .order("pos", { ascending: true });
   if (ch) q = q.eq("ch", ch);
@@ -39,19 +43,24 @@ export async function listInspections(ch?: string): Promise<InspectionRow[]> {
 }
 
 /** 한 회차(여러 포지션) 저장 — (ch, inspection_date, pos) 충돌 시 갱신(upsert).
+ *  삭제했던 회차를 같은 날짜로 다시 입력하면 deleted_at 을 지워 되살린다.
  *  ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선 */
 export async function saveInspectionRound(
   rows: InspectionRow[]
 ): Promise<InspectionRow[]> {
   const { data, error } = await supabase
     .from(TABLE)
-    .upsert(rows, { onConflict: "ch,inspection_date,pos" })
+    .upsert(
+      rows.map((r) => ({ ...r, deleted_at: null })),
+      { onConflict: "ch,inspection_date,pos" }
+    )
     .select();
   if (error) throw error;
   return (data ?? []) as InspectionRow[];
 }
 
-/** 특정 차량의 특정 점검일 회차 전체 삭제.
+/** 특정 차량의 특정 점검일 회차 전체 삭제 — 소프트 삭제(§3.1-3).
+ *  레코드는 남고 deleted_at 만 채워지며, DB 트리거가 하드 삭제를 차단한다.
  *  ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선 */
 export async function deleteInspectionRound(
   ch: string,
@@ -59,8 +68,9 @@ export async function deleteInspectionRound(
 ): Promise<void> {
   const { error } = await supabase
     .from(TABLE)
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq("ch", ch)
-    .eq("inspection_date", date);
+    .eq("inspection_date", date)
+    .is("deleted_at", null);
   if (error) throw error;
 }

@@ -122,7 +122,8 @@ export async function loadData(): Promise<void> {
     supabase.from("tire_config").select("*").eq("id", 1).maybeSingle(),
     supabase.from("vehicles").select("*").order("seq", { ascending: true }),
     supabase.from("vehicle_positions").select("*").order("seq", { ascending: true }),
-    supabase.from("replacements").select("*"),
+    // 소프트 삭제(T-103)된 교체 이력은 제외한다.
+    supabase.from("replacements").select("*").is("deleted_at", null),
     supabase.from("lifetimes").select("*").order("no", { ascending: true }),
     supabase.from("damage_codes").select("*").order("seq", { ascending: true }),
     listInspections(),
