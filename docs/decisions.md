@@ -206,10 +206,20 @@ RLS 상 `tire_config` 의 UPDATE 는 `inspector` · `admin` 에 열려 있으므
 
 ---
 
+### U-3. `20260801120000_tire_config_thresholds.sql` — **적용 완료 (2026-08-02)**
+
+사용자 승인 후 `supabase db push` 로 적용했습니다. `--dry-run` 결과 대상은 이 파일 1건뿐이었습니다.
+
+적용 후 anon 키로 확인한 프로덕션 `tire_config` (id = 1):
+
+| `new_tread` | `tread_caution` | `tread_order` | `tread_critical` | `rec_psi_steer` | `rec_psi_drive` |
+|---|---|---|---|---|---|
+| 22 | 10 | 5 | 3 | 100 | 116 |
+
+기존 컬럼(`brand` 등)은 변경되지 않았고, 측정 데이터에는 손대지 않았습니다.
+
+---
+
 ## 미결 사항 (사용자 승인 대기)
 
-### U-3. `20260801120000_tire_config_thresholds.sql` 프로덕션 적용
-
-로컬 검증은 완료했습니다 (`db reset` 12개 마이그레이션 전량 적용 · 재적용 2회 멱등 · 제약 2개
-위반 차단 확인 · `tsc` 0 에러 · `lint` 0 에러 · `build` 성공).
-§3.1-1에 따라 프로덕션 적용은 사용자 승인 후 진행합니다.
+_현재 없음._
