@@ -241,9 +241,28 @@ RLS 상 `tire_config` 의 UPDATE 는 `inspector` · `admin` 에 열려 있으므
 
 ---
 
+### U-4. `20260803090000_t102_constraints_indexes.sql` — **적용 완료 (2026-08-03)**
+
+사용자 승인 후 `supabase db push`. `--dry-run` 대상은 이 파일 1건이었습니다.
+기존 330행은 사전 검증대로 제약 위반 없이 통과했습니다 (적용 중 오류 없음).
+
+적용 후 프로덕션 확인 — 7개 객체 모두 존재:
+
+| 객체 | 정의 |
+|---|---|
+| `ck_pressure` | `CHECK (pressure IS NULL OR (pressure >= 60 AND pressure <= 200))` |
+| `ck_tread` | `CHECK (tread IS NULL OR (tread >= 0 AND tread <= 60))` |
+| `ck_meter` | `CHECK ((hm IS NULL OR hm >= 0) AND (km IS NULL OR km >= 0))` |
+| `fk_insp_position` | `FOREIGN KEY (ch, pos) REFERENCES vehicle_positions(ch, pos)` |
+| `fk_repl_position` | `FOREIGN KEY (ch, pos) REFERENCES vehicle_positions(ch, pos)` |
+| `idx_insp_serial` | `btree (serial)` |
+| `idx_insp_date` | `btree (inspection_date DESC)` |
+
+---
+
 ## 미결 사항 (사용자 승인 대기)
 
-### U-4. `20260803090000_t102_constraints_indexes.sql` 프로덕션 적용
+_현재 없음._
 
-로컬 검증 완료 (`db reset` 전량 적용 · 재적용 2회 멱등 · pgTAP 19/19 통과 · 프로덕션 데이터 위반 0건).
-§3.1-1에 따라 프로덕션 적용은 사용자 승인 후 진행합니다.
+`pressure` 하한 60 psi 는 부록 A 값 그대로이며, 실운용 최저 공기압은 여전히 사용자 확인 대상입니다
+(승인을 막는 항목은 아니어서 미결로 두지 않고 여기에 남깁니다).
