@@ -183,16 +183,36 @@ T-103에서 트리거 기반 자동 기록과 나머지 테이블로의 확장�
 | 테이블 | 제약 | 정의 |
 |---|---|---|
 | `inspections` | `inspections_pkey` | `PRIMARY KEY (id)` |
+| `inspections` | `ck_pressure` | `CHECK (pressure IS NULL OR pressure BETWEEN 60 AND 200)` |
+| `inspections` | `ck_tread` | `CHECK (tread IS NULL OR tread BETWEEN 0 AND 60)` |
+| `inspections` | `ck_meter` | `CHECK ((hm IS NULL OR hm >= 0) AND (km IS NULL OR km >= 0))` |
+| `inspections` | `fk_insp_position` | `FOREIGN KEY (ch, pos) REFERENCES vehicle_positions(ch, pos)` |
 | `vehicles` | `vehicles_pkey` | `PRIMARY KEY (ch)` |
 | `vehicle_positions` | `vehicle_positions_pkey` | `PRIMARY KEY (ch, pos)` |
 | `vehicle_positions` | `vehicle_positions_ch_fkey` | `FOREIGN KEY (ch) REFERENCES vehicles(ch) ON DELETE CASCADE` |
 | `replacements` | `replacements_pkey` | `PRIMARY KEY (id)` |
+| `replacements` | `fk_repl_position` | `FOREIGN KEY (ch, pos) REFERENCES vehicle_positions(ch, pos)` |
 | `lifetimes` | `lifetimes_pkey` | `PRIMARY KEY (no)` |
 | `tire_config` | `tire_config_pkey` / `tire_config_singleton` / `tire_config_tread_order_check` / `tire_config_psi_range_check` | `PRIMARY KEY (id)` / `CHECK (id = 1)` / 임계치 순서 / psi 범위 |
 | `damage_codes` | `damage_codes_pkey` | `PRIMARY KEY (code)` |
 
-**측정 테이블에는 CHECK 제약이 하나도 없습니다.** `pressure`·`tread`·`hm`·`km` 값 검증 부재 = P-2 (T-102에서 해소).
-`tire_config` 의 4개 제약(싱글턴 + 임계치 순서 + psi 범위)이 현재 유일한 CHECK 입니다.
+`inspections` 의 CHECK·FK 5개는 마이그레이션 `20260803090000_t102_constraints_indexes.sql`(T-102)에서
+추가되었습니다. 작업지시서 §1.3 의 P-2(값 검증 부재)가 이로써 해소됩니다.
+
+NULL 은 모두 허용합니다 — `pressure IS NULL` 은 "미측정"(내측 듀얼 타이어의 N/A 등)을 뜻하며
+값이 없는 것과 잘못된 값은 구분해야 합니다.
+
+FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점검·교체 이력이 남아 있는 한
+포지션(과 `ON DELETE CASCADE` 를 타고 올라가는 상위 차량)을 지울 수 없습니다.
+§3.1-3 의 "측정 레코드 DELETE 금지"와 같은 방향의 보호막입니다.
+
+**부록 A 대비 생략한 항목** — 이미 동일 역할의 객체가 있어 중복 생성하지 않았습니다.
+
+| 부록 A | 기존 객체 |
+|---|---|
+| `uq_inspection UNIQUE (ch, inspection_date, pos)` | 유니크 인덱스 `inspections_ch_date_pos_uniq` |
+| `idx_insp_ch_date` | 인덱스 `inspections_ch_date_idx` |
+| `fk_vp_vehicle` | 제약 `vehicle_positions_ch_fkey` |
 
 ## 10. 인덱스 현황
 
@@ -200,6 +220,8 @@ T-103에서 트리거 기반 자동 기록과 나머지 테이블로의 확장�
 |---|---|---|
 | `inspections` | `inspections_ch_date_pos_uniq` | `UNIQUE (ch, inspection_date, pos)` |
 | `inspections` | `inspections_ch_date_idx` | `(ch, inspection_date DESC)` |
+| `inspections` | `idx_insp_serial` | `(serial)` — T-102 |
+| `inspections` | `idx_insp_date` | `(inspection_date DESC)` — T-102 |
 
 ---
 
