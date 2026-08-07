@@ -369,3 +369,56 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 
 `deleteInspectionRound()`는 UI에서 `canDelete`(= `admin`)로 게이팅되어 있고, `guard_soft_delete()`가
 DB에서 같은 경계를 다시 확인합니다.
+
+---
+
+## 15. 표준 저장 함수 (T-104)
+
+마이그레이션 `20260803140000_t104_upsert_inspection.sql`.
+
+### 15.1 함수
+
+| 함수 | 인자 | 반환 | 용도 |
+|---|---|---|---|
+| `upsert_inspection()` | `ch`, `inspection_date`, `pos`, `pressure`, `tread`, `hm`, `km`, `serial`, `driver`, `remark` | `uuid` | 점검 1행 |
+| `upsert_inspection_round()` | `ch`, `inspection_date`, `hm`, `km`, `driver`, `rows jsonb` | `integer` (저장 행 수) | 1회차 전체 |
+
+충돌 판정은 유니크 인덱스 `inspections_ch_date_pos_uniq (ch, inspection_date, pos)` 를 그대로
+사용합니다. 새 제약을 만들지 않았습니다.
+
+`p_rows` 는 JSON 배열이며 원소는 `{"pos": ..., "pressure": ..., "tread": ..., "serial": ..., "remark": ...}`
+형태입니다. `pos` 외에는 생략 가능하고, 생략하면 NULL 로 읽힙니다. 배열이 아니거나 원소에
+`pos` 가 없으면 `22023`(`invalid_parameter_value`)로 거부합니다.
+
+### 15.2 설계상 확정한 것
+
+| 항목 | 값 | 이유 |
+|---|---|---|
+| 실행 권한 | `security invoker` | `definer` 는 RLS 를 통과시켜 `viewer` 에게 쓰기를 열어줍니다 (X-15) |
+| `search_path` | `''` (전부 스키마 한정) | 검색 경로 조작을 통한 함수 가로채기 차단 |
+| NULL 인자 | 기존 값을 덮어씀 | NULL 은 "미측정"이라는 값입니다 (X-16) |
+| `deleted_at` | 항상 NULL 로 되돌림 | 지운 회차에 다시 입력하면 되살아나야 합니다 (§14.3) |
+
+### 15.3 멱등성
+
+같은 인자로 다시 호출하면 행이 늘지 않고 `updated_at` 만 갱신됩니다. `id` 와 `created_at` 은
+그대로입니다. 값이 실제로 바뀌지 않았으므로 `audit_log` 에도 남지 않습니다 — §14.2 의
+`log_audit()` 이 `updated_at` · `updated_by` · `updated_by_email` 을 뺀 나머지를 비교해
+동일하면 기록을 생략하기 때문입니다.
+
+실제 프로덕션 회차(2026-07-05, 60행)로 확인한 결과:
+
+```
+ 구분     | 행수 | updated_at_갱신 | id_동일 | created_at_동일 | 변경이력_건수
+ 2회 실행 |   60 |              60 |      60 |              60 |             0
+```
+
+재현: `psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -f docs/t104-upsert-example.sql`
+(전체가 `begin … rollback` 이라 DB 상태를 바꾸지 않습니다.)
+
+### 15.4 클라이언트와의 관계
+
+`src/api/inspections.ts` 의 `saveInspectionRound()` 는 PostgREST `.upsert(..., { onConflict: "ch,inspection_date,pos" })`
+를 계속 사용합니다. 같은 유니크 인덱스를 타므로 동작이 동일하고, 저장 직후 화면 갱신을 위해
+`.select()` 로 저장된 행을 돌려받아야 하기 때문입니다. 새 함수는 SQL 경로 — Excel 임포터(T-204)와
+데이터 보정 스크립트 — 의 표준 진입점입니다.
