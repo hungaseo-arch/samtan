@@ -305,18 +305,34 @@ RLS 정책의 `WITH CHECK`는 새 행만 보므로 "`deleted_at`이 NULL에서 �
 
 ---
 
+### U-5. `20260803110000_t103_audit_columns_triggers.sql` — **적용 완료 (2026-08-03)**
+
+사용자 승인 후 `supabase db push`. `--dry-run` 대상은 이 파일 1건이었습니다.
+
+적용 후 프로덕션 확인:
+
+| 항목 | 결과 |
+|---|---|
+| 감사 컬럼 | `vehicles` · `vehicle_positions` · `inspections` · `replacements` 각 7개 |
+| 트리거 | `inspections` 5 · `replacements` 5 · `vehicles` 3 · `vehicle_positions` 3 |
+| `inspections.created_at` 백필 | 330 / 330행이 점검일 WIB 자정과 일치 |
+| `replacements.created_at` 백필 | 17 / 17행이 교체일 WIB 자정과 일치 |
+| 함수 | `log_audit` · `forbid_hard_delete` · `guard_soft_delete` · `set_updated_at` · `set_audit_fields` |
+| `audit_log.op` | 존재 |
+
+**적용 순서를 잘못 잡아 앱이 일시적으로 멈췄습니다.** 클라이언트에 `deleted_at IS NULL` 필터를
+넣은 커밋(`48d5dc5`)을 마이그레이션 적용 전에 만들어서, 없는 컬럼을 필터하는 요청이 에러를 내고
+`loadData()`가 throw → "데이터를 불러오지 못했습니다" 화면이 떴습니다.
+
+**교훈: 컬럼을 전제하는 클라이언트 변경은 마이그레이션 적용 전에 커밋하지 않습니다.**
+승인 대기 기간이 있는 이상 두 변경은 같은 시점에 나가야 하며, 순서를 바꿀 수 없다면
+클라이언트 쪽을 나중에 커밋합니다.
+
+---
+
 ## 미결 사항 (사용자 승인 대기)
 
-### U-5. `20260803110000_t103_audit_columns_triggers.sql` — **승인 대기**
-
-T-103 산출물. 로컬 검증 완료(`db reset` + pgTAP 43/43 통과), 프로덕션 미적용.
-
-| 영향 | 규모 |
-|---|---|
-| 컬럼 추가 | `vehicles`·`vehicle_positions`·`replacements` 각 7개, `inspections` 1개(`deleted_at`) |
-| 데이터 변경 | `inspections.created_at` 330행 · `replacements.created_at` 17행 (백필) |
-| 트리거 추가 | 16개 |
-| 함수 | `log_audit()`·`forbid_hard_delete()`·`guard_soft_delete()` 신규, `set_updated_at()` 재정의(`search_path` 고정) |
+_현재 없음._
 
 ---
 
