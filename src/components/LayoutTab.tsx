@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/i18n";
 import SerialChain from "./SerialChain";
+import IntegrityBadge from "./IntegrityBadge";
 
 const TX = {
   ko: {
@@ -186,6 +187,8 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
             CH {unit.ch}
           </button>
         ))}
+        {/* 정합성 배지 — error 0건이면 녹색, 있으면 주황 + 클릭 시 상세 (§2-3) */}
+        <IntegrityBadge />
       </div>
 
       {/* Road Train 시각화 */}

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
+import TireDetailCard from "./TireDetailCard";
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const TREAD_CLS: Record<TreadLevel, string> = {
@@ -325,6 +326,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
 
   return (
     <div className="space-y-4">
+      {/* 배치도에서 시리얼을 클릭해 들어온 경우 — v_tire_detail 단건 상세.
+          수명 DB에 없는 시리얼이면 아래 표에 행이 없으므로 이 카드가 유일한 표시원이다. */}
+      {target && <TireDetailCard key={target} serial={target} />}
+
       {/* Lifetime DB */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3 mb-4">
