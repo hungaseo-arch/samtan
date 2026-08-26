@@ -55,14 +55,18 @@ export function fmtQty(v: number | null | undefined, unit = "EA"): string {
   return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} ${unit}`;
 }
 
-/** 트레드 — 소수점 2자리. DB 원값을 반올림 없이 보인다. `17.14 mm` */
+/**
+ * 트레드 — 소수점 1자리. `11.2 mm`
+ * 현장 측정 분해능이 0.1 mm 이고 지시서 표기 규약이 1자리라 여기서 반올림한다.
+ * DB 원값(2자리)이 필요하면 이 함수를 거치지 말고 값 자체를 쓸 것.
+ */
 export function fmtTread(v: number | null | undefined): string {
-  return isBlank(v) ? EMPTY : `${fixed(v, 2)} mm`;
+  return isBlank(v) ? EMPTY : `${fixed(v, 1)} mm`;
 }
 
-/** 공기압 — 소수점 1자리. `99.5 psi`, `116.0 psi` */
+/** 공기압 — 정수. `117 psi` */
 export function fmtPressure(v: number | null | undefined): string {
-  return isBlank(v) ? EMPTY : `${fixed(v, 1)} psi`;
+  return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} psi`;
 }
 
 /** 가동시간·주행거리 — 소수점 1자리. `5,188.4 HM` */
