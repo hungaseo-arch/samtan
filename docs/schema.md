@@ -74,7 +74,7 @@ PK: `(ch, pos)` · FK: `ch` → `vehicles(ch)` `ON DELETE CASCADE`
 | `ch` | `text` | NOT NULL | — | PK / FK |
 | `pos` | `text` | NOT NULL | — | PK |
 | `serial` | `text` | NULL | — | 최초 장착 시리얼 |
-| `serial2` | `text` | NULL | — | 교체 후 시리얼. **P-4의 원인** (2회 교체까지만 표현 가능) |
+| `serial2` | `text` | NULL | — | **DEPRECATED.** 교체 후 시리얼 캐시. `trg_replacements_c_sync_position`이 자동 유지하며 조회는 `v_current_tire`를 쓴다 — `docs/data-model.md` §3 |
 | `remark` | `text` | NULL | — | |
 | `seq` | `integer` | NULL | — | 표시 순서 |
 | 감사 7개 컬럼 | | | | T-103에서 추가 — §14 참조 |
@@ -276,7 +276,7 @@ FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점�
 | P-1 | `inspections`에 UNIQUE 제약 없음 | **이미 해결됨.** `inspections_ch_date_pos_uniq`가 `(ch, inspection_date, pos)`에 존재 (`0001`). T-102의 `uq_inspection` 추가는 중복이므로 재검토 필요 |
 | P-2 | 값 검증 없음 | **해결됨.** T-102에서 `ck_pressure`·`ck_tread`·`ck_meter` 추가 |
 | P-3 | 더미 데이터 혼입 | T-002에서 실측 검증 |
-| P-4 | 타이어 이력 구조 파탄 | **유효.** `serial`/`serial2` 2열 구조 유지 중 |
+| P-4 | 타이어 이력 구조 파탄 | **해결됨.** `v_current_tire`·`v_position_history`가 회차 제한 없이 이력을 제공하고 트리거가 동기화합니다. `serial2`는 감시용 캐시로 남습니다 — `docs/data-model.md` |
 | P-5 | 감사 추적 불가 | **해결됨.** T-103에서 §1.2의 4개 테이블에 감사 컬럼·`deleted_at`을 추가하고 `audit_log` 트리거를 붙였습니다. `lifetimes`·`damage_codes`·`tire_config`는 §1.2 범위 밖이라 제외 |
 | P-6 | 권한 분리 없음 | **부분 해결.** 3개 역할(`admin`/`inspector`/`viewer`) 운영 중. 지시서 T-301의 4개 역할·`user_profiles`·`customer_code` 체계와 불일치 |
 | P-7 | 마이그레이션 미사용 | **해결됨.** `0001`~`0010` 존재 |
