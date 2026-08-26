@@ -243,7 +243,8 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     const init: Record<string, FormCell> = {};
     POS_ORDER.forEach((pos) => {
       const p = u.positions.find((x) => x.pos === pos);
-      init[pos] = { serial: p?.serial2 || p?.serial || "", pressure: "", tread: "" };
+      // 현재 장착 시리얼(v_current_tire) — 교체분 우선 분기는 뷰가 이미 처리한다.
+      init[pos] = { serial: p?.serial || "", pressure: "", tread: "" };
     });
     setCells(init);
   }, [selCh]);

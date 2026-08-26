@@ -63,10 +63,31 @@ export function treadLevel(tread: number): TreadLevel {
 }
 
 // ── Types ──────────────────────────────────────────────────
+/**
+ * 포지션 시리얼 이력 한 칸 — DB 뷰 v_position_history 의 1행.
+ * 과거 vehicle_positions 의 serial/serial2 2칸 구조를 대체하며 개수 제한이 없다.
+ */
+export interface SerialChainEntry {
+  /** 0 = 최초 장착, 1..n = 교체 회차 */
+  seqNo: number;
+  serial: string;
+  /** 장착일(YYYY-MM-DD). 최초 장착은 원장에 일자가 없어 null */
+  mountedAt: string | null;
+  source: "initial" | "replacement";
+}
+
 export interface TirePosition {
   pos: string;
+  /** 현재 장착 시리얼 — v_current_tire.serial (단일 진실원) */
   serial: string;
-  serial2?: string;
+  /** 최초 장착 시리얼 — v_current_tire.serial_initial */
+  serialInitial: string;
+  /** 이 포지션의 교체 횟수 — v_current_tire.repl_count. 0 = 최초 타이어 그대로 */
+  replCount: number;
+  /** 현재 타이어의 장착일 — v_current_tire.mounted_at. 최초 타이어면 null */
+  mountedAt: string | null;
+  /** 시리얼 이력 전체 — v_position_history. 길이 = replCount + 1 */
+  chain: SerialChainEntry[];
   remark?: string | null;
   press: (number | "N/A" | null)[];
 }

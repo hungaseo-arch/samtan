@@ -4,7 +4,7 @@
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
-import type { Unit, LifeRecord, TirePosition } from "./tmsData";
+import type { Unit, LifeRecord, TirePosition, SerialChainEntry } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
 
 // ============================================================
@@ -118,10 +118,21 @@ function buildRounds(rows: InspectionRow[]) {
 
 /** 전체 데이터 로드 → TMS_DATA 갱신. 실패 시 throw. */
 export async function loadData(): Promise<void> {
-  const [cfg, veh, pos, repl, life, codes, insp] = await Promise.all([
+  const [cfg, veh, pos, cur, hist, repl, life, codes, insp] = await Promise.all([
     supabase.from("tire_config").select("*").eq("id", 1).maybeSingle(),
     supabase.from("vehicles").select("*").order("seq", { ascending: true }),
-    supabase.from("vehicle_positions").select("*").order("seq", { ascending: true }),
+    // 시리얼은 더 이상 여기서 읽지 않는다 — v_current_tire 가 단일 진실원.
+    // 이 테이블에서 필요한 것은 포지션 비고(remark)뿐이다.
+    supabase.from("vehicle_positions").select("ch,pos,remark").order("seq", { ascending: true }),
+    // 현재 장착 시리얼 (replacements 최신 회차 → 없으면 최초 장착분)
+    supabase.from("v_current_tire").select("*").order("seq", { ascending: true }),
+    // 포지션별 시리얼 이력 — 2칸 한도 없이 전 회차
+    supabase
+      .from("v_position_history")
+      .select("*")
+      .order("ch", { ascending: true })
+      .order("pos", { ascending: true })
+      .order("seq_no", { ascending: true }),
     // 소프트 삭제(T-103)된 교체 이력은 제외한다.
     supabase.from("replacements").select("*").is("deleted_at", null),
     supabase.from("lifetimes").select("*").order("no", { ascending: true }),
@@ -129,7 +140,7 @@ export async function loadData(): Promise<void> {
     listInspections(),
   ]);
 
-  for (const r of [cfg, veh, pos, repl, life, codes]) {
+  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes]) {
     if (r.error) throw r.error;
   }
 
@@ -179,22 +190,42 @@ export async function loadData(): Promise<void> {
   TMS_DATA.summary = summary;
 
   // units + positions
-  const posByCh = new Map<string, typeof pos.data>();
-  (pos.data ?? []).forEach((p) => {
-    if (!posByCh.has(p.ch)) posByCh.set(p.ch, []);
-    posByCh.get(p.ch)!.push(p);
+  // 비고는 vehicle_positions, 시리얼은 v_current_tire / v_position_history 에서 온다.
+  const remarkByKey = new Map<string, string | null>();
+  (pos.data ?? []).forEach((p) => { remarkByKey.set(`${p.ch}|${p.pos}`, p.remark ?? null); });
+
+  const chainByKey = new Map<string, SerialChainEntry[]>();
+  (hist.data ?? []).forEach((h) => {
+    const k = `${h.ch}|${h.pos}`;
+    if (!chainByKey.has(k)) chainByKey.set(k, []);
+    chainByKey.get(k)!.push({
+      seqNo: h.seq_no,
+      serial: h.serial,
+      mountedAt: h.mounted_at ?? null,
+      source: h.source === "replacement" ? "replacement" : "initial",
+    });
   });
+
+  const curByCh = new Map<string, typeof cur.data>();
+  (cur.data ?? []).forEach((c) => {
+    if (!curByCh.has(c.ch)) curByCh.set(c.ch, []);
+    curByCh.get(c.ch)!.push(c);
+  });
+
   TMS_DATA.units = (veh.data ?? []).map((v): Unit => ({
     ch: v.ch,
     dates: [],
     hm: [],
     km: [],
     hmReset: !!v.hm_reset,
-    positions: (posByCh.get(v.ch) ?? []).map((p): TirePosition => ({
-      pos: p.pos,
-      serial: p.serial ?? "",
-      serial2: p.serial2 ?? undefined,
-      remark: p.remark ?? null,
+    positions: (curByCh.get(v.ch) ?? []).map((c): TirePosition => ({
+      pos: c.pos,
+      serial: c.serial ?? "",
+      serialInitial: c.serial_initial ?? "",
+      replCount: c.repl_count ?? 0,
+      mountedAt: c.mounted_at ?? null,
+      chain: chainByKey.get(`${c.ch}|${c.pos}`) ?? [],
+      remark: remarkByKey.get(`${c.ch}|${c.pos}`) ?? null,
       press: [],
     })),
   }));

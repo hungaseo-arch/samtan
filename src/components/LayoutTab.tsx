@@ -6,6 +6,7 @@ import type { TireStatus } from "@/data/tmsUtils";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/i18n";
+import SerialChain from "./SerialChain";
 
 const TX = {
   ko: {
@@ -308,20 +309,12 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   <Row label={tx.recPress} value={`${recPsi(modal.pos)} psi`} />
                   <div className="flex gap-2">
                     <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{tx.serial}</span>
-                    <span className="text-xs font-mono">
-                      <button className="text-primary hover:underline" onClick={() => onSerialClick?.(modalData.d!.serial)}>
-                        {modalData.d.serial}
-                      </button>
-                      {modalData.d.serial2 && (
-                        <>
-                          {" → "}
-                          <button className="text-primary hover:underline" onClick={() => onSerialClick?.(modalData.d!.serial2!)}>
-                            {modalData.d.serial2}
-                          </button>
-                        </>
-                      )}
-                      <span className="block text-[10px] text-muted-foreground/70">{tx.serialHint}</span>
-                    </span>
+                    <SerialChain
+                      chain={modalData.d.chain}
+                      fallbackSerial={modalData.d.serial}
+                      onSerialClick={onSerialClick}
+                      hint={tx.serialHint}
+                    />
                   </div>
                   <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : "−"} mono />
                   <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : "−"} mono />

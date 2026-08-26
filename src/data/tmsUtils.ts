@@ -1,6 +1,6 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
-import type { Unit, TirePosition, TreadLevel } from "./tmsData";
+import type { Unit, TirePosition, TreadLevel, SerialChainEntry } from "./tmsData";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
 export type TireStatus = TreadLevel | "none";
@@ -14,8 +14,16 @@ function worst(a: TireStatus, b: TireStatus): TireStatus {
 
 export interface HeadPosData {
   rp: string;
+  /** 현재 장착 시리얼 */
   serial: string;
-  serial2?: string;
+  /** 최초 장착 시리얼 */
+  serialInitial: string;
+  /** 교체 횟수 (0 = 최초 타이어 그대로) */
+  replCount: number;
+  /** 현재 타이어 장착일 (최초 타이어면 null) */
+  mountedAt: string | null;
+  /** 시리얼 이력 전체 — 개수 제한 없음 */
+  chain: SerialChainEntry[];
   remark?: string | null;
   press: (number | "N/A" | null)[];
   treadMin: (number | null)[];
@@ -57,7 +65,10 @@ export function headPosData(u: Unit, pos: number): HeadPosData | null {
   return {
     rp,
     serial: pd?.serial ?? "",
-    serial2: pd?.serial2,
+    serialInitial: pd?.serialInitial ?? "",
+    replCount: pd?.replCount ?? 0,
+    mountedAt: pd?.mountedAt ?? null,
+    chain: pd?.chain ?? [],
     remark: pd?.remark,
     press,
     treadMin,
@@ -208,20 +219,75 @@ function projectExpected(pairs: { x: number; y: number }[], driven: number | nul
   return Math.round(driven + Math.max(0, remaining));
 }
 
-/** 시리얼(serial 또는 serial2)이 장착된 차량 Unit 탐색. */
+/**
+ * 한 시리얼이 특정 포지션에 장착돼 있던 구간.
+ * 구간은 [from, to) — from 이 null 이면 최초 장착(원장에 일자 없음)이라 앞이 열려 있고,
+ * to 가 null 이면 아직 장착 중이라 뒤가 열려 있다.
+ */
+export interface MountSpan {
+  ch: string;
+  pos: string;
+  seqNo: number;                  // 0 = 최초 장착, 1..n = 교체 회차
+  from: string | null;            // 장착일
+  to: string | null;              // 탈거일 (= 다음 타이어의 장착일)
+  isCurrent: boolean;             // 현재 장착 중인가
+}
+
+/**
+ * 시리얼의 장착 구간 전체를 시리얼 체인(v_position_history)에서 재구성.
+ * 과거처럼 serial/serial2 2칸만 보지 않으므로 중간 회차 타이어도 빠지지 않는다.
+ */
+export function mountSpansOf(serial: string): MountSpan[] {
+  if (!serial) return [];
+  const out: MountSpan[] = [];
+  for (const u of TMS_DATA.units) {
+    for (const p of u.positions) {
+      p.chain.forEach((c, i) => {
+        if (c.serial !== serial) return;
+        const next = p.chain[i + 1];
+        out.push({
+          ch: u.ch,
+          pos: p.pos,
+          seqNo: c.seqNo,
+          from: c.mountedAt,
+          to: next?.mountedAt ?? null,
+          isCurrent: !next,
+        });
+      });
+    }
+  }
+  out.sort((a, b) => (a.from ?? "").localeCompare(b.from ?? ""));
+  return out;
+}
+
+/** 대표 장착 구간 — 현재 장착 중인 구간이 있으면 그것, 없으면 가장 최근 구간. */
+export function primaryMountSpan(serial: string): MountSpan | null {
+  const spans = mountSpansOf(serial);
+  if (!spans.length) return null;
+  return spans.find((s) => s.isCurrent) ?? spans[spans.length - 1];
+}
+
+/** 측정 회차 날짜가 이 장착 구간 안에 드는가 — [from, to) */
+function inSpan(date: string, span: MountSpan): boolean {
+  if (span.from != null && date < span.from) return false;
+  if (span.to != null && date >= span.to) return false;
+  return true;
+}
+
+/** 시리얼이 (과거 포함) 장착됐던 차량 Unit 탐색. */
 export function findUnitBySerial(serial: string): Unit | null {
   if (!serial) return null;
   return (
     TMS_DATA.units.find((u) =>
-      u.positions.some((p) => p.serial === serial || p.serial2 === serial)
+      u.positions.some((p) => p.chain.some((c) => c.serial === serial))
     ) ?? null
   );
 }
 
 /**
  * 시리얼로 타이어를 찾아 km/hr 수명과 예상 KM을 계산.
- * - serial(원본) / serial2(교체) 일치 포지션 탐색
- * - 교체 이력이 있으면 해당 타이어가 장착된 구간(교체일 기준)만 사용
+ * - 시리얼 체인에서 장착 구간(ch·pos·[from, to)) 탐색
+ * - 그 타이어가 실제로 달려 있던 구간의 회차만 사용 (앞뒤 타이어 측정값 혼입 방지)
  * - 트레드 존재 + km 수치 회차의 (km, hm, tread, date) 수집
  * - 예상수명: 트레드 vs (km−km0) 선형회귀 기울기로 limit(mm) 도달 km 외삽
  * 데이터 부족(또는 신품 기준 회차 미포함) 시 null 반환.
@@ -229,14 +295,10 @@ export function findUnitBySerial(serial: string): Unit | null {
 export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   if (!serial) return null;
 
-  // ① 시리얼로 ch/pos 탐색
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
-  }
-  if (!ch || !pd) return null;
+  // ① 시리얼 체인으로 장착 구간(ch/pos) 탐색
+  const span = primaryMountSpan(serial);
+  if (!span) return null;
+  const { ch, pos } = span;
 
   const u = TMS_DATA.units.find((x) => x.ch === ch)!;
   const tr = (TMS_DATA.tread[ch] || {})[pos];
@@ -257,16 +319,8 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
 
   pts.sort((a, b) => a.km - b.km);
 
-  // 교체 이력으로 해당 타이어 장착 구간만 선택 (원본/교체 시리즈 혼합 방지)
-  const replForPos = TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos);
-  const isReplacement = pd.serial2 === serial && pd.serial !== serial;
-  if (isReplacement) {
-    const my = replForPos.find((r) => r.newSerial === serial);
-    pts = my ? pts.filter((p) => p.date >= my.date) : [];
-  } else if (replForPos.length) {
-    const firstRepl = replForPos.reduce((a, b) => (a.date < b.date ? a : b));
-    pts = pts.filter((p) => p.date < firstRepl.date);
-  }
+  // 장착 구간만 선택 (앞·뒤 타이어의 측정 시리즈 혼입 방지)
+  pts = pts.filter((p) => inSpan(p.date, span));
   if (pts.length < 2) return null;
 
   // 신품(22mm) 기준 회차가 수집 데이터에 없으면(예: HM Reset 후 부분 km, 교체 타이어)
@@ -291,16 +345,12 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   return { ch, pos, km, hr, expectedKm, expectedHm };
 }
 
-/** 시리얼 기준 최근 트레드(mm). 교체 타이어는 자기 장착 구간의 마지막 측정값. */
+/** 시리얼 기준 최근 트레드(mm). 자기 장착 구간의 마지막 측정값. */
 export function latestTreadOf(serial: string): number | null {
   if (!serial) return null;
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
-  }
-  if (!ch || !pd) return null;
+  const span = primaryMountSpan(serial);
+  if (!span) return null;
+  const { ch, pos } = span;
 
   const u = TMS_DATA.units.find((x) => x.ch === ch)!;
   const tr = (TMS_DATA.tread[ch] || {})[pos];
@@ -316,15 +366,7 @@ export function latestTreadOf(serial: string): number | null {
   if (!pts.length) return null;
   pts.sort((a, b) => a.date.localeCompare(b.date));
 
-  const replForPos = TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos);
-  const isReplacement = pd.serial2 === serial && pd.serial !== serial;
-  if (isReplacement) {
-    const my = replForPos.find((r) => r.newSerial === serial);
-    pts = my ? pts.filter((p) => p.date >= my.date) : [];
-  } else if (replForPos.length) {
-    const firstRepl = replForPos.reduce((a, b) => (a.date < b.date ? a : b));
-    pts = pts.filter((p) => p.date < firstRepl.date);
-  }
+  pts = pts.filter((p) => inSpan(p.date, span));
   if (!pts.length) return null;
   return pts[pts.length - 1].tread;
 }
@@ -358,8 +400,8 @@ export interface TireMovement {
 
 /**
  * 시리얼의 장착 이동 이력(차량·포지션 변경) 재구성.
- * - 원본(최초) 장착: vehicle_positions.serial === serial → life.install 일자
- * - 교체 장착: replacements.newSerial === serial → repl.date
+ * 시리얼 체인의 장착 구간을 그대로 쓴다 — 최초 장착(seqNo 0)은 원장에 일자가 없으므로
+ * lifetimes.install(최초 투입일)을 표시 일자로 대신한다.
  * 일자순 정렬. 같은 (차량·포지션·일자)는 1건으로 합침.
  */
 export function tireMovements(serial: string): TireMovement[] {
@@ -367,15 +409,12 @@ export function tireMovements(serial: string): TireMovement[] {
   const life = TMS_DATA.life.find((l) => l.serial === serial);
   const install = life?.install && life.install !== "-" ? life.install : null;
 
-  const out: TireMovement[] = [];
-  for (const u of TMS_DATA.units) {
-    for (const p of u.positions) {
-      if (p.serial === serial) out.push({ date: install, ch: u.ch, pos: p.pos, kind: "install" });
-    }
-  }
-  for (const r of TMS_DATA.repl) {
-    if (r.newSerial === serial) out.push({ date: r.date, ch: r.ch, pos: r.pos, kind: "mount" });
-  }
+  const out: TireMovement[] = mountSpansOf(serial).map((s) => ({
+    date: s.seqNo === 0 ? install : s.from,
+    ch: s.ch,
+    pos: s.pos,
+    kind: s.seqNo === 0 ? "install" : "mount",
+  }));
 
   const seen = new Set<string>();
   const dedup = out.filter((m) => {
@@ -393,23 +432,14 @@ export function tireHistory(serial: string): TireHistory | null {
   if (!serial) return null;
   const life = TMS_DATA.life.find((l) => l.serial === serial) ?? null;
 
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
-  }
+  const span = primaryMountSpan(serial);
+  const ch = span?.ch ?? "";
+  const pos = span?.pos ?? "";
   const unit = ch ? TMS_DATA.units.find((u) => u.ch === ch) ?? null : null;
-  const isReplacement = !!pd && pd.serial2 === serial && pd.serial !== serial;
-  const replForPos = ch ? TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos) : [];
-  const mountRepl = replForPos.find((r) => r.newSerial === serial) ?? null;
-  const removeRepl = !isReplacement && replForPos.length
-    ? replForPos.reduce((a, b) => (a.date < b.date ? a : b))
-    : null;
 
   // 측정 회차 (해당 타이어 장착 구간만)
   let rounds: TireRound[] = [];
-  if (unit) {
+  if (unit && span) {
     const tr = (TMS_DATA.tread[ch] || {})[pos];
     if (tr) {
       let pts = tr.min
@@ -421,8 +451,7 @@ export function tireHistory(serial: string): TireHistory | null {
         }))
         .filter((p) => p.date) as TireRound[];
       pts.sort((a, b) => a.date.localeCompare(b.date));
-      if (isReplacement && mountRepl) pts = pts.filter((p) => p.date >= mountRepl.date);
-      else if (removeRepl) pts = pts.filter((p) => p.date < removeRepl.date);
+      pts = pts.filter((p) => inSpan(p.date, span));
       rounds = pts;
     }
   }
@@ -434,8 +463,9 @@ export function tireHistory(serial: string): TireHistory | null {
     ch,
     pos,
     installDate: norm(life?.install),
-    mountDate: mountRepl?.date ?? null,
-    removeDate: removeRepl?.date ?? null,
+    // 최초 장착(seqNo 0)은 '재장착'이 아니므로 재장착일을 비운다.
+    mountDate: span && span.seqNo > 0 ? span.from : null,
+    removeDate: span?.to ?? null,
     scrapDate: norm(life?.scrap),
     damage: life?.damage && life.damage !== "-" ? life.damage : null,
     status: life?.status ?? "",

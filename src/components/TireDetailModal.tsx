@@ -8,6 +8,7 @@ import type { TireStatus } from "@/data/tmsUtils";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLang } from "@/i18n";
+import SerialChain from "./SerialChain";
 
 const TX = {
   ko: {
@@ -90,16 +91,12 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
             <Row label={tx.recPress} value={`${recPsi(pos)} psi`} />
             <div className="flex gap-2">
               <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{tx.serial}</span>
-              <span className="text-xs font-mono">
-                <button className="text-primary hover:underline" onClick={() => onSerialClick?.(d.serial)}>{d.serial}</button>
-                {d.serial2 && (
-                  <>
-                    {" → "}
-                    <button className="text-primary hover:underline" onClick={() => onSerialClick?.(d.serial2!)}>{d.serial2}</button>
-                  </>
-                )}
-                <span className="block text-[10px] text-muted-foreground/70">{tx.serialHint}</span>
-              </span>
+              <SerialChain
+                chain={d.chain}
+                fallbackSerial={d.serial}
+                onSerialClick={onSerialClick}
+                hint={tx.serialHint}
+              />
             </div>
             <Row label={tx.latestPress} value={d.latestPress != null ? `${Math.round(d.latestPress)} psi (${d.latestPressDate})` : "−"} mono />
             <Row label={tx.latestTread} value={d.latestTread != null ? `${fmtTread(d.latestTread)} mm (${d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : "−"} mono />
