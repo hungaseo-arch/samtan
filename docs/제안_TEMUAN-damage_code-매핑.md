@@ -1,7 +1,8 @@
 # 제안 — 현장 소견(TEMUAN) → `damage_codes` 매핑
 
 작성 2026-08-27 · 근거 `samtan_tms_작업지시서_v3.md` §C-5
-**상태: 설계만. 구현은 다음 회차 지시서로 넘긴다.**
+**상태: §2 코드 3종 추가는 승인·적용 완료(2026-08-27, `20260827220000`).**
+**나머지(소견 표·remark 파싱)는 설계만. 구현은 다음 회차 지시서로 넘긴다.**
 
 ## 1. 왜 필요한가
 
@@ -45,8 +46,12 @@ DB 실측 분포 (548행 중 소견이 있는 65행):
 `damage_codes` 는 참조 표이고 `INSERT … ON CONFLICT DO UPDATE` 로 멱등하게 추가된다.
 기존 14종은 한 건도 바뀌지 않으므로 `lifetimes.damage` 의 기존 `CD` 1건도 영향 없다.
 
-**권고는 (나)** 다. 다만 코드 신설은 거래처와 공유하는 손상코드 체계를 건드리는 일이므로
-**사용자 승인 후** 마이그레이션을 작성한다.
+**권고는 (나)** 였고, **사용자가 (나)를 승인했다 (2026-08-27)**.
+`supabase/migrations/20260827220000_damage_codes_wear_patterns.sql` 로 적용했다.
+코드는 14종 → 17종이 되었고 기존 14종은 `description`·`seq` 모두 그대로다.
+
+부작용 하나: `OTH`(Other, `seq` 13)가 목록 끝이 아니게 되었다. 되돌리려면
+`OTH` 를 `seq` 16 으로 옮기는 UPDATE 가 필요한데 승인 범위 밖이라 하지 않았다.
 
 ## 3. 매핑 제안
 
@@ -79,14 +84,9 @@ DB 실측 분포 (548행 중 소견이 있는 65행):
 
 ## 4. 구현 시 형태 (다음 회차용 초안)
 
-```sql
--- 1) 코드 3종 추가 — 기존 14종은 건드리지 않는다
-insert into public.damage_codes (code, description, seq) values
-  ('CW', 'Center Wear',    14),
-  ('SW', 'Shoulder Wear',  15),
-  ('AL', 'Alignment',      16)
-on conflict (code) do update set description = excluded.description;
+1) 코드 3종 추가는 **적용 완료** — `20260827220000_damage_codes_wear_patterns.sql`.
 
+```sql
 -- 2) 소견 표 — 한 점검행이 코드를 여러 개 가질 수 있다
 create table if not exists public.inspection_findings (
   id            uuid primary key default gen_random_uuid(),
@@ -109,8 +109,8 @@ create table if not exists public.inspection_findings (
 
 ## 5. 미결
 
-1. **코드 3종 신설 승인** — 거래처 공유 코드 체계 변경이라 사용자 결정이 필요하다.
-   승인 전에는 마이그레이션을 쓰지 않는다.
+1. ~~**코드 3종 신설 승인**~~ — **완료 (2026-08-27 승인·적용)**.
+   남은 것은 거래처에 코드 3종 추가를 통보하는 일이다.
 2. **`KIRI`/`KANAN` 방향** — `SW` 는 좌우를 구분하지 않으므로 v3 §Q1(방향 규약 보류)의
    영향을 받지 않는다. 좌우를 나눈 코드(`SW-L`/`SW-R`)를 원한다면 Q1 확정이 선행되어야 한다.
 3. **소급 적용 범위** — 기존 65행 remark 를 소급 파싱할지, 다음 회차부터 적용할지.
