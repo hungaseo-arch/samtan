@@ -8,6 +8,8 @@ import type { Role } from "@/auth/AuthProvider";
 export interface ManagedUser {
   id: string;
   email: string;
+  /** 표시용 이름 — 본인이 비밀번호 변경 화면에서 입력. 아직 없으면 빈 문자열. */
+  name: string;
   role: Role;
   lastSignInAt: string | null;
   createdAt: string;
