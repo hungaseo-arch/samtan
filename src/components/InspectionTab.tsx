@@ -83,7 +83,9 @@ const TX = {
     zeroWornDesc: "측정값을 그대로 저장합니다.",
     zeroNotMeasured: "측정하지 못했음",
     zeroNotMeasuredDesc: "트레드를 비우고 마모율·추이에서 제외합니다.",
-    zeroCancel: "돌아가서 수정",
+    zeroScrapped: "폐기 처리",
+    zeroScrappedDesc: "0 mm 로 저장하고 이 타이어를 수명 종료로 표시합니다.",
+    zeroMustPick: "셋 중 하나를 골라야 저장됩니다. 잘못 입력했다면 «측정하지 못했음»을 고른 뒤 다시 입력하십시오.",
     save: "저장",
     resetInput: "입력 초기화",
     innerNote: "내측 듀얼(In)은 미측정 시 비워두면 N/A로 처리됩니다.",
@@ -168,7 +170,9 @@ const TX = {
     zeroWornDesc: "Nilai disimpan apa adanya.",
     zeroNotMeasured: "Tidak sempat diukur",
     zeroNotMeasuredDesc: "Tapak dikosongkan dan dikecualikan dari laju keausan.",
-    zeroCancel: "Kembali & perbaiki",
+    zeroScrapped: "Dibuang (scrap)",
+    zeroScrappedDesc: "Disimpan 0 mm dan ban ditandai habis masa pakai.",
+    zeroMustPick: "Harus pilih salah satu untuk menyimpan. Kalau salah ketik, pilih «Tidak sempat diukur» lalu isi ulang.",
     save: "Simpan",
     resetInput: "Reset input",
     innerNote: "Dual dalam (In) yang tidak diukur dikosongkan akan diproses sebagai N/A.",
@@ -253,7 +257,9 @@ const TX = {
     zeroWornDesc: "The reading is stored as-is.",
     zeroNotMeasured: "Could not be measured",
     zeroNotMeasuredDesc: "Tread is left empty and excluded from wear rate and trends.",
-    zeroCancel: "Go back and fix",
+    zeroScrapped: "Scrapped",
+    zeroScrappedDesc: "Stored as 0 mm and the tire is marked end-of-life.",
+    zeroMustPick: "One of the three must be chosen to save. If it was a typo, pick «Could not be measured» and re-enter.",
     save: "Save",
     resetInput: "Reset input",
     innerNote: "Inner dual (In) left blank when not measured is recorded as N/A.",
@@ -325,6 +331,12 @@ const emptyCell = (serial: string): FormCell => ({
 });
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * 트레드 0 mm 를 설명하는 상태. TreadStatus 에서 "measured" 만 뺀 것이다.
+ * 0 을 "실측했고 값이 measured 인 0" 으로 저장할 방법을 남기지 않기 위한 타입이다 (T-8).
+ */
+type ZeroStatus = Exclude<TreadStatus, "measured">;
 
 export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void }) {
   const { lang, t } = useLang();
@@ -492,7 +504,12 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     return pv?.filled === POINT_FIELDS.length && pv.stats?.min === 0;
   });
 
-  const buildRows = (zeroStatus: TreadStatus): InspectionPointsRow[] =>
+  /**
+   * 트레드 0 을 설명할 수 있는 상태. "measured" 가 빠져 있는 것이 요점이다 —
+   * 0 을 measured 로 저장하는 경로는 타입 차원에서 만들 수 없다 (T-8).
+   * 0 인 포지션이 없으면 null 을 넘긴다.
+   */
+  const buildRows = (zeroStatus: ZeroStatus | null): InspectionPointsRow[] =>
     POS_ORDER.map((pos): InspectionPointsRow => {
       const cell = cells[pos];
       const pts = readPoints(cell);
@@ -500,10 +517,12 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       const isZero = complete && previews[pos]?.stats?.min === 0;
       // 미측정으로 처리하는 행은 측정점을 만들지 않는다 (v3 §E-1 규칙 6).
       const dropPoints = !complete || (isZero && zeroStatus === "not_measured");
+      // zeroStatus 가 null 인데 0 인 포지션이 나오면 호출 측 실수다.
+      // measured 로 넘기지 않고 안전한 쪽(not_measured)으로 떨어뜨린다.
       const status: TreadStatus = !complete
         ? "not_measured"
         : isZero
-          ? zeroStatus
+          ? (zeroStatus ?? "not_measured")
           : "measured";
 
       return {
@@ -520,7 +539,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       };
     }).filter((r) => r.pressure !== null || r.points.length > 0);
 
-  const persist = async (zeroStatus: TreadStatus) => {
+  const persist = async (zeroStatus: ZeroStatus | null) => {
     const rows = buildRows(zeroStatus);
     if (rows.length === 0) {
       toast.error(tx.errEnterValue);
@@ -575,7 +594,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       setZeroAsk(zeroPositions);
       return;
     }
-    await persist("measured");
+    await persist(null);
   };
 
   // 차량(CH) 추가 — vehicles + 10개 포지션 생성 후 리로드·선택
@@ -852,12 +871,10 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-                onClick={() => setZeroAsk(null)}
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
                   role="dialog" aria-modal="true" aria-label={tx.zeroTitle}
-                  onClick={(e) => e.stopPropagation()}
                   className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
                 >
                   <h4 className="flex items-center gap-2 text-base font-bold text-foreground">
@@ -884,11 +901,13 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                       <span className="block text-xs text-muted-foreground">{tx.zeroNotMeasuredDesc}</span>
                     </button>
                     <button
-                      onClick={() => setZeroAsk(null)}
-                      className="rounded-lg px-4 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => { setZeroAsk(null); void persist("scrapped"); }}
+                      className="rounded-lg border border-border px-4 py-2.5 text-left hover:bg-muted/30 transition-colors"
                     >
-                      {tx.zeroCancel}
+                      <span className="block text-sm font-bold text-foreground">{tx.zeroScrapped}</span>
+                      <span className="block text-xs text-muted-foreground">{tx.zeroScrappedDesc}</span>
                     </button>
+                    <p className="pt-1 text-xs text-muted-foreground">{tx.zeroMustPick}</p>
                   </div>
                 </motion.div>
               </motion.div>
