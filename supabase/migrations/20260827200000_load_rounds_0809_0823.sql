@@ -74,7 +74,9 @@ update public.lifetimes
    and note is null;
 
 update public.lifetimes
-   set note = coalesce(note, '') || '2026-08-06·08-07 연속 교체 기재 — 원장 확인 대기'
+   -- 기존 노트가 있으면 ' · ' 로 띄운다. 그냥 이으면 '813 L3i2026-08-06…' 이 된다.
+   set note = case when coalesce(note, '') = '' then '' else note || ' · ' end
+              || '2026-08-06·08-07 연속 교체 기재 — 원장 확인 대기'
  where serial in ('DA1BFANH04814D', 'DA12511H03160D')
    and coalesce(note, '') not like '%연속 교체%';
 
