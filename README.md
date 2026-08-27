@@ -1,6 +1,6 @@
 # 삼탄 TMS (Tire Monitoring System)
 
-TECHKING ETCRANE 385/95R24(14.00R24) **Road Train 타이어 모니터링** 웹 대시보드입니다.
+TECHKING ETCRANE 14.00R24 **Road Train 타이어 모니터링** 웹 대시보드입니다.
 PT. Trasindo Murni Perkasa · Kalimantan Field 현장에서 운용하는 차량의 공기압·트레드·교체·수명·하중을 한 화면에서 관리합니다.
 
 > 상세 기능·사용법은 [docs/사용설명서.md](docs/사용설명서.md)를 참고하세요.

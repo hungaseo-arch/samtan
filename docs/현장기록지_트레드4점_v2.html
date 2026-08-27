@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Formulir Pemeriksaan Ban · SAMTAN TMS (Rev. 2)</title>
+<style>
+  /* 색상은 CLAUDE.md 디자인 토큰만 사용한다 (하드코딩 금지 규칙 §7).
+     이 파일은 저장소 밖(현장·거래처)으로 인쇄 배포되므로 토큰을 여기에 다시 선언한다. */
+  :root {
+    --color-bg:      #F0F0F0;
+    --color-primary: #E3F2FD;
+    --color-surface: #ECEFF1;
+    --color-accent:  #E8F5E9;
+    --color-text:    #546E7A;
+  }
+
+  @page { size: A4 landscape; margin: 10mm; }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    font-size: 10pt;
+    color: var(--color-text);
+    background: var(--color-bg);
+  }
+  .sheet {
+    width: 277mm;
+    margin: 0 auto 8mm;
+    padding: 6mm 7mm;
+    background: #FFFFFF;
+    border: 1px solid var(--color-text);
+  }
+  .sheet + .sheet { page-break-before: always; }
+
+  h1 { font-size: 13pt; margin: 0 0 1mm; letter-spacing: .2px; }
+  .sub { font-size: 8.5pt; margin: 0 0 3mm; opacity: .85; }
+
+  /* ── 머리 정보 ───────────────────────────── */
+  .head {
+    display: flex; gap: 3mm; margin-bottom: 3mm;
+  }
+  .head div {
+    flex: 1;
+    border: 1px solid var(--color-text);
+    background: var(--color-primary);
+    padding: 1.6mm 2mm;
+    font-size: 8.5pt;
+  }
+  .head span { display: block; font-weight: 700; margin-bottom: 2.2mm; }
+  .rule { border-bottom: 1px dotted var(--color-text); height: 4mm; }
+
+  /* ── 기록 표 ─────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    border: 1px solid var(--color-text);
+    padding: 1.2mm 1mm;
+    font-size: 8.5pt;
+    text-align: center;
+  }
+  thead th { background: var(--color-surface); font-weight: 700; line-height: 1.25; }
+  /* 트레드 4칸은 한 묶음임이 눈으로 보여야 한다 — 4칸 전부 기입/전부 공란 규칙(§7-1). */
+  th.grp { background: var(--color-accent); }
+  td.tapak { background: var(--color-accent); height: 8mm; }
+  td.pos { font-weight: 700; text-align: left; padding-left: 2mm; }
+  td.free { text-align: left; }
+  .ko { display: block; font-weight: 400; font-size: 7pt; opacity: .75; }
+
+  /* ── 범례 ─────────────────────────────── */
+  .legend { margin-top: 3mm; font-size: 8pt; line-height: 1.55; }
+  .legend b { color: var(--color-text); }
+  .legend .box {
+    border: 1px solid var(--color-text);
+    background: var(--color-surface);
+    padding: 2mm 2.5mm;
+    margin-top: 2mm;
+  }
+  .legend ol { margin: 1mm 0 0; padding-left: 5mm; }
+  .sign { margin-top: 3mm; display: flex; gap: 6mm; font-size: 8.5pt; }
+  .sign div { flex: 1; }
+  .sign .rule { height: 9mm; border-bottom: 1px solid var(--color-text); }
+</style>
+</head>
+<body>
+
+<!-- 차량 7대 × 1장. 인쇄 시 각 장이 새 페이지에서 시작한다. -->
+<!-- CH 847 은 2026-07-10 투입 신규 차량이라 v1 목록(6대)에 없다. -->
+<section class="sheet">
+  <h1>FORMULIR PEMERIKSAAN BAN — Tapak 4 Titik</h1>
+  <p class="sub">
+    PT Ascendo Internasional · SAMTAN TMS · Rev. 2 (2026-08-26) ·
+    Wajib mulai siklus pemeriksaan berikutnya
+    <span class="ko">현장 기록지 개정 2판 — 트레드 4점 기록 · 차기 점검 회차부터 적용</span>
+  </p>
+
+  <div class="head">
+    <div><span>UNIT (CH)</span><div class="rule"></div></div>
+    <div><span>TANGGAL</span><div class="rule"></div></div>
+    <div><span>HM</span><div class="rule"></div></div>
+    <div><span>KM</span><div class="rule"></div></div>
+    <div><span>PEMERIKSA</span><div class="rule"></div></div>
+  </div>
+
+  <table>
+    <colgroup>
+      <col style="width:5%"><col style="width:9%"><col style="width:16%"><col style="width:8%">
+      <col style="width:9%"><col style="width:9%"><col style="width:9%"><col style="width:9%">
+      <col style="width:9%"><col style="width:17%">
+    </colgroup>
+    <thead>
+      <tr>
+        <th rowspan="2">No</th>
+        <th rowspan="2">Posisi<span class="ko">포지션</span></th>
+        <th rowspan="2">Serial<span class="ko">시리얼</span></th>
+        <th rowspan="2">Tekanan<br>(psi)<span class="ko">공기압</span></th>
+        <th class="grp" colspan="4">Kedalaman Alur / Tapak (mm)<span class="ko">트레드 4점 — 4칸 전부 기입 또는 전부 공란</span></th>
+        <th rowspan="2">Flag</th>
+        <th rowspan="2">Catatan<span class="ko">비고</span></th>
+      </tr>
+      <tr>
+        <th class="grp">Kiri<br>(Luar)<span class="ko">외측</span></th>
+        <th class="grp">Tengah 1<span class="ko">중앙 1</span></th>
+        <th class="grp">Tengah 2<span class="ko">중앙 2</span></th>
+        <th class="grp">Kanan<br>(Dalam)<span class="ko">내측</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td class="pos">L1</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>2</td><td class="pos">L2 In</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>3</td><td class="pos">L2 Out</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>4</td><td class="pos">L3 In</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>5</td><td class="pos">L3 Out</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>6</td><td class="pos">R1</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>7</td><td class="pos">R2 In</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>8</td><td class="pos">R2 Out</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>9</td><td class="pos">R3 In</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+      <tr><td>10</td><td class="pos">R3 Out</td><td></td><td></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td class="tapak"></td><td></td><td class="free"></td></tr>
+    </tbody>
+  </table>
+
+  <div class="legend">
+    <b>KODE FLAG</b> —
+    <b>OK</b> normal ·
+    <b>CHECK</b> perlu ukur ulang ·
+    <b>DAMAGE</b> rusak ·
+    <b>PRESSURE</b> tekanan tidak normal ·
+    <b>LOAD</b> muatan tidak normal ·
+    <b>OTHER</b> lain-lain — tulis alasannya di kolom Catatan.
+    <span class="ko">OUTLIER(이상값)는 현장에서 적지 않는다 — 관리자가 사후 판정한다.</span>
+
+    <div class="box">
+      <b>ATURAN PENGISIAN</b>
+      <ol>
+        <li><b>Empat kolom tapak diisi semua, atau dikosongkan semua.</b> Pengisian sebagian dilarang — data tidak dapat dihitung.</li>
+        <li>Kolom <b>Kiri</b> = alur sisi <b>luar</b> kendaraan. Kolom <b>Kanan</b> = alur sisi <b>dalam</b> kendaraan. Berlaku sama untuk ban dalam maupun luar pada roda ganda.</li>
+        <li>Bila tidak dapat diukur, <b>jangan tulis 0.</b> Kosongkan, lalu tulis alasannya di Flag/Catatan (belum diukur / batas pakai / dibuang).</li>
+        <li>Tekanan standar — gandar kemudi (L1·R1) <b>100 psi</b>, lainnya <b>116 psi</b>. Ukur setelah penyetelan ulang. Bila ban dalam tidak terjangkau, kosongkan (0 dilarang).</li>
+        <li>HM dan KM wajib diisi. Bila lebih kecil dari siklus sebelumnya atau melonjak, periksa ulang di lapangan lalu tulis di Catatan.</li>
+        <li>Resolusi alat ukur 0.1 mm. Tulis satu angka di belakang koma (contoh: 12.4).</li>
+        <li>Nama pemeriksa dan tanggal wajib diisi.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="sign">
+    <div>Pemeriksa <span class="ko">측정자</span><div class="rule"></div></div>
+    <div>Mengetahui <span class="ko">확인</span><div class="rule"></div></div>
+    <div>Tanggal input TMS <span class="ko">TMS 입력일</span><div class="rule"></div></div>
+  </div>
+</section>
+
+</body>
+</html>
