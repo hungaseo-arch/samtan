@@ -1,0 +1,4 @@
+# SPA 폴백 — 탭이 URL 경로(`/life`, `/input` …)가 되면서 딥링크·새로고침이
+# 서버로 직접 요청된다. Cloudflare Pages 는 이 파일로 index.html 을 되돌려준다.
+# (GitHub Pages 배포는 npm run deploy 의 `cp dist/index.html dist/404.html` 가 같은 역할을 한다.)
+/*    /index.html   200

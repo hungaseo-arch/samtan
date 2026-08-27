@@ -1,5 +1,6 @@
 // @section: tms-main-page
 import { useState, useEffect, useCallback } from "react";
+import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { loadData } from "@/data/loadData";
 import DashboardTab from "@/components/DashboardTab";
 import LayoutTab from "@/components/LayoutTab";
@@ -7,6 +8,7 @@ import TrendTab from "@/components/TrendTab";
 import LifeTab from "@/components/LifeTab";
 import ReplacementTab from "@/components/ReplacementTab";
 import PressureTab from "@/components/PressureTab";
+import WearAnalysisTab from "@/components/WearAnalysisTab";
 import InspectionTab from "@/components/InspectionTab";
 import LoadTab from "@/components/LoadTab";
 import { useLang, LANGS } from "@/i18n";
@@ -14,11 +16,11 @@ import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
 import SetPasswordCard from "@/auth/SetPasswordCard";
 import { toast } from "sonner";
-import AdminUsersModal from "@/components/AdminUsersModal";
+import AdminTab from "@/components/AdminTab";
 import { LogOut, X, ChevronDown, Menu, ShieldCheck, KeyRound } from "lucide-react";
-import { LayoutDashboard, Map, Weight, TrendingDown, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Map, Weight, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
 
-type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "pressure" | "input";
+type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "wear" | "pressure" | "input" | "admin";
 
 // label·desc는 i18n 사전(`tab.<id>.label/desc`)에서 가져옵니다. sub(영문 약칭)·icon은 공통.
 const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
@@ -29,7 +31,10 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
   { id: "life",     sub: "Lifetime DB", icon: <Database className="w-4 h-4" /> },
   { id: "input",    sub: "Input",       icon: <SquarePen className="w-4 h-4" /> },
   { id: "trend",    sub: "Trend",       icon: <TrendingDown className="w-4 h-4" /> },
+  { id: "wear",     sub: "Wear",        icon: <Activity className="w-4 h-4" /> },
   { id: "pressure", sub: "Pressure",    icon: <Gauge className="w-4 h-4" /> },
+  // 관리자 페이지 — 그룹 내비에는 넣지 않는다. 헤더의 방패 아이콘(admin 에게만 노출)으로 들어간다.
+  { id: "admin",    sub: "Admin",       icon: <ShieldCheck className="w-4 h-4" /> },
 ];
 
 // 상위 그룹(3~4개) → 하위 탭 배치. label은 i18n `nav.g.<id>`.
@@ -37,8 +42,12 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
 const GROUPS: { id: string; tabs: TabId[] }[] = [
   { id: "vehicle",  tabs: ["layout", "load"] },
   { id: "tire",     tabs: ["repl", "life"] },
-  { id: "inspect",  tabs: ["input", "trend", "pressure"] },
+  { id: "inspect",  tabs: ["input", "trend", "wear", "pressure"] },
 ];
+
+// URL 경로 1개 = 탭 1개. '/' 는 대시보드.
+const TAB_IDS = TABS.map((t) => t.id);
+const isTabId = (v: string | undefined): v is TabId => v != null && (TAB_IDS as string[]).includes(v);
 
 // 공통 컨테이너 폭 — 헤더·탭내비·배너·메인·푸터 5곳에서 재사용 (정렬 일치 보장)
 const CONTAINER = "max-w-6xl mx-auto px-6";
@@ -52,12 +61,35 @@ const ROLE_BADGE_BG: Record<Role, string> = {
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword, displayName } = useAuth();
-  const [showUsers, setShowUsers] = useState(false);
+  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword, displayName, sessionExpired } = useAuth();
   const [showPwChange, setShowPwChange] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabId>("dash");
+
+  // ── 화면 상태를 URL 에 둔다 ────────────────────────────────
+  // 탭은 경로(`/life`), 교차 이동 포커스는 쿼리(`?serial=` · `?ch=`)에 싣는다.
+  // useState 로 들고 있으면 새로고침·뒤로가기·링크 공유에서 전부 대시보드로 되돌아간다.
+  // 탭 이름은 부모 라우트가 아니라 자식 세그먼트에 있으므로 경로에서 직접 읽는다
+  // (useParams 는 부모인 이 컴포넌트에서 :tab 을 볼 수 없다). basename 은 제외되어 온다.
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const tab = pathname.replace(/^\/|\/$/g, "") || undefined;
+  const activeTab: TabId = isTabId(tab) ? tab : "dash";
+  const focusSerial = search.get("serial");
+  const focusCh = search.get("ch");
+  const unknownTab = tab != null && !isTabId(tab);
+
+  const goToTab = useCallback((tid: TabId, q?: { serial?: string; ch?: string }) => {
+    const qs = new URLSearchParams();
+    if (q?.serial) qs.set("serial", q.serial);
+    if (q?.ch) qs.set("ch", q.ch);
+    const s = qs.toString();
+    navigate(`/${tid}${s ? `?${s}` : ""}`);
+    setOpenMenu(null);
+    setMobileMenu(false);
+  }, [navigate]);
+
   // 전체 데이터는 Supabase에서 로드. version 변경 시 차트 탭 재렌더.
   const [dataVersion, setDataVersion] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -77,19 +109,14 @@ export default function Index() {
   useEffect(() => { reloadData(); }, [reloadData]);
 
   // 시리얼 클릭 → 교체·수명 DB로 이동 + 해당 행 포커스
-  const [focusSerial, setFocusSerial] = useState<string | null>(null);
-  const goToSerial = useCallback((serial: string) => {
-    setFocusSerial(serial);
-    setActiveTab("life");
-  }, []);
+  const goToSerial = useCallback((serial: string) => goToTab("life", { serial }), [goToTab]);
 
   // 차량 번호 클릭 → 차량 배치도로 이동 + 해당 차량 선택
-  const [focusCh, setFocusCh] = useState<string | null>(null);
-  const goToVehicle = useCallback((ch: string) => {
-    setFocusCh(ch);
-    setActiveTab("layout");
-  }, []);
+  const goToVehicle = useCallback((ch: string) => goToTab("layout", { ch }), [goToTab]);
 
+
+  // 없는 탭 이름(`/foo`)으로 들어오면 대시보드로 되돌린다. 히스토리에는 남기지 않는다.
+  if (unknownTab) return <Navigate to="/" replace />;
 
   // 초대 수락·비밀번호 재설정 링크로 들어온 경우 — 비밀번호부터 정하게 한다.
   if (needsPassword) {
@@ -115,12 +142,17 @@ export default function Index() {
           // 로그인 화면은 언어 선택 없이 항상 영어로 — 국적이 섞인 첫 접점이라 중립 언어를 쓴다.
           <LoginCard
             forceEn
+            notice={sessionExpired ? "auth.expired" : undefined}
             className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-xl"
           />
         )}
       </div>
     );
   }
+
+  // 관리자 페이지는 admin 만 볼 수 있다 — 주소창으로 직접 들어와도 되돌린다.
+  // 이 검사는 편의일 뿐이고 실제 방어선은 서버다(Edge Function 의 admin 검사 · audit_log RLS).
+  if (activeTab === "admin" && !isAdmin) return <Navigate to="/" replace />;
 
   if (status !== "ready") {
     return (
@@ -156,22 +188,25 @@ export default function Index() {
 
       {/* ── 헤더 ── */}
       <header className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
-        <div className="w-full relative flex flex-row items-center justify-between gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-4">
+        <div className="w-full relative flex flex-row items-center justify-between gap-2 sm:gap-3 px-4 py-3 sm:px-8 lg:px-12.5 sm:py-4">
           {/* 좌: 햄버거(모바일) / 로고+TMS(데스크톱, 클릭 시 홈) */}
           <div className="flex items-center gap-2 min-w-0">
             <button
+              type="button"
               onClick={() => setMobileMenu((o) => !o)}
-              aria-label="menu"
-              className="sm:hidden p-2 -ml-1 rounded-lg text-primary hover:bg-muted/40 transition-colors"
+              aria-label={t("nav.menu.aria")}
+              aria-expanded={mobileMenu}
+              className="sm:hidden p-2 -ml-1 rounded-lg text-primary hover:bg-muted/40 transition-colors shrink-0"
             >
               {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <button
-              onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setOpenMenu(null); }}
-              title="홈"
+              type="button"
+              onClick={() => goToTab("dash")}
+              title={t("nav.home")}
               className="hidden sm:flex items-center gap-3 min-w-0 hover:opacity-80 transition-opacity"
             >
-              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="삼탄 TMS 로고 · 홈" className="hidden lg:block h-6 w-auto shrink-0" />
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt={`SAMTAN TMS · ${t("nav.home")}`} className="hidden lg:block h-6 w-auto shrink-0" />
               <span className="hidden lg:block h-5 w-1 bg-border shrink-0" aria-hidden="true" />
               <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-primary leading-none shrink-0">TMS</h1>
             </button>
@@ -182,11 +217,14 @@ export default function Index() {
             {GROUPS.map((g) => {
               const on = g.tabs.includes(activeTab);
               const single = g.tabs.length === 1;
-              const selectTab = (tid: TabId) => { setFocusSerial(null); setFocusCh(null); setActiveTab(tid); setOpenMenu(null); };
+              const selectTab = (tid: TabId) => goToTab(tid);
               return (
                 <div key={g.id} className="relative">
                   <button
+                    type="button"
                     onClick={() => (single ? selectTab(g.tabs[0]) : setOpenMenu(openMenu === g.id ? null : g.id))}
+                    aria-haspopup={single ? undefined : "menu"}
+                    aria-expanded={single ? undefined : openMenu === g.id}
                     className={`flex items-center gap-1 px-5 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
                       on ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                     }`}
@@ -223,8 +261,9 @@ export default function Index() {
             })}
           </nav>
 
-          {/* 우: 언어 전환(KO/ID) + 로그인 정보 */}
-          <div className="flex items-center gap-3">
+          {/* 우: 언어 전환(KO/ID) + 로그인 정보
+              min-w-0 이 없으면 좁은 화면에서 이 묶음이 헤더를 밀어내 페이지 전체가 가로로 스크롤된다. */}
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             {/* 언어 토글 (KO / ID) */}
             <div className="flex items-center rounded-lg border border-border overflow-hidden shrink-0" role="group" aria-label={t("lang.aria")}>
               {LANGS.map((l) => (
@@ -232,7 +271,7 @@ export default function Index() {
                   key={l.code}
                   onClick={() => setLang(l.code)}
                   aria-pressed={lang === l.code}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
+                  className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
                 >
                   <span className="text-sm leading-none">{l.flag}</span>
                   {l.code.toUpperCase()}
@@ -263,10 +302,10 @@ export default function Index() {
             {/* 사용자 관리 — admin 에게만 노출(실제 권한 검사는 Edge Function) */}
             {isAdmin && (
               <button
-                onClick={() => setShowUsers(true)}
-                title={t("admin.users")}
-                aria-label={t("admin.users")}
-                className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
+                onClick={() => goToTab("admin")}
+                title={t("tab.admin.label")}
+                aria-label={t("tab.admin.label")}
+                className={`shrink-0 p-1 transition-colors ${activeTab === "admin" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
               >
                 <ShieldCheck className="w-4 h-4" />
               </button>
@@ -275,11 +314,12 @@ export default function Index() {
               <button
                 onClick={() => signOut()}
                 title={`${displayName}${user.email ? ` · ${user.email}` : ""}`}
+                aria-label={t("auth.logout")}
                 className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-3.5 h-3.5 shrink-0" />
+                {/* 좁은 화면에서는 아이콘만 — 이름/라벨을 그대로 두면 헤더가 넘친다 */}
                 <span className="hidden md:inline max-w-28 truncate">{displayName}</span>
-                <span className="md:hidden">{t("auth.logout")}</span>
               </button>
             )}
           </div>
@@ -289,7 +329,8 @@ export default function Index() {
         {mobileMenu && (
           <div className="sm:hidden border-t border-border bg-card px-4 py-2">
             <button
-              onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab("dash"); setMobileMenu(false); }}
+              type="button"
+              onClick={() => goToTab("dash")}
               className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-bold text-left ${activeTab === "dash" ? "bg-primary/5 text-primary" : "text-foreground hover:bg-muted/40"}`}
             >
               <LayoutDashboard className="w-4 h-4" /> {t("tab.dash.label")}
@@ -303,7 +344,8 @@ export default function Index() {
                   return (
                     <button
                       key={tid}
-                      onClick={() => { setFocusSerial(null); setFocusCh(null); setActiveTab(tid); setMobileMenu(false); }}
+                      type="button"
+                      onClick={() => goToTab(tid)}
                       className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-left ${cur ? "bg-primary/5 text-primary font-bold" : "text-foreground hover:bg-muted/40"}`}
                     >
                       {tab.icon}
@@ -325,9 +367,11 @@ export default function Index() {
           {activeTab === "load"     && <LoadTab />}
           {activeTab === "repl"     && <ReplacementTab key={dataVersion} onSerialClick={goToSerial} onVehicleClick={goToVehicle} />}
           {activeTab === "trend"    && <TrendTab key={dataVersion} onSerialClick={goToSerial} />}
+          {activeTab === "wear"     && <WearAnalysisTab key={dataVersion} />}
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
           {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
+          {activeTab === "admin"    && <AdminTab />}
         </div>
       </main>
 
@@ -368,8 +412,6 @@ export default function Index() {
         </div>
       )}
 
-      {/* ── 사용자 관리 모달 (admin 전용) ── */}
-      {showUsers && isAdmin && <AdminUsersModal onClose={() => setShowUsers(false)} />}
     </div>
   );
 }

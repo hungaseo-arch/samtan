@@ -1,7 +1,8 @@
 // @section: load-tab
 import { LOAD_UNITS, LOAD_GROUPS, LOAD_GROSS_KG, HEAD_GROUP_SHARE, groupTotal } from "@/data/loadData";
 import { loadPerTire, loadRatio, ratedByMount, fmtInt } from "@/data/tmsUtils";
-import { Weight, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Weight, AlertTriangle } from "lucide-react";
+import { Fragment } from "react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
@@ -27,11 +28,15 @@ const TX = {
     thCount: "본수",
     thGroup: "그룹",
     thTare: "공차(kg)",
+    thPayload: "적재(kg)",
     thDist: "분배율",
     thRated: "정격(kg)",
+    thActual: "실하중(kg)",
     thPerTire: "타이어당(kg)",
     thLoad: "부하율",
     thStatus: "상태",
+    total: "합계",
+    subtotal: "소계",
     groupPrefix: "그룹 ",
     ratioTitle: "정격 대비 부하율",
     ratingHundred: "정격 100%",
@@ -51,9 +56,8 @@ const TX = {
     egMid1: " · 구동축 ",
     egMid2: "(78%) · 트레일러 1 3,917/4,500(87%) · 트레일러 2·돌리 4,000/4,500(89%).",
     egSteer: "/6,000(78%)",
-    editData: "데이터 수정: ",
     uNames: { headSteer: "Head 조향축", headDrive: "Head 구동축", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
-    uSubs: { headSteer: "L1·R1 · 단독 (Head 20%)", headDrive: "L2·L3·R2·R3 · 단독 (Head 80%)", trailer1: "트레일러 1", trailer2: "트레일러 2", dolly: "돌리" },
+    uSubs: { headSteer: "L1·R1 · 단독 (Head 20%)", headDrive: "L2·L3·R2·R3 · 듀얼 (Head 80%)", trailer1: "트레일러 1", trailer2: "트레일러 2", dolly: "돌리" },
     gNames: { 1: "그룹 1 · Head + 트레일러 1", 2: "그룹 2 · 돌리 + 트레일러 2" },
   },
   id: {
@@ -76,11 +80,15 @@ const TX = {
     thCount: "Jml ban",
     thGroup: "Grup",
     thTare: "Berat kosong(kg)",
+    thPayload: "Muatan(kg)",
     thDist: "Distribusi",
     thRated: "Rating(kg)",
+    thActual: "Beban aktual(kg)",
     thPerTire: "Per ban(kg)",
     thLoad: "Rasio beban",
     thStatus: "Status",
+    total: "Total",
+    subtotal: "Subtotal",
     groupPrefix: "Grup ",
     ratioTitle: "Rasio beban thd rating",
     ratingHundred: "Rating 100%",
@@ -100,9 +108,8 @@ const TX = {
     egMid1: " · poros penggerak ",
     egMid2: "(78%) · trailer 1 3,917/4,500(87%) · trailer 2·dolly 4,000/4,500(89%).",
     egSteer: "/6,000(78%)",
-    editData: "Edit data: ",
     uNames: { headSteer: "Head Poros Kemudi", headDrive: "Head Poros Penggerak", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
-    uSubs: { headSteer: "L1·R1 · Tunggal (Head 20%)", headDrive: "L2·L3·R2·R3 · Tunggal (Head 80%)", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
+    uSubs: { headSteer: "L1·R1 · Tunggal (Head 20%)", headDrive: "L2·L3·R2·R3 · Ganda (Head 80%)", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
     gNames: { 1: "Grup 1 · Head + Trailer 1", 2: "Grup 2 · Dolly + Trailer 2" },
   },
   en: {
@@ -125,11 +132,15 @@ const TX = {
     thCount: "Tires",
     thGroup: "Group",
     thTare: "Tare(kg)",
+    thPayload: "Payload(kg)",
     thDist: "Distribution",
     thRated: "Rated(kg)",
+    thActual: "Actual(kg)",
     thPerTire: "Per tire(kg)",
     thLoad: "Load ratio",
     thStatus: "Status",
+    total: "Total",
+    subtotal: "Subtotal",
     groupPrefix: "Group ",
     ratioTitle: "Load ratio vs rated",
     ratingHundred: "Rated 100%",
@@ -149,9 +160,8 @@ const TX = {
     egMid1: " · drive axle ",
     egMid2: "(78%) · trailer 1 3,917/4,500(87%) · trailer 2·dolly 4,000/4,500(89%).",
     egSteer: "/6,000(78%)",
-    editData: "Edit data: ",
     uNames: { headSteer: "Head steer axle", headDrive: "Head drive axle", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
-    uSubs: { headSteer: "L1·R1 · single (Head 20%)", headDrive: "L2·L3·R2·R3 · single (Head 80%)", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
+    uSubs: { headSteer: "L1·R1 · single (Head 20%)", headDrive: "L2·L3·R2·R3 · dual (Head 80%)", trailer1: "Trailer 1", trailer2: "Trailer 2", dolly: "Dolly" },
     gNames: { 1: "Group 1 · Head + Trailer 1", 2: "Group 2 · Dolly + Trailer 2" },
   },
 } as const;
@@ -221,21 +231,23 @@ export default function LoadTab() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-205 table-fixed text-xs border-collapse">
               <colgroup>
-                {["12%", "12%", "7%", "6%", "9%", "8%", "9%", "9%", "12%", "10%", "6%"].map((w, i) => (
+                {["9%", "11%", "10%", "6%", "5%", "7%", "7%", "7%", "7%", "10%", "9%", "7%", "5%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />
                 ))}
               </colgroup>
               <thead>
                 <tr className="border-b border-border">
                   {[
+                    { label: tx.thGroup, align: "center" },
                     { label: tx.thUnit, align: "left" },
                     { label: tx.thSpec, align: "left" },
                     { label: tx.thMount, align: "center" },
                     { label: tx.thCount, align: "right" },
-                    { label: tx.thGroup, align: "left" },
                     { label: tx.thTare, align: "right" },
+                    { label: tx.thPayload, align: "right" },
                     { label: tx.thDist, align: "right" },
                     { label: tx.thRated, align: "right" },
+                    { label: tx.thActual, align: "right" },
                     { label: tx.thPerTire, align: "right" },
                     { label: tx.thLoad, align: "right" },
                     { label: tx.thStatus, align: "center" },
@@ -245,70 +257,75 @@ export default function LoadTab() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr key={r.name} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
-                    <td className="px-2 py-2 font-bold text-primary">{tx.uNames[r.key]}<span className="block text-[10px] text-muted-foreground font-normal">{tx.uSubs[r.key]}</span></td>
-                    <td className="px-2 py-2 font-mono text-[11px] text-muted-foreground">{r.spec}</td>
-                    <td className="px-2 py-2 text-center text-[10px]">
-                      <span className={`px-1.5 py-0.5 rounded-full border ${r.mount === "dual" ? "border-primary/40 text-primary bg-primary/5" : "border-border text-muted-foreground bg-muted/30"}`}>{mountLabel(r.mount)}</span>
-                    </td>
-                    <td className="px-2 py-2 text-right font-mono">{r.count}</td>
-                    <td className="px-2 py-2 text-[11px]">{tx.groupPrefix}{r.group}</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted-foreground">{fmtInt(r.unitWeight)}</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted-foreground">{Math.round(r.dist * 100)}%</td>
-                    <td className="px-2 py-2 text-right font-mono text-muted-foreground">{fmtInt(r.rated)}</td>
-                    <td className="px-2 py-2 text-right font-mono font-bold text-primary">{fmtInt(r.perTire)}</td>
-                    <td className={`px-2 py-2 text-right font-mono font-bold ${STATUS[r.status].cls}`}>{Math.round(r.load * 100)}%</td>
-                    <td className="px-2 py-2 text-center">
-                      <span className={`text-[10px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
-                    </td>
-                  </tr>
-                ))}
+                {[...new Set(rows.map((r) => r.group))].map((gid) => {
+                  // 그룹 단위로 데이터 행을 그린 뒤, 그룹마다 소계 행을 이어 붙인다(행이 그룹 순으로 연속).
+                  const grp = rows.filter((r) => r.group === gid);
+                  const tireSum = grp.reduce((s, r) => s + r.count, 0);
+                  const tareSum = grp.reduce((s, r) => s + r.unitWeight, 0);
+                  const payload = LOAD_GROUPS.find((x) => x.id === gid)!.payload; // 적재는 그룹 단위 값(병합 표시)
+                  const actualSum = grp.reduce((s, r) => s + r.total * r.dist, 0); // 그룹 실하중 합 = 그룹 총중량
+                  return (
+                  <Fragment key={gid}>
+                    {grp.map((r, i) => (
+                      <tr key={r.name} className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+                        {i === 0 && (
+                          <td rowSpan={grp.length} className="px-2 py-2 text-center align-middle text-[11px] font-semibold border-r border-border/40 bg-muted/10">{tx.groupPrefix}{gid}</td>
+                        )}
+                        <td className="px-2 py-2 font-bold text-primary">{tx.uNames[r.key]}</td>
+                        <td className="px-2 py-2 font-mono text-[11px] text-muted-foreground">{r.spec}</td>
+                        <td className="px-2 py-2 text-center text-[10px]">
+                          <span className={`px-1.5 py-0.5 rounded-full border ${r.mount === "dual" ? "border-primary/40 text-primary bg-primary/5" : "border-border text-muted-foreground bg-muted/30"}`}>{mountLabel(r.mount)}</span>
+                        </td>
+                        <td className="px-2 py-2 text-right font-mono">{r.count}</td>
+                        <td className="px-2 py-2 text-right font-mono text-muted-foreground">{fmtInt(r.unitWeight)}</td>
+                        {i === 0 && (
+                          <td rowSpan={grp.length} className="px-2 py-2 text-right align-middle font-mono text-muted-foreground border-l border-border/40 bg-muted/10">{fmtInt(payload)}</td>
+                        )}
+                        {/* 분배율은 그룹 총중량 기준으로 표시. Head 축의 dist(조향 20%·구동 80%)는
+                            Head 하중 기준이므로 HEAD_GROUP_SHARE(50%)를 곱해 그룹 기준으로 환산한다.
+                            → 조향 50%×20%=10%, 구동 50%×80%=40%, 트레일러1 50% (그룹1 합계 100%). */}
+                        <td className="px-2 py-2 text-right font-mono text-muted-foreground">{Math.round((r.axleOfHead ? HEAD_GROUP_SHARE * r.dist : r.dist) * 100)}%</td>
+                        <td className="px-2 py-2 text-right font-mono text-muted-foreground">{fmtInt(r.rated)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-foreground">{fmtInt(r.total * r.dist)}</td>
+                        <td className="px-2 py-2 text-right font-mono font-bold text-primary">{fmtInt(r.perTire)}</td>
+                        <td className={`px-2 py-2 text-right font-mono font-bold ${STATUS[r.status].cls}`}>{Math.round(r.load * 100)}%</td>
+                        <td className="px-2 py-2 text-center">
+                          <span className={`text-[10px] font-bold ${STATUS[r.status].cls}`}>{STATUS[r.status].label}</span>
+                        </td>
+                      </tr>
+                    ))}
+                    {/* 그룹 소계 — 수량·공차·적재 합산 */}
+                    <tr className="border-b border-border bg-muted/20 font-semibold">
+                      <td />
+                      <td className="px-2 py-1.5 text-left text-[11px]">{tx.subtotal}</td>
+                      <td colSpan={2} />
+                      <td className="px-2 py-1.5 text-right font-mono">{tireSum}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{fmtInt(tareSum)}</td>
+                      <td className="px-2 py-1.5 text-right font-mono">{fmtInt(payload)}</td>
+                      <td colSpan={2} />
+                      <td className="px-2 py-1.5 text-right font-mono">{fmtInt(actualSum)}</td>
+                      <td colSpan={3} />
+                    </tr>
+                  </Fragment>
+                  );
+                })}
               </tbody>
+              <tfoot>
+                {/* 합계 — 수량·공차·적재 합산(분배율·정격·부하율은 합이 무의미). */}
+                <tr className="border-t-2 border-border font-bold">
+                  <td />
+                  <td className="px-2 py-2 text-left text-[11px] text-muted-foreground">{tx.total}</td>
+                  <td colSpan={2} />
+                  <td className="px-2 py-2 text-right font-mono">{rows.reduce((s, r) => s + r.count, 0)}</td>
+                  <td className="px-2 py-2 text-right font-mono">{fmtInt(rows.reduce((s, r) => s + r.unitWeight, 0))}</td>
+                  <td className="px-2 py-2 text-right font-mono">{fmtInt(LOAD_GROUPS.reduce((s, g) => s + g.payload, 0))}</td>
+                  <td colSpan={2} />
+                  <td className="px-2 py-2 text-right font-mono">{fmtInt(rows.reduce((s, r) => s + r.total * r.dist, 0))}</td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
             </table>
           </div>
-          {/* 그룹 총중량 요약 */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {LOAD_GROUPS.map((g) => (
-              <div key={g.id} className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[11px] flex items-center justify-between">
-                <span className="font-semibold">{tx.gNames[g.id]}</span>
-                <span className="font-mono text-muted-foreground">Payload {fmtInt(g.payload)} · 총 <strong className="text-foreground">{fmtInt(groupTotal(g.id))} kg</strong></span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* 부하율 막대 */}
-      <motion.div variants={staggerItem}>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-1 h-5 bg-primary rounded-full" />
-            <span className="text-sm font-bold text-foreground">{tx.ratioTitle}</span>
-          </div>
-          <div className="space-y-3">
-            {rows.map((r) => {
-              const pct = r.load * 100;
-              return (
-                <div key={r.name}>
-                  <div className="flex items-baseline justify-between mb-1 text-xs">
-                    <span className="font-semibold">{r.name} <span className="text-muted-foreground font-normal">· {r.sub} · {mountLabel(r.mount)}</span></span>
-                    <span className={`font-mono font-bold ${STATUS[r.status].cls}`}>
-                      {Math.round(pct)}% <span className="text-muted-foreground font-normal">({r.over >= 0 ? "+" : ""}{Math.round(r.over * 100)}%)</span>
-                    </span>
-                  </div>
-                  {/* 100% 기준선 = 트랙의 1/1.3 지점 */}
-                  <div className="relative h-3 rounded-full bg-muted/40 overflow-hidden">
-                    <div className={`h-full ${STATUS[r.status].bar} transition-all`} style={{ width: `${Math.min(pct / 1.3, 100)}%` }} />
-                    <div className="absolute top-0 bottom-0 border-l border-dashed border-foreground/40" style={{ left: `${100 / 1.3}%` }} title={tx.ratingHundred} />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <p className="mt-3 text-[11px] text-muted-foreground flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> {tx.footnoteLoad}
-          </p>
         </div>
       </motion.div>
 
@@ -320,7 +337,6 @@ export default function LoadTab() {
           <strong className="text-foreground">{tx.distBasisLabel}</strong>{tx.distBasis1}<strong className="text-foreground">{tx.headBasis1}{fmtInt(headLoad)}{tx.headBasis2}</strong>{tx.headBasis3}
           <br />
           {tx.egPrefix}{fmtInt(headLoad * 0.2 / 2)}{tx.egSteer}{tx.egMid1}{fmtInt(headLoad * 0.8 / 8)}{tx.egMid2}
-          {tx.editData}<span className="font-mono">src/data/loadData.ts · LOAD_UNITS</span>.
         </p>
       </motion.div>
     </motion.div>

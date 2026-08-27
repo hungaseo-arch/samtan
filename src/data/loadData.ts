@@ -4,7 +4,7 @@
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
-import type { Unit, LifeRecord, TirePosition, SerialChainEntry } from "./tmsData";
+import type { Unit, LifeRecord, TirePosition, SerialChainEntry, TreadSegment } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
 
 // ============================================================
@@ -73,9 +73,82 @@ interface Round {
   km: number | string | null;
   press: Record<string, number | "N/A" | null>;
   tread: Record<string, number | null>;
+  /** 그 회차에 그 포지션에 달려 있던 시리얼 — 구간 분리의 유일한 근거 */
+  serial: Record<string, string | null>;
+  /** 그 회차에 행이 존재한 포지션. 값이 전부 null 인 행과 '행 없음'을 구분한다. */
+  seen: Set<string>;
 }
 
-/** inspections 행으로 units의 회차 배열(dates/hm/km/press)과 tread를 재구성. */
+/** 빈 문자열은 '시리얼 없음'으로 본다. DB 의 null 과 같게 취급. */
+function normSerial(s: string | null | undefined): string | null {
+  const v = (s ?? "").trim();
+  return v ? v : null;
+}
+
+/**
+ * 한 포지션의 회차열을 시리얼이 바뀌는 지점에서 잘라 구간 배열로 만든다.
+ *
+ * 판정은 DB 쪽 검증 쿼리와 같은 규칙이다 —
+ *   is_break = (직전 회차의 시리얼이 있다) AND (지금 시리얼과 다르다)
+ * SQL 의 `lag(serial) is not null AND serial IS DISTINCT FROM lag(serial)` 과 동치이며,
+ * 이 규칙으로 현재 원장에서 변경점 19개가 잡힌다(전부 replacements 와 1:1).
+ *
+ * ⚠ 트레드가 올라간 것은 절대 구분 근거로 쓰지 않는다 (작업지시서 v2 §3).
+ */
+function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[] {
+  const n = rounds.length;
+  const segs: TreadSegment[] = [];
+  let cur: TreadSegment | null = null;
+  let prev: string | null = null;
+  let seenAny = false;
+
+  for (let i = 0; i < n; i++) {
+    const r = rounds[i];
+    if (!r.seen.has(pos)) continue;
+    const s = normSerial(r.serial[pos]);
+    const isBreak = seenAny && prev !== null && s !== prev;
+
+    if (!cur || isBreak) {
+      cur = {
+        ch, pos,
+        segNo: segs.length,
+        serial: s ?? "",
+        idxFrom: i,
+        idxTo: i,
+        tread: new Array<number | null | undefined>(n).fill(undefined),
+        press: new Array<number | "N/A" | null | undefined>(n).fill(undefined),
+        replacedAt: null,
+        isCurrent: false,
+      };
+      segs.push(cur);
+    }
+
+    cur.idxTo = i;
+    // 구간 첫 회차에만 시리얼이 비어 있던 경우를 뒤 회차 값으로 메운다.
+    if (!cur.serial && s) cur.serial = s;
+    cur.tread[i] = r.tread[pos] ?? null;
+    cur.press[i] = r.press[pos] ?? null;
+
+    prev = s;   // SQL 의 lag() 과 같게 null 도 그대로 넘긴다
+    seenAny = true;
+  }
+
+  if (segs.length) segs[segs.length - 1].isCurrent = true;
+
+  // 교체일 매칭 — 시리얼이 근거이고 날짜는 표시용이다.
+  // 최초 구간(segNo 0)은 교체가 아니므로 비운다.
+  for (const seg of segs) {
+    if (seg.segNo === 0 || !seg.serial) continue;
+    const hit = TMS_DATA.repl.find(
+      (r) => r.ch === ch && r.pos === pos && r.newSerial === seg.serial,
+    );
+    seg.replacedAt = hit?.date ?? null;
+  }
+
+  return segs;
+}
+
+/** inspections 행으로 units의 회차 배열(dates/hm/km/press)과 tread·segments를 재구성. */
 function buildRounds(rows: InspectionRow[]) {
   const byCh = new Map<string, InspectionRow[]>();
   for (const r of rows) {
@@ -84,18 +157,26 @@ function buildRounds(rows: InspectionRow[]) {
   }
 
   TMS_DATA.tread = {};
+  TMS_DATA.segments = {};
   TMS_DATA.units.forEach((unit) => {
     const rounds = new Map<string, Round>();
     for (const r of byCh.get(unit.ch) || []) {
       let round = rounds.get(r.inspection_date);
       if (!round) {
-        round = { date: r.inspection_date, hm: null, km: null, press: {}, tread: {} };
+        round = {
+          date: r.inspection_date,
+          hm: null, km: null,
+          press: {}, tread: {}, serial: {},
+          seen: new Set<string>(),
+        };
         rounds.set(r.inspection_date, round);
       }
       if (r.hm != null) round.hm = r.hm;
       if (r.km != null) round.km = r.km;
       if (r.pressure != null) round.press[r.pos] = r.pressure;
       if (r.tread != null) round.tread[r.pos] = r.tread;
+      round.serial[r.pos] = r.serial ?? null;
+      round.seen.add(r.pos);
     }
 
     const sorted = [...rounds.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -104,14 +185,18 @@ function buildRounds(rows: InspectionRow[]) {
     unit.km = sorted.map((r) => r.km);
 
     TMS_DATA.tread[unit.ch] = {};
+    TMS_DATA.segments[unit.ch] = {};
     for (let p = 1; p <= 10; p++) {
       const rp = HEAD_MAP[p];
       const pd = unit.positions.find((x) => x.pos === rp);
       if (pd) pd.press = sorted.map((r) => r.press[rp] ?? null);
+      // (ch,pos) 로만 묶은 이 배열은 교체 전후 타이어가 섞여 있다.
+      // 추이 화면·마모율은 쓰지 않는다 — segments 를 쓸 것.
       TMS_DATA.tread[unit.ch][rp] = {
         dates: sorted.map((r) => r.date),
         min: sorted.map((r) => r.tread[rp] ?? null),
       };
+      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted);
     }
   });
 }
@@ -159,6 +244,9 @@ export async function loadData(): Promise<void> {
       treadCritical: cfg.data.tread_critical ?? null,
       recPsiSteer: cfg.data.rec_psi_steer ?? null,
       recPsiDrive: cfg.data.rec_psi_drive ?? null,
+      scRatioUpper: cfg.data.sc_ratio_upper ?? null,
+      scRatioLower: cfg.data.sc_ratio_lower ?? null,
+      wearMinMm: cfg.data.wear_min_mm ?? null,
     };
   }
 

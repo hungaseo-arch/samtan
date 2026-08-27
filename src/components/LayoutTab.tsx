@@ -1,7 +1,7 @@
 // @section: layout-tab
 import { useState } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, fmtTread } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, fmtTread, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -331,18 +331,14 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   <div className="mt-3">
                     <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.treadTrend}</p>
                     <MiniChart
-                      pairs={modalData.u.dates
-                        .map((d, i) => ({ d: d ?? "", v: modalData.d!.treadMin[i] ?? null }))
-                        .filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                      pairs={currentSegmentPairs(modalData.u, modalData.d.segments, "tread")}
                       min={0} max={NEW_TREAD} danger={5} warn={8} decimals={1}
                     />
                   </div>
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.pressTrend}</p>
                     <MiniChart
-                      pairs={modalData.u.dates
-                        .map((d, i) => ({ d: d ?? "", v: typeof modalData.d!.press[i] === "number" ? (modalData.d!.press[i] as number) : null }))
-                        .filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                      pairs={currentSegmentPairs(modalData.u, modalData.d.segments, "press")}
                       min={60} max={145} danger={null} warn={null} decimals={0}
                     />
                   </div>

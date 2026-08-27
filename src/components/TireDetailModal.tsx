@@ -3,7 +3,7 @@
 // 포지션의 권장압·시리얼·최근 공기압/트레드 + 트레드·공기압 추이 미니차트.
 // LayoutTab · InspectionTab(점검 이력 배치도) 공용. 부모가 <AnimatePresence>로 감싼다.
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, fmtTread } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, fmtTread, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
@@ -109,14 +109,14 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
             <div className="mt-3">
               <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.treadTrend}</p>
               <MiniChart
-                pairs={u.dates.map((dt, i) => ({ d: dt ?? "", v: d.treadMin[i] ?? null })).filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                pairs={currentSegmentPairs(u, d.segments, "tread")}
                 min={0} max={NEW_TREAD} danger={5} warn={8} decimals={1}
               />
             </div>
             <div className="mt-2">
               <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.pressTrend}</p>
               <MiniChart
-                pairs={u.dates.map((dt, i) => ({ d: dt ?? "", v: typeof d.press[i] === "number" ? (d.press[i] as number) : null })).filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                pairs={currentSegmentPairs(u, d.segments, "press")}
                 min={60} max={145} danger={null} warn={null} decimals={0}
               />
             </div>

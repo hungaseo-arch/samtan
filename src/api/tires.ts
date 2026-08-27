@@ -54,3 +54,30 @@ export async function checkDataIntegrity(): Promise<IntegrityCheck[]> {
   if (error) throw error;
   return (data ?? []) as IntegrityCheck[];
 }
+
+/** v_data_quality 1행 — 점검 데이터 자체의 품질 경고 (작업지시서 v3 §C-4). */
+export interface DataQualityRow {
+  check_key: string;
+  ch: string | null;
+  pos: string | null;
+  inspection_date: string | null;
+  detail: string | null;
+}
+
+/**
+ * 데이터 품질 경고 목록 (v3 §D-3).
+ *
+ * check_data_integrity() 는 **원장 정합성**(장착·수명·시리얼)을 보고,
+ * 이 뷰는 **점검값 자체**(트레드 0 · km 결측 · 급증 · 측정점 수)를 본다.
+ * 어느 항목도 저장을 막지 않으므로 배지 색은 바꾸지 않고 목록에만 싣는다.
+ */
+export async function listDataQuality(): Promise<DataQualityRow[]> {
+  const { data, error } = await supabase
+    .from("v_data_quality")
+    .select("*")
+    .order("check_key", { ascending: true })
+    .order("ch", { ascending: true })
+    .order("inspection_date", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as DataQualityRow[];
+}

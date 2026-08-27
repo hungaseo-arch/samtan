@@ -1,6 +1,6 @@
 // @section: auth
 // Supabase Auth(이메일/비밀번호) 경량 래퍼 — 세션 추적 + 로그인/로그아웃.
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
@@ -26,6 +26,8 @@ interface AuthCtx {
   dismissNeedsPassword: () => void;
   /** 표시용 이름(user_metadata.display_name). 없으면 이메일로 대체된다. */
   displayName: string;
+  /** 만료·폐기된 refresh token 때문에 세션이 끊긴 상태 — 로그인 화면에 안내를 띄운다. */
+  sessionExpired: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   updatePassword: (password: string, name: string) => Promise<{ error?: string }>;
@@ -37,20 +39,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsPassword, setNeedsPassword] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  // 사용자가 직접 누른 로그아웃과, 토큰 만료로 끊긴 세션을 구분하기 위한 표식.
+  const manualSignOut = useRef(false);
 
   useEffect(() => {
     // 초대(type=invite)·재설정(type=recovery) 링크로 들어오면 비밀번호를 정해야 한다.
     // supabase-js 가 URL 해시를 소비해 세션을 만들기 전에 먼저 확인한다.
     if (/type=(invite|recovery)/.test(window.location.hash)) setNeedsPassword(true);
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      // 저장된 refresh token 이 만료·폐기되면 여기서 AuthApiError(Invalid Refresh Token)가
+      // 돌아온다. 그대로 두면 새로고침할 때마다 같은 토큰으로 재시도하며 콘솔에만 오류가
+      // 쌓이고 화면에는 아무 안내도 뜨지 않는다. 로컬 저장분을 지우고 재로그인을 안내한다.
+      if (error) {
+        try { await supabase.auth.signOut({ scope: "local" }); } catch { /* 이미 끊긴 세션 */ }
+        setSession(null);
+        setSessionExpired(true);
+      } else {
+        setSession(data.session);
+      }
       setLoading(false);
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "PASSWORD_RECOVERY") setNeedsPassword(true);
-      if (event === "SIGNED_OUT") setNeedsPassword(false);
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") setSessionExpired(false);
+      if (event === "SIGNED_OUT") {
+        setNeedsPassword(false);
+        // 사용 중에 갱신이 실패해도 supabase-js 는 SIGNED_OUT 으로 세션을 비운다.
+        setSessionExpired(!manualSignOut.current);
+        manualSignOut.current = false;
+      }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -61,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    manualSignOut.current = true;
     await supabase.auth.signOut();
   };
 
@@ -98,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <Ctx.Provider value={{
       user, loading, role, canWrite, canDelete, canDownload, isAdmin: role === "admin",
-      displayName,
+      displayName, sessionExpired,
       needsPassword: needsPassword || mustChange,
       dismissNeedsPassword: () => setNeedsPassword(false),
       signIn, signOut, updatePassword,

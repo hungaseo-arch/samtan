@@ -31,6 +31,14 @@ export function fmtInt(v: number | null | undefined): string {
   return isBlank(v) ? EMPTY : fixed(Math.round(v), 0);
 }
 
+/**
+ * 자리수 규칙이 따로 정해지지 않은 일반 숫자 — 천 단위 콤마만 붙이고 소수부는 원값을
+ * 따른다. 자리수가 규정된 값(트레드·공기압·HM/KM·퍼센트·단가)에는 전용 함수를 쓸 것.
+ */
+export function fmtNumber(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : v.toLocaleString(LOCALE);
+}
+
 /** 퍼센트 — 소수점 1자리 고정. `12.5%`, `3.0%` */
 export function fmtPercent(v: number | null | undefined): string {
   return isBlank(v) ? EMPTY : `${fixed(v, 1)}%`;
@@ -60,13 +68,43 @@ export function fmtQty(v: number | null | undefined, unit = "EA"): string {
  * 현장 측정 분해능이 0.1 mm 이고 지시서 표기 규약이 1자리라 여기서 반올림한다.
  * DB 원값(2자리)이 필요하면 이 함수를 거치지 말고 값 자체를 쓸 것.
  */
-export function fmtTread(v: number | null | undefined): string {
-  return isBlank(v) ? EMPTY : `${fixed(v, 1)} mm`;
+export function fmtTread(v: number | null | undefined, withUnit = true): string {
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(v, 1)} mm` : fixed(v, 1);
 }
 
-/** 공기압 — 정수. `117 psi` */
-export function fmtPressure(v: number | null | undefined): string {
-  return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} psi`;
+/**
+ * 트레드 통계 평균 — 소수점 2자리. `11.30 mm`
+ * 개별 측정값(1자리)과 달리 4점 평균은 0.25 mm 단위 차이가 성능 비교의 핵심이라
+ * 지시서 v3 §E-2 표기 규약대로 2자리를 유지한다. 운용 판정용 최소값은 fmtTread.
+ */
+export function fmtTreadAvg(v: number | null | undefined, withUnit = true): string {
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(v, 2)} mm` : fixed(v, 2);
+}
+
+/** 표본표준편차(n-1) — 소수점 3자리. `1.577 mm` */
+export function fmtTreadSd(v: number | null | undefined, withUnit = true): string {
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(v, 3)} mm` : fixed(v, 3);
+}
+
+/**
+ * 편마모 비율(S/C · O/I) — 소수점 3자리, 무단위. `0.776`
+ * 1.000 에서 얼마나 떨어졌는지가 판정이라 반올림 자리수를 줄이면 안 된다.
+ */
+export function fmtRatio(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : fixed(v, 3);
+}
+
+/**
+ * 공기압 — 정수. `117 psi`
+ * 표처럼 단위가 열 머리에 이미 적혀 있는 자리에서는 withUnit=false 로 숫자만 받는다.
+ * 자리수 규칙을 컴포넌트로 흘리지 않기 위한 것이지 표기 규칙의 예외가 아니다.
+ */
+export function fmtPressure(v: number | null | undefined, withUnit = true): string {
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(Math.round(v), 0)} psi` : fixed(Math.round(v), 0);
 }
 
 /** 가동시간·주행거리 — 소수점 1자리. `5,188.4 HM` */
@@ -140,4 +178,81 @@ export function fmtPlain(v: number | null | undefined): string {
 /** 차량번호 표시형. DB에는 `824` 로 저장되고 화면에는 `CH 824` 로 보인다. */
 export function fmtVehicle(ch: string | null | undefined): string {
   return ch ? `CH ${ch}` : EMPTY;
+}
+
+// ── 날짜·시각 ─────────────────────────────────────────────────────
+//
+// 저장은 UTC, 표시는 현장 시간대(WIB = Asia/Jakarta) — 규약 §타임존.
+// 표기는 화면 언어와 무관하게 ISO 순서(YYYY-MM-DD)로 고정한다. 로케일마다
+// 월/일 순서가 뒤바뀌면 감사 로그의 "입력 시각"과 점검일을 대조할 때 오독이 난다.
+const WIB = "Asia/Jakarta";
+
+const WIB_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: WIB, year: "numeric", month: "2-digit", day: "2-digit",
+});
+const WIB_TIME = new Intl.DateTimeFormat("en-GB", {
+  timeZone: WIB, hour: "2-digit", minute: "2-digit", hour12: false,
+});
+
+function asDate(v: string | Date | null | undefined): Date | null {
+  if (v == null || v === "") return null;
+  const d = v instanceof Date ? v : new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** 날짜만 — 현장 시간대 기준. `2026-08-26` */
+export function fmtDateWIB(v: string | Date | null | undefined): string {
+  const d = asDate(v);
+  return d ? WIB_DATE.format(d) : EMPTY;
+}
+
+/** 날짜+시각 — 현장 시간대 기준. `2026-08-26 14:03` */
+export function fmtDateTimeWIB(v: string | Date | null | undefined): string {
+  const d = asDate(v);
+  return d ? `${WIB_DATE.format(d)} ${WIB_TIME.format(d)}` : EMPTY;
+}
+
+/**
+ * 방금 지난 시각의 상대 표기 — 감사 로그처럼 "얼마 전인지"가 먼저 읽혀야 하는 곳에 쓴다.
+ * 하루가 넘으면 절대 시각(fmtDateTimeWIB)이 더 정확하므로 그쪽으로 넘긴다.
+ */
+export function fmtRelative(v: string | Date | null | undefined, lang: "ko" | "id" | "en"): string {
+  const d = asDate(v);
+  if (!d) return EMPTY;
+  const min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (min < 0 || min >= 1440) return fmtDateTimeWIB(d);
+  const U = {
+    ko: { now: "방금", m: "분 전", h: "시간 전" },
+    id: { now: "baru saja", m: " menit lalu", h: " jam lalu" },
+    en: { now: "just now", m: "m ago", h: "h ago" },
+  }[lang];
+  if (min < 1) return U.now;
+  if (min < 60) return `${min}${U.m}`;
+  return `${Math.floor(min / 60)}${U.h}`;
+}
+
+// ── 마모율 ───────────────────────────────────────────────────────
+
+/**
+ * 마모율 — 소수점 3자리. `0.554 mm/1,000km`
+ * 실차보고서가 3자리로 보고하므로(4대 평균 0.554) 같은 자리수로 맞춘다.
+ * 2자리로 줄이면 차량 간 차이(0.487 vs 0.493)가 뭉개진다.
+ */
+export function fmtWearRate(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : `${fixed(v, 3)} mm/1,000km`;
+}
+
+/** 1 mm 마모당 주행거리 — 정수 km. `1,805 km/mm` */
+export function fmtKmPerMm(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} km/mm`;
+}
+
+/** 시험 주행거리 — 정수 km, 천 단위 콤마. `34,300 km` (지시서 v3 §E-2 표기 규약) */
+export function fmtDistanceKm(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} km`;
+}
+
+/** 결정계수 R² — 소수점 2자리, 무단위. `0.94` */
+export function fmtR2(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : fixed(v, 2);
 }

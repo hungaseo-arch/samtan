@@ -6,7 +6,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronRight, ShieldCheck, ShieldAlert } from "lucide-react";
-import { checkDataIntegrity, type IntegrityCheck, type IntegritySeverity } from "@/api/tires";
+import {
+  checkDataIntegrity, listDataQuality,
+  type IntegrityCheck, type IntegritySeverity, type DataQualityRow,
+} from "@/api/tires";
 import { fmtInt } from "@/lib/format";
 import { useLang } from "@/i18n";
 
@@ -20,12 +23,19 @@ const TX = {
     severityError: "오류",
     severityWarning: "주의",
     severityInfo: "참고",
+    dqSuffix: "데이터 품질 경고 {n}건",
     keys: {
       missing_lifetime: "장착 중인데 수명 DB에 없음",
       serial2_out_of_sync: "캐시 시리얼(serial2) 불일치",
       install_but_unmounted: "상태 Install인데 장착 위치 없음",
       mounted_but_not_install: "장착 중인데 상태가 Install 아님",
       position_over_2_serials: "교체 2회 이상 포지션",
+      zero_tread_unverified: "트레드 0인데 중앙이 남음",
+      km_missing: "주행거리 미기록",
+      km_jump: "주행거리 급증·감소",
+      hm_jump: "가동시간 급증·감소",
+      groove_missing: "측정점 수 이상 (4·16 아님)",
+      serial_break_unlogged: "시리얼 변경이 교체 원장에 없음",
     } as Record<string, string>,
   },
   id: {
@@ -37,12 +47,19 @@ const TX = {
     severityError: "Error",
     severityWarning: "Perhatian",
     severityInfo: "Info",
+    dqSuffix: "{n} peringatan kualitas data",
     keys: {
       missing_lifetime: "Terpasang tapi tidak ada di DB umur",
       serial2_out_of_sync: "Serial cache (serial2) tidak sinkron",
       install_but_unmounted: "Status Install tapi tidak terpasang",
       mounted_but_not_install: "Terpasang tapi status bukan Install",
       position_over_2_serials: "Posisi dengan ganti ≥ 2 kali",
+      zero_tread_unverified: "Tapak 0 tapi bagian tengah masih ada",
+      km_missing: "Jarak tempuh tidak tercatat",
+      km_jump: "Lonjakan / penurunan jarak tempuh",
+      hm_jump: "Lonjakan / penurunan jam operasi",
+      groove_missing: "Jumlah titik ukur tidak wajar (bukan 4 / 16)",
+      serial_break_unlogged: "Serial berubah tapi tidak ada di buku penggantian",
     } as Record<string, string>,
   },
   en: {
@@ -54,12 +71,19 @@ const TX = {
     severityError: "Error",
     severityWarning: "Warning",
     severityInfo: "Info",
+    dqSuffix: "{n} data quality warnings",
     keys: {
       missing_lifetime: "Mounted but missing from lifetime DB",
       serial2_out_of_sync: "Cached serial (serial2) out of sync",
       install_but_unmounted: "Status Install but not mounted",
       mounted_but_not_install: "Mounted but status is not Install",
       position_over_2_serials: "Positions replaced 2+ times",
+      zero_tread_unverified: "Tread 0 but center still remains",
+      km_missing: "Distance not recorded",
+      km_jump: "Distance jump / decrease",
+      hm_jump: "Hour-meter jump / decrease",
+      groove_missing: "Unexpected measurement point count (not 4 / 16)",
+      serial_break_unlogged: "Serial changed but not in replacement ledger",
     } as Record<string, string>,
   },
 } as const;
@@ -90,6 +114,15 @@ export default function IntegrityBadge() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // 점검값 자체의 품질 경고 (v3 §D-3). 실패해도 배지는 원장 정합성만으로 뜬다 —
+  // 뷰가 아직 없는 환경에서 배지 전체가 "확인 실패"로 죽는 것을 막는다.
+  const dq = useQuery<DataQualityRow[]>({
+    queryKey: ["data-quality"],
+    queryFn: listDataQuality,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
   if (isLoading) {
     return (
       <span className="text-xs text-muted-foreground px-3 py-1.5">{tx.checking}</span>
@@ -108,7 +141,27 @@ export default function IntegrityBadge() {
     .filter((c) => c.severity === "error")
     .reduce((s, c) => s + (c.cnt ?? 0), 0);
   const ok = errorCnt === 0;
-  const listed = data.filter((c) => (c.cnt ?? 0) > 0);
+
+  // v_data_quality 를 check_key 별로 접어 IntegrityCheck 모양으로 맞춘다.
+  // 전부 warning 이다 — 저장을 막는 항목이 하나도 없으므로 배지 색을 바꾸지 않는다
+  // (km_missing 만 CH 849 전량 80건이라 error 로 두면 배지가 상시 주황이 된다).
+  const dqChecks: IntegrityCheck[] = Object.entries(
+    (dq.data ?? []).reduce<Record<string, DataQualityRow[]>>((acc, r) => {
+      (acc[r.check_key] ??= []).push(r);
+      return acc;
+    }, {}),
+  ).map(([check_key, rows]) => ({
+    check_key,
+    severity: "warning" as const,
+    cnt: rows.length,
+    // 목록이 길어지면 배지 팝오버가 화면을 덮는다 — 앞 5건만 싣는다.
+    detail: rows.slice(0, 5).map((r) => ({
+      ch: r.ch, pos: r.pos, date: r.inspection_date, detail: r.detail,
+    })),
+  }));
+
+  const dqCnt = dqChecks.reduce((s, c) => s + c.cnt, 0);
+  const listed = [...data.filter((c) => (c.cnt ?? 0) > 0), ...dqChecks];
 
   return (
     <div className="ml-auto relative">
@@ -123,6 +176,11 @@ export default function IntegrityBadge() {
       >
         {ok ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
         {ok ? tx.consistent : tx.issues.replace("{n}", fmtInt(errorCnt))}
+        {dqCnt > 0 && (
+          <span className="font-normal text-muted-foreground">
+            · {tx.dqSuffix.replace("{n}", fmtInt(dqCnt))}
+          </span>
+        )}
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
       </button>
 

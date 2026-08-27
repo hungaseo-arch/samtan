@@ -1,5 +1,5 @@
 // @section: life-tab
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { TMS_DATA, treadLevel, treadThresholds } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
 import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
@@ -457,11 +457,17 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       {l.status}
                     </span>
                   </td>
+                  {/* 비고 — 조각 사이에 실제 ' · ' 문자를 넣는다.
+                      여백(margin)만으로 띄우면 복사·스크린리더에서 '측정 외850 R2i' 처럼 붙는다. */}
                   <td className="px-2 py-1.5 text-[10px] text-muted-foreground text-center">
-                    {!monitored && <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 mr-1.5 align-middle">{tx.nonMeasured}</span>}
-                    {damage && <button className="text-destructive font-bold hover:underline mr-1.5" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>}
-                    {l.note && <span className="mr-1.5">{l.note}</span>}
-                    {hmReset && <span className="text-yellow-600 font-semibold">{tx.hmReset}</span>}
+                    {[
+                      !monitored && <span key="nm" className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
+                      damage && <button key="dmg" className="text-destructive font-bold hover:underline" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
+                      l.note && <span key="note">{l.note}</span>,
+                      hmReset && <span key="hmr" className="text-yellow-600 font-semibold">{tx.hmReset}</span>,
+                    ].filter(Boolean).map((node, i) => (
+                      <Fragment key={i}>{i > 0 && " · "}{node}</Fragment>
+                    ))}
                   </td>
                 </tr>
                 );
@@ -483,7 +489,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">{tx.foot1a}</strong>{tx.foot1b}
           <br />
-          <strong className="text-foreground">{tx.foot2a.replace("{km}", TARGET_KM.toLocaleString("ko-KR"))}</strong>{tx.foot2b}
+          <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(TARGET_KM))}</strong>{tx.foot2b}
           <br />
           <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}
           <br />
