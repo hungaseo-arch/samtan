@@ -122,6 +122,14 @@ export interface TreadData {
  * 삼지 않는다 — 측정 오차·재기입으로도 올라가므로 교체와 구분되지 않는다.
  * (작업지시서 v2 §A-1)
  */
+/** 폭 방향 측정 4점. 열 순서는 확정이고 차량 기준 방향(외측/내측)은 미확정이다. */
+export interface TreadWidths {
+  /** Kiri */   l: number | null;
+  /** Tengah 1 */ c1: number | null;
+  /** Tengah 2 */ c2: number | null;
+  /** Kanan */  r: number | null;
+}
+
 export interface TreadSegment {
   ch: string;
   pos: string;
@@ -144,6 +152,11 @@ export interface TreadSegment {
    * 원시값이 없던 회차는 백필 전이라도 null 이 들어온다(2026-08-27 이후로는 전 회차 존재).
    */
   treadAvg: (number | null | undefined)[];
+  /**
+   * 회차별 폭 4점 원시값. 빈칸/미측정 구분은 tread 와 같다.
+   * tread(최소값)·treadAvg(평균)는 전부 이 넷에서 나온 값이다.
+   */
+  widths: (TreadWidths | null | undefined)[];
   /** 회차별 공기압. 빈칸/미측정 구분은 tread 와 같다. */
   press: (number | "N/A" | null | undefined)[];
   /** 이 구간이 교체로 시작됐다면 그 교체일(replacements 매칭). 최초 구간은 null */

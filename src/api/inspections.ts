@@ -37,6 +37,13 @@ export interface InspectionRow {
   outboard_avg?: number | null;
   inboard_avg?: number | null;
   point_count?: number;
+  // ── 폭 4점 원시값 (v_inspections_wide 가 펼쳐 준다) ─────────
+  // 정본은 tread_points 다. 읽기 전용이며 저장 시 보내지 않는다.
+  // tread 는 이 넷의 최소값, tread_avg 는 평균이다.
+  tread_l?: number | null;
+  tread_c1?: number | null;
+  tread_c2?: number | null;
+  tread_r?: number | null;
   created_at?: string;
   updated_at?: string;
   // 감사 추적(0009) — 트리거가 JWT에서 채우므로 저장 시 보내지 않는다(보내도 무시됨).
@@ -49,12 +56,14 @@ export interface InspectionRow {
 }
 
 const TABLE = "inspections";
+/** 읽기는 폭 4점이 붙은 뷰에서. 쓰기는 여전히 RPC 로만 한다. */
+const READ_VIEW = "v_inspections_wide";
 
 /** 차량(ch) 기준 점검 이력 조회. ch 미지정 시 전체.
  *  소프트 삭제(deleted_at)된 회차는 제외한다. */
 export async function listInspections(ch?: string): Promise<InspectionRow[]> {
   let q = supabase
-    .from(TABLE)
+    .from(READ_VIEW)
     .select("*")
     .is("deleted_at", null)
     .order("inspection_date", { ascending: false })
@@ -74,7 +83,12 @@ export async function saveInspectionRound(
   const { data, error } = await supabase
     .from(TABLE)
     .upsert(
-      rows.map((r) => ({ ...r, deleted_at: null as string | null })),
+      // 읽기는 v_inspections_wide 에서 오므로 표에 없는 열이 섞여 있다.
+      // 그대로 upsert 하면 'column tread_l does not exist' 로 죽는다.
+      rows.map(({ tread_l, tread_c1, tread_c2, tread_r, ...r }) => {
+        void tread_l; void tread_c1; void tread_c2; void tread_r;
+        return { ...r, deleted_at: null as string | null };
+      }),
       { onConflict: "ch,inspection_date,pos" }
     )
     .select();

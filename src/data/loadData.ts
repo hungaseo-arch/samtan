@@ -4,7 +4,7 @@
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
-import type { Unit, LifeRecord, TirePosition, SerialChainEntry, TreadSegment } from "./tmsData";
+import type { Unit, LifeRecord, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
 
 // ============================================================
@@ -75,6 +75,8 @@ interface Round {
   tread: Record<string, number | null>;
   /** 4점 평균 — 표시용 병기값. 판정은 언제나 tread(최소값)로 한다. */
   treadAvg: Record<string, number | null>;
+  /** 폭 4점 원시값 — 히스토리 모달이 회차마다 그대로 보여준다. */
+  widths: Record<string, TreadWidths | null>;
   /** 그 회차에 그 포지션에 달려 있던 시리얼 — 구간 분리의 유일한 근거 */
   serial: Record<string, string | null>;
   /** 그 회차에 행이 존재한 포지션. 값이 전부 null 인 행과 '행 없음'을 구분한다. */
@@ -119,6 +121,7 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
         idxTo: i,
         tread: new Array<number | null | undefined>(n).fill(undefined),
         treadAvg: new Array<number | null | undefined>(n).fill(undefined),
+        widths: new Array<TreadWidths | null | undefined>(n).fill(undefined),
         press: new Array<number | "N/A" | null | undefined>(n).fill(undefined),
         replacedAt: null,
         isCurrent: false,
@@ -131,6 +134,7 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
     if (!cur.serial && s) cur.serial = s;
     cur.tread[i] = r.tread[pos] ?? null;
     cur.treadAvg[i] = r.treadAvg[pos] ?? null;
+    cur.widths[i] = r.widths[pos] ?? null;
     cur.press[i] = r.press[pos] ?? null;
 
     prev = s;   // SQL 의 lag() 과 같게 null 도 그대로 넘긴다
@@ -170,7 +174,7 @@ function buildRounds(rows: InspectionRow[]) {
         round = {
           date: r.inspection_date,
           hm: null, km: null,
-          press: {}, tread: {}, treadAvg: {}, serial: {},
+          press: {}, tread: {}, treadAvg: {}, widths: {}, serial: {},
           seen: new Set<string>(),
         };
         rounds.set(r.inspection_date, round);
@@ -180,6 +184,13 @@ function buildRounds(rows: InspectionRow[]) {
       if (r.pressure != null) round.press[r.pos] = r.pressure;
       if (r.tread != null) round.tread[r.pos] = r.tread;
       if (r.tread_avg != null) round.treadAvg[r.pos] = r.tread_avg;
+      // 넷 중 하나라도 있으면 담는다. 전부 null 인 회차는 4점 측정 이전이다.
+      if (r.tread_l != null || r.tread_c1 != null || r.tread_c2 != null || r.tread_r != null) {
+        round.widths[r.pos] = {
+          l: r.tread_l ?? null, c1: r.tread_c1 ?? null,
+          c2: r.tread_c2 ?? null, r: r.tread_r ?? null,
+        };
+      }
       round.serial[r.pos] = r.serial ?? null;
       round.seen.add(r.pos);
     }

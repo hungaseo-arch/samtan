@@ -1,6 +1,6 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
-import type { Unit, TirePosition, TreadLevel, SerialChainEntry, TreadSegment } from "./tmsData";
+import type { Unit, TirePosition, TreadLevel, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { fmtNumber } from "@/lib/format";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
@@ -243,6 +243,8 @@ export interface SegPoint {
   tread: number | null;
   /** 4점 평균 — 표시 병기용. 최소값이 0 이어도 숄더가 남았는지 여기서 보인다. */
   treadAvg: number | null;
+  /** 폭 4점 원시값. 4점 측정 이전 회차는 null. */
+  widths: TreadWidths | null;
   km: number | null;
   hm: number | null;
 }
@@ -260,6 +262,7 @@ export function segmentPoints(u: Unit, seg: TreadSegment): SegPoint[] {
       date: (u.dates[i] ?? "") as string,
       tread: t,
       treadAvg: seg.treadAvg[i] ?? null,
+      widths: seg.widths[i] ?? null,
       km: typeof kv === "number" ? kv : null,
       hm: typeof hv === "number" ? hv : null,
     });
@@ -566,7 +569,15 @@ function latestTreadPointOf(serial: string): SegPoint | null {
   return pts.length ? pts[pts.length - 1] : null;
 }
 
-export interface TireRound { date: string; tread: number | null; km: number | null; hm: number | null }
+export interface TireRound {
+  date: string;
+  /** 4점 최소값 — 표의 기본 표시값이자 판정값 */
+  tread: number | null;
+  treadAvg: number | null;
+  widths: TreadWidths | null;
+  km: number | null;
+  hm: number | null;
+}
 export interface TireHistory {
   serial: string;
   ch: string;
@@ -583,6 +594,9 @@ export interface TireHistory {
   expectedKm: number | null;
   expectedHm: number | null;
   latestTread: number | null;
+  /** 최근 트레드와 **같은 회차**의 4점 평균·원시값. 4점 측정 이전이면 null. */
+  latestTreadAvg: number | null;
+  latestWidths: TreadWidths | null;
   rounds: TireRound[];          // 측정 이력 (해당 타이어 장착 구간)
 }
 
@@ -639,10 +653,15 @@ export function tireHistory(serial: string): TireHistory | null {
   const rounds: TireRound[] = sel
     ? segmentPoints(sel.unit, sel.seg)
         .filter((p) => p.date)
-        .map((p) => ({ date: p.date, tread: p.tread, km: p.km, hm: p.hm }))
+        .map((p) => ({
+          date: p.date, tread: p.tread, treadAvg: p.treadAvg,
+          widths: p.widths, km: p.km, hm: p.hm,
+        }))
     : [];
 
   const c = lifeCalc(serial);
+  // 요약의 세 값이 서로 다른 회차를 가리키지 않도록 한 점에서 뽑는다.
+  const last = latestTreadPointOf(serial);
   const norm = (s: string | null | undefined) => (!s || s === "-" ? null : s);
   return {
     serial,
@@ -660,7 +679,9 @@ export function tireHistory(serial: string): TireHistory | null {
     hr: c?.hr ?? null,
     expectedKm: c?.expectedKm ?? null,
     expectedHm: c?.expectedHm ?? null,
-    latestTread: latestTreadOf(serial),
+    latestTread: last?.tread ?? null,
+    latestTreadAvg: last?.treadAvg ?? null,
+    latestWidths: last?.widths ?? null,
     rounds,
   };
 }

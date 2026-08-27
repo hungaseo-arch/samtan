@@ -77,6 +77,13 @@ const buildTX = () => ({
     hKmHr: "주행 KM / HR",
     hExpKmHm: "예상 KM / HM",
     hTread: "최근 트레드",
+    wL: "좌", wC1: "중1", wC2: "중2", wR: "우",
+    hTreadMin: "최소",
+    hTreadAvg: "평균",
+    hWidths: "폭 4점",
+    hNoWidths: "4점 측정 이전 회차",
+    modalFoot: "굵은 숫자가 그 회차의 최소값이며 교체 판정과 색상은 최소값 기준입니다. 평균은 참고용으로, 중앙이 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 있습니다.",
+    colDepth: "트레드(mm)",
     measHist: "측정 이력",
     sessions: "회차",
     noMeasData: "측정 데이터 없음",
@@ -150,6 +157,13 @@ const buildTX = () => ({
     hKmHr: "KM tempuh / HR",
     hExpKmHm: "Prediksi KM / HM",
     hTread: "Tapak terkini",
+    wL: "Kiri", wC1: "Tgh 1", wC2: "Tgh 2", wR: "Kanan",
+    hTreadMin: "min",
+    hTreadAvg: "rerata",
+    hWidths: "4 titik lebar",
+    hNoWidths: "Sesi sebelum pengukuran 4 titik",
+    modalFoot: "Angka tebal adalah nilai minimum sesi tersebut; penilaian penggantian dan warna memakai nilai minimum. Rata-rata hanya acuan — pada ban yang aus di tengah, bahu masih tersisa meski minimum 0.0 mm.",
+    colDepth: "Tapak (mm)",
     measHist: "Riwayat ukur",
     sessions: "sesi",
     noMeasData: "Tidak ada data ukur",
@@ -223,6 +237,13 @@ const buildTX = () => ({
     hKmHr: "Distance KM / HR",
     hExpKmHm: "Estimated KM / HM",
     hTread: "Latest tread",
+    wL: "L", wC1: "C1", wC2: "C2", wR: "R",
+    hTreadMin: "min",
+    hTreadAvg: "avg",
+    hWidths: "4 width points",
+    hNoWidths: "Round measured before 4-point recording",
+    modalFoot: "Bold figures are that round\u2019s minimum; replacement judgement and colour follow the minimum. The average is reference only — a centre-worn tyre can read 0.0 mm at the minimum while the shoulders still carry rubber.",
+    colDepth: "Tread (mm)",
     measHist: "Measurement history",
     sessions: "rounds",
     noMeasData: "No measurement data",
@@ -242,6 +263,9 @@ const buildTX = () => ({
 
 const TARGET_KM = 75000; // 목표 수명 (km)
 
+/** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
+const DASH = "−";
+
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
   Install: "text-green-400 border-green-500/40 bg-green-500/10",
   Scrap: "text-destructive border-destructive/40 bg-destructive/10",
@@ -254,6 +278,15 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
   const { canDownload } = useAuth();
   // 문구에 임계치가 들어가므로 DB 로드 후 렌더 시점에 만든다.
   const tx = buildTX()[lang];
+
+  // 폭 방향 4점. 열 순서(좌→중1→중2→우)는 확정이고, 차량 기준 외측/내측은
+  // 미확정이라 방향 이름을 붙이지 않는다 (v3 §Q1 보류).
+  const WIDTH_KEYS = [
+    { k: "l" as const, label: tx.wL },
+    { k: "c1" as const, label: tx.wC1 },
+    { k: "c2" as const, label: tx.wC2 },
+    { k: "r" as const, label: tx.wR },
+  ];
   const [lifeFilter, setLifeFilter] = useState<string>("ALL");
 
   const filtered = TMS_DATA.life.filter(
@@ -282,6 +315,8 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
   const [historyOf, setHistoryOf] = useState<string | null>(null);
   const hist = historyOf ? tireHistory(historyOf) : null;
   const moves = historyOf ? tireMovements(historyOf) : [];
+  // 요약의 4점 — hist 안에서 한 번 꺼내 둔다(렌더 안에서 non-null 단언을 쓰지 않도록).
+  const latestW = hist?.latestWidths ?? null;
 
   // 손상 코드 모달 (코드 클릭 시 열기, hiCode = 강조할 코드)
   const [showCodes, setShowCodes] = useState(false);
@@ -582,7 +617,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             onClick={() => setHistoryOf(null)}
           >
             <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+              className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
               initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -613,7 +648,41 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <HRow label={tx.hHmReset} value={hist.hmReset ? tx.hHmResetYes : tx.hHmResetNo} danger={hist.hmReset} />
                 <HRow label={tx.hKmHr} value={`${fmtInt(hist.km)} km / ${fmtInt(hist.hr)} hr`} mono />
                 <HRow label={tx.hExpKmHm} value={`${fmtInt(hist.expectedKm)} km / ${fmtInt(hist.expectedHm)} hr`} mono />
-                <HRow label={tx.hTread} value={hist.latestTread != null ? `${fmtTread(hist.latestTread)} mm` : null} mono />
+                <HRow
+                  label={tx.hTread}
+                  value={hist.latestTread != null
+                    ? `${fmtTread(hist.latestTread)} mm (${tx.hTreadMin})`
+                    : null}
+                  mono
+                />
+                {/* 4점은 두 칸을 다 쓴다 — 값 넷에 평균까지 한 줄에 넣어야 비교가 된다.
+                    최소값이 어느 점에서 나왔는지 굵게 표시해 위의 숫자와 이어 붙인다. */}
+                <div className="col-span-2">
+                  <span className="text-[11px] text-muted-foreground font-semibold">{tx.hWidths}</span>
+                  {latestW ? (
+                    <p className="font-mono text-xs mt-0.5">
+                      {WIDTH_KEYS.map((w) => {
+                        const v = latestW[w.k];
+                        const isMin = v != null && hist.latestTread != null && v === hist.latestTread;
+                        return (
+                          <span key={w.k} className="inline-block mr-3">
+                            <span className="text-[10px] text-muted-foreground mr-1">{w.label}</span>
+                            <span className={isMin ? "font-bold text-foreground" : ""}>
+                              {v != null ? fmtTread(v) : DASH}
+                            </span>
+                          </span>
+                        );
+                      })}
+                      {hist.latestTreadAvg != null && (
+                        <span className="text-muted-foreground">
+                          · {tx.hTreadAvg} {fmtTread(hist.latestTreadAvg)} mm
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{tx.hNoWidths}</p>
+                  )}
+                </div>
               </div>
 
               {/* 장착 이력 (위치·차량 변경) */}
@@ -659,9 +728,20 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs border-collapse font-mono">
                       <thead>
+                        <tr className="text-muted-foreground/70">
+                          <th />
+                          <th colSpan={6} className="px-2 pt-1 text-center text-[10px] font-semibold border-b border-border/40">{tx.colDepth}</th>
+                          <th colSpan={2} />
+                        </tr>
                         <tr className="border-b border-border text-muted-foreground">
                           <th className="px-2 py-1 text-left font-semibold">{tx.colInspect}</th>
-                          <th className="px-2 py-1 text-right font-semibold">트레드(mm)</th>
+                          {/* 폭 4점을 먼저 보이고, 그 뒤에 거기서 나온 최소·평균을 둔다.
+                              읽는 순서가 계산 순서와 같아야 표를 설명할 필요가 없다. */}
+                          {WIDTH_KEYS.map((w) => (
+                            <th key={w.k} className="px-2 py-1 text-right font-semibold">{w.label}</th>
+                          ))}
+                          <th className="px-2 py-1 text-right font-semibold">{tx.hTreadMin}</th>
+                          <th className="px-2 py-1 text-right font-semibold">{tx.hTreadAvg}</th>
                           <th className="px-2 py-1 text-right font-semibold">KM</th>
                           <th className="px-2 py-1 text-right font-semibold">HM</th>
                         </tr>
@@ -670,13 +750,27 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                         {hist.rounds.map((r, i) => (
                           <tr key={i} className="border-b border-border/30">
                             <td className="px-2 py-1">{r.date}</td>
-                            <td className="px-2 py-1 text-right">{r.tread != null ? fmtTread(r.tread) : "−"}</td>
+                            {WIDTH_KEYS.map((w) => {
+                              const v = r.widths ? r.widths[w.k] : null;
+                              // 최소값이 나온 지점을 굵게. 어느 그루브가 판정을 쥐는지가 이 표의 요점이다.
+                              const isMin = v != null && r.tread != null && v === r.tread;
+                              return (
+                                <td key={w.k} className={`px-2 py-1 text-right ${isMin ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                                  {v != null ? fmtTread(v) : DASH}
+                                </td>
+                              );
+                            })}
+                            <td className={`px-2 py-1 text-right font-bold ${r.tread != null ? TREAD_CLS[treadLevel(r.tread)] : ""}`}>
+                              {r.tread != null ? fmtTread(r.tread) : DASH}
+                            </td>
+                            <td className="px-2 py-1 text-right text-muted-foreground">{r.treadAvg != null ? fmtTread(r.treadAvg) : DASH}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.km)}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.hm)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-relaxed">{tx.modalFoot}</p>
                   </div>
                 )}
               </div>
