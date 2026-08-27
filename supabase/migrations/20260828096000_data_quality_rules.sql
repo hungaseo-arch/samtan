@@ -11,11 +11,12 @@
 --
 -- 새 규칙 3종
 --   tread_min_avg_conflict  최소 0 인데 4점 평균이 5mm 초과 — 입력 오류 의심
---   inner_position_unmeasured  복륜 내측 미측정 (손이 안 닿아 건너뛰는 자리)
---     지금은 0건이다. 548행 전부 tread_status='measured' 이고 tread 가 NULL 인 행이
---     하나도 없다 — 미측정을 표현할 경로가 코드에 없어서 전부 0 으로 저장돼 왔다.
---     T-8 프론트엔드 수정(0 입력 시 worn_out/not_measured/scrapped 강제 선택)이
---     들어간 뒤부터 이 규칙이 실제로 잡기 시작한다.
+--   inner_position_unmeasured  복륜 내측 공기압 미입력 (손이 안 닿아 건너뛰는 자리)
+--     내측 219행 중 191행이 pressure NULL 이고 외측은 0행이다. 관행이 데이터로
+--     그대로 드러난다.
+--
+-- zero_tread_unverified 는 center_avg > 0 조건을 뺐다. 지시서의 «트레드 0 관행»은
+-- tread=0 and tread_status='measured' 전건을 말한다. 15건 → 62건.
 --   removal_reason_missing  교체 사유 미입력 — TCO 산출의 직접 결손
 
 create or replace view public.v_data_quality as
@@ -23,8 +24,7 @@ create or replace view public.v_data_quality as
         format('tread=0 인데 center_avg=%s · status=%s', i.center_avg, i.tread_status) as detail,
         'ERROR'::text as severity
    from public.inspections i
-  where i.deleted_at is null and i.tread = 0 and i.tread_status = 'measured'
-    and i.center_avg > 0
+  where i.deleted_at is null and i.tread = 0 and i.tread_status = 'measured' 
 union all
  select 'km_missing', i.ch, i.pos, i.inspection_date,
         case when i.km is null then 'km NULL' else 'km 0' end,
@@ -94,11 +94,10 @@ union all
   where i.deleted_at is null and i.tread = 0 and i.tread_avg > 5.0
 union all
  select 'inner_position_unmeasured', i.ch, i.pos, i.inspection_date,
-        '복륜 내측 트레드 미입력',
+        '복륜 내측 공기압 미입력',
         'WARN'
    from public.inspections i
-  where i.deleted_at is null and i.pos like '%In'
-    and i.tread is null and coalesce(i.tread_status, 'measured') = 'measured'
+  where i.deleted_at is null and i.pos like '%In' and i.pressure is null
 union all
  select 'removal_reason_missing', r.ch, r.pos, r.date,
         format('%s 교체 — 탈착 사유 미입력', coalesce(r.new_serial, '(신규 시리얼 미상)')),
