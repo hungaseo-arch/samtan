@@ -14,6 +14,11 @@ const FALLBACK_TREAD_ORDER = 5;
 const FALLBACK_TREAD_CRITICAL = 3;
 const FALLBACK_PSI_STEER = 100;
 const FALLBACK_PSI_DRIVE = 116;
+// 편마모 판정 경계 — 정본은 tire_config(sc_ratio_upper/lower·wear_min_mm).
+// 0.870 = 1 ÷ 1.150 대칭이고, 0.5 mm 는 측정오차 한계라 그 미만은 판정 보류다.
+const FALLBACK_SC_UPPER = 1.15;
+const FALLBACK_SC_LOWER = 0.87;
+const FALLBACK_WEAR_MIN = 0.5;
 
 /** 트레드 4단계 신호등. 녹색 ≥10 / 황색 5~10 / 주황 3~5 / 적색 <3 (기본값 기준) */
 export type TreadLevel = "ok" | "warn" | "order" | "danger";
@@ -46,6 +51,19 @@ export function treadThresholds() {
     caution: t.treadCaution ?? FALLBACK_TREAD_CAUTION,
     order: t.treadOrder ?? FALLBACK_TREAD_ORDER,
     critical: t.treadCritical ?? FALLBACK_TREAD_CRITICAL,
+  };
+}
+
+/**
+ * 편마모(S/C · O/I) 판정 경계. tire_config 값을 쓰고 미설정 시 폴백.
+ * DB 뷰 v_wear_pattern 과 같은 값을 봐야 화면 미리보기와 저장 결과가 어긋나지 않는다.
+ */
+export function wearPatternThresholds() {
+  const t = TMS_DATA.tire;
+  return {
+    upper: t.scRatioUpper ?? FALLBACK_SC_UPPER,
+    lower: t.scRatioLower ?? FALLBACK_SC_LOWER,
+    wearMin: t.wearMinMm ?? FALLBACK_WEAR_MIN,
   };
 }
 
@@ -97,6 +115,36 @@ export interface TreadData {
   min: (number | null)[];
 }
 
+/**
+ * 한 포지션에 특정 시리얼이 장착돼 있던 연속 측정 구간.
+ *
+ * 경계는 inspections.serial 의 변화로만 판정한다. 트레드가 올라간 것을 교체 근거로
+ * 삼지 않는다 — 측정 오차·재기입으로도 올라가므로 교체와 구분되지 않는다.
+ * (작업지시서 v2 §A-1)
+ */
+export interface TreadSegment {
+  ch: string;
+  pos: string;
+  /** 0 = 최초 구간, 1..n = 시리얼이 바뀐 순번 */
+  segNo: number;
+  serial: string;
+  /** 회차 인덱스 범위 [idxFrom, idxTo] — 양끝 포함. Unit.dates 기준 */
+  idxFrom: number;
+  idxTo: number;
+  /**
+   * 회차별 트레드. 길이는 그 차량의 전체 회차 수와 같다.
+   *  undefined = 이 구간의 회차가 아님 → 표에서 **빈칸** (0 도 − 도 아니다)
+   *  null      = 이 구간의 회차이지만 측정값 없음 → 표에서 −
+   */
+  tread: (number | null | undefined)[];
+  /** 회차별 공기압. 빈칸/미측정 구분은 tread 와 같다. */
+  press: (number | "N/A" | null | undefined)[];
+  /** 이 구간이 교체로 시작됐다면 그 교체일(replacements 매칭). 최초 구간은 null */
+  replacedAt: string | null;
+  /** 이 포지션의 마지막 구간 = 현재 장착 중 */
+  isCurrent: boolean;
+}
+
 export interface Unit {
   ch: string;
   dates: (string | null)[];
@@ -137,12 +185,21 @@ export interface TireConfig {
   treadCritical: number | null;
   recPsiSteer: number | null;
   recPsiDrive: number | null;
+  scRatioUpper: number | null;
+  scRatioLower: number | null;
+  wearMinMm: number | null;
 }
 
 export interface TmsData {
   tire: TireConfig;
   units: Unit[];
   tread: Record<string, Record<string, TreadData>>;
+  /**
+   * 시리얼 단위 측정 구간 — segments[ch][pos] = 시간순 구간 배열.
+   * tread[ch][pos] 는 (ch,pos) 로만 묶여 있어 교체 전후 타이어가 한 줄에 섞인다.
+   * 추이 화면·마모율은 반드시 이쪽을 쓴다.
+   */
+  segments: Record<string, Record<string, TreadSegment[]>>;
   repl: ReplRecord[];
   life: LifeRecord[];
   codes: Record<string, string>;
@@ -158,9 +215,11 @@ export const TMS_DATA: TmsData = {
     newTread: NEW_TREAD, capacity: 6000,
     treadCaution: null, treadOrder: null, treadCritical: null,
     recPsiSteer: null, recPsiDrive: null,
+    scRatioUpper: null, scRatioLower: null, wearMinMm: null,
   },
   units: [],
   tread: {},
+  segments: {},
   repl: [],
   life: [],
   codes: {},
