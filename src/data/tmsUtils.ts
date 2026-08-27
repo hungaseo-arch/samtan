@@ -239,7 +239,10 @@ export interface SegPoint {
   /** 회차 인덱스 (unit.dates 기준) */
   i: number;
   date: string;
+  /** 4점 최소값 — 판정·마모율은 전부 이 값을 쓴다. */
   tread: number | null;
+  /** 4점 평균 — 표시 병기용. 최소값이 0 이어도 숄더가 남았는지 여기서 보인다. */
+  treadAvg: number | null;
   km: number | null;
   hm: number | null;
 }
@@ -256,6 +259,7 @@ export function segmentPoints(u: Unit, seg: TreadSegment): SegPoint[] {
       i,
       date: (u.dates[i] ?? "") as string,
       tread: t,
+      treadAvg: seg.treadAvg[i] ?? null,
       km: typeof kv === "number" ? kv : null,
       hm: typeof hv === "number" ? hv : null,
     });
@@ -542,10 +546,24 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
 
 /** 시리얼 기준 최근 트레드(mm) — 그 시리얼이 달려 있던 구간의 마지막 측정값. */
 export function latestTreadOf(serial: string): number | null {
+  return latestTreadPointOf(serial)?.tread ?? null;
+}
+
+/**
+ * 시리얼 기준 최근 4점 평균(mm) — `latestTreadOf()` 와 **같은 회차**의 값이다.
+ * 최소값만 보면 중앙 그루브가 닳은 타이어가 전부 0.0 mm 로 보여 폐기로 오독된다.
+ * 4점이 없던 회차(백필 이전 데이터)는 null 이므로 호출부에서 병기를 생략해야 한다.
+ */
+export function latestTreadAvgOf(serial: string): number | null {
+  return latestTreadPointOf(serial)?.treadAvg ?? null;
+}
+
+/** 두 함수가 서로 다른 회차를 보지 않도록 마지막 측정점을 한 곳에서 고른다. */
+function latestTreadPointOf(serial: string): SegPoint | null {
   const sel = primarySerialSegment(serial);
   if (!sel) return null;
   const pts = segmentPoints(sel.unit, sel.seg).filter((p) => p.tread != null);
-  return pts.length ? (pts[pts.length - 1].tread as number) : null;
+  return pts.length ? pts[pts.length - 1] : null;
 }
 
 export interface TireRound { date: string; tread: number | null; km: number | null; hm: number | null }

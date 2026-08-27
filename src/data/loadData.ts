@@ -73,6 +73,8 @@ interface Round {
   km: number | string | null;
   press: Record<string, number | "N/A" | null>;
   tread: Record<string, number | null>;
+  /** 4점 평균 — 표시용 병기값. 판정은 언제나 tread(최소값)로 한다. */
+  treadAvg: Record<string, number | null>;
   /** 그 회차에 그 포지션에 달려 있던 시리얼 — 구간 분리의 유일한 근거 */
   serial: Record<string, string | null>;
   /** 그 회차에 행이 존재한 포지션. 값이 전부 null 인 행과 '행 없음'을 구분한다. */
@@ -116,6 +118,7 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
         idxFrom: i,
         idxTo: i,
         tread: new Array<number | null | undefined>(n).fill(undefined),
+        treadAvg: new Array<number | null | undefined>(n).fill(undefined),
         press: new Array<number | "N/A" | null | undefined>(n).fill(undefined),
         replacedAt: null,
         isCurrent: false,
@@ -127,6 +130,7 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
     // 구간 첫 회차에만 시리얼이 비어 있던 경우를 뒤 회차 값으로 메운다.
     if (!cur.serial && s) cur.serial = s;
     cur.tread[i] = r.tread[pos] ?? null;
+    cur.treadAvg[i] = r.treadAvg[pos] ?? null;
     cur.press[i] = r.press[pos] ?? null;
 
     prev = s;   // SQL 의 lag() 과 같게 null 도 그대로 넘긴다
@@ -166,7 +170,7 @@ function buildRounds(rows: InspectionRow[]) {
         round = {
           date: r.inspection_date,
           hm: null, km: null,
-          press: {}, tread: {}, serial: {},
+          press: {}, tread: {}, treadAvg: {}, serial: {},
           seen: new Set<string>(),
         };
         rounds.set(r.inspection_date, round);
@@ -175,6 +179,7 @@ function buildRounds(rows: InspectionRow[]) {
       if (r.km != null) round.km = r.km;
       if (r.pressure != null) round.press[r.pos] = r.pressure;
       if (r.tread != null) round.tread[r.pos] = r.tread;
+      if (r.tread_avg != null) round.treadAvg[r.pos] = r.tread_avg;
       round.serial[r.pos] = r.serial ?? null;
       round.seen.add(r.pos);
     }

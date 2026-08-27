@@ -2,7 +2,7 @@
 import { Fragment, useState, useEffect, useRef } from "react";
 import { TMS_DATA, treadLevel, treadThresholds } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
-import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
+import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements } from "@/data/tmsUtils";
 import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
@@ -28,6 +28,8 @@ const buildTX = () => ({
     colSerial: "시리얼",
     colInstall: "최초 장착일",
     colTread: "최근 트레드",
+    avgPrefix: "평균 ",
+    colTreadAvg: "최근 트레드(4점평균)",
     colKm: "주행 KM",
     colHr: "주행 HR",
     colExpKm: "예상 KM",
@@ -44,7 +46,11 @@ const buildTX = () => ({
     foot3a: "최근 수명(km·hr)",
     foot3b: " = 측정 시작(신품)부터 최신 회차까지 누적 주행거리·가동시간. ",
     foot3c: "최근 트레드",
-    foot3d: ` = 해당 타이어의 가장 최근 측정값(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 즉시교체).`,
+    foot3d: " = 가장 최근 회차의 폭 4점 중 ",
+    foot3dMin: "최소값",
+    foot3d2: `입니다(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 즉시교체). 교체 판정은 가장 얇은 지점을 기준으로 하기 때문입니다. 그 아래 회색 숫자는 같은 회차의 `,
+    foot3dAvg: "4점 평균",
+    foot3d3: "입니다. 중앙 그루브가 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 주행 중일 수 있으며, 두 값의 차이가 그 상태를 보여줍니다. 4점 측정 이전 회차는 평균이 표시되지 않습니다.",
     foot4a: "HM Reset",
     foot4b: " = 운용 중 차량의 가동시간계(Hour Meter)·주행거리가 0으로 초기화된 차량(CH 832·835). 리셋 이전 누적 이력이 끊겨 수명·예상수명이 ",
     foot4c: "로 표시될 수 있습니다.",
@@ -95,6 +101,8 @@ const buildTX = () => ({
     colSerial: "Serial",
     colInstall: "Tgl pasang awal",
     colTread: "Tapak terkini",
+    avgPrefix: "rerata ",
+    colTreadAvg: "Tapak terkini (rata-rata 4 titik)",
     colKm: "KM tempuh",
     colHr: "Jam (HR)",
     colExpKm: "Prediksi KM",
@@ -111,7 +119,11 @@ const buildTX = () => ({
     foot3a: "Umur terkini (km·hr)",
     foot3b: " = akumulasi jarak·jam dari awal ukur (baru) hingga sesi terbaru. ",
     foot3c: "Tapak terkini",
-    foot3d: ` = nilai ukur paling baru ban tersebut (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm ganti segera).`,
+    foot3d: " = ",
+    foot3dMin: "nilai terkecil dari 4 titik lebar",
+    foot3d2: ` pada sesi ukur terbaru (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm ganti segera). Penilaian ganti selalu memakai titik paling tipis. Angka abu-abu di bawahnya adalah `,
+    foot3dAvg: "rata-rata 4 titik",
+    foot3d3: " pada sesi yang sama. Pada ban yang alur tengahnya habis lebih dulu, nilai terkecil bisa 0.0mm padahal bahunya masih tersisa dan ban masih jalan — selisih kedua angka menunjukkan kondisi itu. Sesi sebelum pengukuran 4 titik tidak menampilkan rata-rata.",
     foot4a: "HM Reset",
     foot4b: " = unit yang Hour Meter·jarak tempuhnya di-reset ke 0 saat operasi (CH 832·835). Riwayat akumulasi sebelum reset terputus sehingga umur·prediksi dapat ditampilkan ",
     foot4c: ".",
@@ -162,6 +174,8 @@ const buildTX = () => ({
     colSerial: "Serial",
     colInstall: "First install date",
     colTread: "Latest tread",
+    avgPrefix: "avg ",
+    colTreadAvg: "Latest tread (4-point avg)",
     colKm: "Distance KM",
     colHr: "Operating HR",
     colExpKm: "Estimated KM",
@@ -178,7 +192,11 @@ const buildTX = () => ({
     foot3a: "Latest lifetime (km·hr)",
     foot3b: " = cumulative distance and operating hours from the first measurement (new tire) to the latest round. ",
     foot3c: "Latest tread",
-    foot3d: ` = the most recent measured value for that tire (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm replace now).`,
+    foot3d: " = the ",
+    foot3dMin: "minimum of the 4 width points",
+    foot3d2: ` in the latest round (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm replace now). Replacement is judged on the thinnest point. The grey figure below it is the `,
+    foot3dAvg: "4-point average",
+    foot3d3: " for the same round. On tires whose centre grooves wear first, the minimum can read 0.0mm while the shoulders still have rubber and the tire is still running — the gap between the two shows that. Rounds measured before 4-point recording show no average.",
     foot4a: "HM Reset",
     foot4b: " = vehicles whose Hour Meter and distance were reset to 0 during operation (CH 832·835). Cumulative history before the reset is broken, so lifetime and estimated lifetime may be shown as ",
     foot4c: ".",
@@ -295,6 +313,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
       const unit = findUnitBySerial(l.serial);
       const monitored = !!unit;
       const tread = latestTreadOf(l.serial);
+      const treadAvg = latestTreadAvgOf(l.serial);
       const damage = l.damage && l.damage !== "-" ? l.damage : null;
       const noteParts: string[] = [];
       if (!monitored) noteParts.push(tx.nonMeasured);
@@ -306,6 +325,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         [tx.colSerial]: l.serial,
         [tx.colInstall]: fmtD(l.install),
         [tx.colTread]: tread != null ? Number(tread.toFixed(1)) : "",
+        [tx.colTreadAvg]: treadAvg != null ? Number(treadAvg.toFixed(1)) : "",
         [tx.colKm]: c?.km ?? "",
         [tx.colHr]: c?.hr ?? "",
         [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
@@ -365,9 +385,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full min-w-190 table-fixed text-xs border-collapse font-mono">
+          <table className="w-full min-w-210 table-fixed text-xs border-collapse font-mono">
             <colgroup>
-              {["4%", "13%", "11%", "9%", "9%", "9%", "9%", "9%", "9%", "18%"].map((w, i) => (
+              {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(12%). 합계 100% */}
+              {["4%", "13%", "10%", "9%", "9%", "9%", "9%", "9%", "12%", "16%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />
               ))}
             </colgroup>
@@ -402,6 +423,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 const hmReset = unit?.hmReset;
                 const monitored = !!unit; // 모니터링 5대 장착 여부 (아니면 측정 외)
                 const tread = latestTreadOf(l.serial);
+                const treadAvg = latestTreadAvgOf(l.serial);
                 const treadCls = tread == null ? "" : TREAD_CLS[treadLevel(tread)];
                 const damage = l.damage && l.damage !== "-" ? l.damage : null;
                 const isFocus = highlight != null && l.serial === highlight;
@@ -417,7 +439,17 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   <td className="px-2 py-1.5 text-muted-foreground">{fmtD(l.install)}</td>
                   <td className="px-2 py-1.5 text-right">
                     {tread != null ? (
-                      <span className={treadCls}>{fmtTread(tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                      <>
+                        <span className={treadCls}>{fmtTread(tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                        {/* 4점 평균 병기 — 최소값이 0.0 이어도 숄더가 남았는지 여기서 보인다.
+                            판정·색상은 위의 최소값이 그대로 쥔다. 평균은 읽기 보조일 뿐이다.
+                            평균이 최소값과 같으면(4점이 모두 동일) 줄만 차지하므로 생략한다. */}
+                        {treadAvg != null && treadAvg !== tread && (
+                          <div className="text-[10px] text-muted-foreground/60 leading-tight">
+                            {tx.avgPrefix}{fmtTread(treadAvg)}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <span className="text-muted-foreground/40">−</span>
                     )}
@@ -452,7 +484,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
+                      className={`inline-block whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
                     >
                       {l.status}
                     </span>
@@ -491,7 +523,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           <br />
           <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(TARGET_KM))}</strong>{tx.foot2b}
           <br />
-          <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}
+          <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
           <br />
           <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">−</span>{tx.foot4c}
           <br />

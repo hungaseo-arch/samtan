@@ -137,6 +137,13 @@ export interface TreadSegment {
    *  null      = 이 구간의 회차이지만 측정값 없음 → 표에서 −
    */
   tread: (number | null | undefined)[];
+  /**
+   * 회차별 4점 평균. 빈칸/미측정 구분은 tread 와 같다.
+   * tread 가 4점 **최소값**이라 중앙 그루브만 닳은 타이어는 0 으로 보인다.
+   * 숄더가 얼마나 남았는지는 이 값이라야 보인다 — 판정 기준은 아니고 병기용이다.
+   * 원시값이 없던 회차는 백필 전이라도 null 이 들어온다(2026-08-27 이후로는 전 회차 존재).
+   */
+  treadAvg: (number | null | undefined)[];
   /** 회차별 공기압. 빈칸/미측정 구분은 tread 와 같다. */
   press: (number | "N/A" | null | undefined)[];
   /** 이 구간이 교체로 시작됐다면 그 교체일(replacements 매칭). 최초 구간은 null */
