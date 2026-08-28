@@ -62,6 +62,11 @@ export interface DataQualityRow {
   pos: string | null;
   inspection_date: string | null;
   detail: string | null;
+  /**
+   * ERROR = 물리적으로 불가하거나 값이 모순 / WARN = 결손·확인 필요.
+   * T-8 에서 뷰 맨 뒤에 붙인 컬럼이다.
+   */
+  severity: "ERROR" | "WARN";
 }
 
 /**
