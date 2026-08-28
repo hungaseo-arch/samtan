@@ -15,7 +15,7 @@ import { TMS_DATA, HEAD_MAP, NEW_TREAD } from "@/data/tmsData";
 import { useLang } from "@/i18n";
 import {
   EMPTY, fmtTread, fmtTreadAvg, fmtPercent, fmtRatio,
-  fmtWearRate, fmtR2, fmtDistanceKm,
+  fmtWearRate, fmtR2, fmtDistanceKm, fmtInt,
 } from "@/lib/format";
 import {
   listTreadSeries, listWearRateSegments, listWearPattern,
@@ -95,6 +95,9 @@ const TX = {
     noPattern: "편마모 판정 보류 — 중앙 마모량이 판정 최소치에 못 미칩니다.",
     cvNoCriteria: "CV 합격 기준은 아직 정하지 않았습니다. 플릿 중앙값 대비 위치만 참고하십시오 (설계서 §10).",
     r2Low: "R² 가 0.80 미만입니다. 대표값 신뢰도가 낮습니다.",
+    glossary: "용어 설명",
+    gCv: "폭 4점(L·C1·C2·R) 트레드의 표본표준편차(n−1) ÷ 평균 × 100. 한 타이어 안에서 얼마나 고르게 닳았는지를 봅니다. 낮을수록 균일하고, 높으면 폭 방향 어느 한쪽만 닳고 있다는 뜻입니다. 합격 기준은 아직 정하지 않아 플릿 중앙값 대비 위치로만 읽습니다.",
+    gSc: "숄더(L·R) 마모량 ÷ 중앙(C1·C2) 마모량. 마모량은 신품 트레드 대비 줄어든 값입니다. 1.00 에 가까우면 균일, 1보다 크면 숄더가 먼저 닳는 중(공기압 부족·과적이 흔한 원인), 1보다 작으면 중앙이 먼저 닳는 중(공기압 과다가 흔한 원인)입니다. 숄더 마모·중앙 마모 판정 경계와 판정 보류 최소 마모량은 tire_config 설정값을 따릅니다.",
     legacyTitle: "통계 산출 불가",
     noPoints: "이 차량에는 폭 4점 원시 측정값이 아직 없습니다. 점검 입력 화면에서 4점을 기록하면 이 화면이 채워집니다.",
   },
@@ -132,6 +135,9 @@ const TX = {
     noPattern: "Penilaian keausan ditunda — keausan tengah belum mencapai batas minimum.",
     cvNoCriteria: "Kriteria lulus CV belum ditetapkan. Gunakan hanya sebagai posisi relatif terhadap median armada.",
     r2Low: "R² di bawah 0,80. Keandalan nilai representatif rendah.",
+    glossary: "Penjelasan istilah",
+    gCv: "Simpangan baku sampel (n−1) dari 4 titik lebar (L·C1·C2·R) ÷ rata-rata × 100. Menunjukkan seberapa merata satu ban aus. Makin rendah makin merata; makin tinggi berarti hanya satu sisi arah lebar yang aus. Kriteria lulus belum ditetapkan, jadi dibaca hanya sebagai posisi relatif terhadap median armada.",
+    gSc: "Keausan bahu (L·R) ÷ keausan tengah (C1·C2). Keausan dihitung dari selisih terhadap tapak ban baru. Mendekati 1,00 berarti merata; di atas 1 berarti bahu aus lebih dulu (umumnya tekanan angin kurang atau muatan berlebih); di bawah 1 berarti tengah aus lebih dulu (umumnya tekanan angin berlebih). Batas penilaian dan keausan minimum untuk menunda penilaian mengikuti nilai di tire_config.",
     legacyTitle: "Statistik tidak tersedia",
     noPoints: "Unit ini belum punya data mentah 4 titik. Isi 4 titik di layar input inspeksi untuk mengisi halaman ini.",
   },
@@ -169,6 +175,9 @@ const TX = {
     noPattern: "Wear pattern on hold — center wear is below the minimum decision threshold.",
     cvNoCriteria: "No CV pass criteria have been set. Read it only as a position relative to the fleet median (design §10).",
     r2Low: "R² is below 0.80. The representative value has low confidence.",
+    glossary: "Glossary",
+    gCv: "Sample standard deviation (n−1) of the four width points (L·C1·C2·R) ÷ mean × 100. It shows how evenly a single tire has worn. Lower is more even; higher means only one side across the width is wearing. No pass criteria are set yet, so read it only as a position relative to the fleet median.",
+    gSc: "Shoulder (L·R) wear ÷ center (C1·C2) wear, where wear is the drop from new tread. Near 1.00 is even; above 1 means the shoulders wear first (commonly under-inflation or overload); below 1 means the center wears first (commonly over-inflation). The shoulder/center decision boundaries and the minimum wear that defers a decision come from tire_config.",
     legacyTitle: "Statistics unavailable",
     noPoints: "This vehicle has no 4-point raw measurements yet. Record 4 points on the inspection input screen to populate this page.",
   },
@@ -518,6 +527,10 @@ export default function WearAnalysisTab() {
                   dataKey="x"
                   type={xAxis === "km" ? "number" : "category"}
                   domain={xAxis === "km" ? ["dataMin", "dataMax"] : undefined}
+                  // km 축은 원값이 소수 1자리라 눈금에 「708667.8」로 찍혔다.
+                  // 주행거리 눈금은 정수·천 단위 콤마가 규약이다 (CLAUDE.md 숫자 표기).
+                  // 소수 1자리는 KPI「시험 주행거리」가 아니라 축이라 버려도 되는 자리다.
+                  tickFormatter={xAxis === "km" ? (v: number) => fmtInt(v) : undefined}
                   tick={{ fontSize: 11, fill: HEX.line }}
                   label={{ value: xAxis === "km" ? tx.axisKm : tx.axisDate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
                 />
@@ -528,6 +541,9 @@ export default function WearAnalysisTab() {
                 />
                 <Tooltip
                   contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                  labelFormatter={(l: unknown) =>
+                    xAxis === "km" ? fmtDistanceKm(l as number) : String(l)
+                  }
                   formatter={(v: unknown, name: string) =>
                     Array.isArray(v)
                       ? [`${fmtTread(v[0] as number, false)} ~ ${fmtTread(v[1] as number)}`, name]
@@ -570,10 +586,10 @@ export default function WearAnalysisTab() {
             </ResponsiveContainer>
           </ChartCard>
 
-          {/* 넓은 화면에서는 2단. 폭 4점·세그먼트 비교 차트는 가로를 다 쓸 이유가
-              없다 — 한 행에 둘씩 놓아야 서로 비교가 된다. 추이 차트(1·5)는 x축이
+          {/* 넓은 화면에서는 3단. 폭 4점·세그먼트 비교 차트는 가로를 다 쓸 이유가
+              없다 — 한 행에 셋을 놓아야 서로 비교가 된다. 추이 차트(1·5)는 x축이
               날짜/거리라 좁히면 눈금이 뭉개지므로 전폭을 유지한다. */}
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {/* ── 차트 2. 폭 방향 누적 마모량 ──────────────────── */}
             {widthDates.length > 0 && (
               <ChartCard
@@ -715,6 +731,29 @@ export default function WearAnalysisTab() {
               </ResponsiveContainer>
             </ChartCard>
           )}
+
+          {/* ── 용어 설명 ────────────────────────────────────
+              CV·S/C 는 현장에서 처음 보는 지표다. 뜻을 모르면 KPI 카드의
+              숫자가 "높으면 나쁜 것"인지조차 판단이 안 된다. 임계값은
+              적지 않는다 — 정본은 tire_config 이고 관리자가 바꾼다. */}
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-start gap-2">
+              <Info className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div className="space-y-3">
+                <p className="text-xs font-bold text-primary uppercase tracking-widest">
+                  {tx.glossary}
+                </p>
+                <div>
+                  <p className="text-sm font-bold text-foreground">{tx.cCv}</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">{tx.gCv}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">{tx.cSc}</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">{tx.gSc}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>
