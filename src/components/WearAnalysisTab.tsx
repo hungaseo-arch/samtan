@@ -189,7 +189,9 @@ export default function WearAnalysisTab() {
   const [selCh, setSelCh] = useState(TMS_DATA.units[0]?.ch ?? "");
   const [selPos, setSelPos] = useState(POSITIONS[0]);
   const [xAxis, setXAxis] = useState<"km" | "date">("km");
-  const [roundIdx, setRoundIdx] = useState(0);
+  // null = «최신 회차». 0 으로 두면 첫 회차가 기준일 자신이라 누적 마모량이
+  // 전부 0.00 mm 로 열렸다. 차량·포지션을 바꿔도 최신에 붙어 있게 null 로 되돌린다.
+  const [roundIdx, setRoundIdx] = useState<number | null>(null);
 
   const series = useQuery<TreadSeriesRow[]>({
     queryKey: ["v_tread_series", selCh],
@@ -315,11 +317,13 @@ export default function WearAnalysisTab() {
     [segRows, widthByDate],
   );
 
+  const roundMax = Math.max(0, widthDates.length - 1);
+  const curRound = Math.min(roundIdx ?? roundMax, roundMax);
+
   const widthData = useMemo(() => {
     if (widthDates.length === 0) return [];
-    const idx = Math.min(roundIdx, widthDates.length - 1);
     const baseD = widthDates[0];
-    const currD = widthDates[idx];
+    const currD = widthDates[curRound];
     const avg = (d: string, w: WidthPos) => {
       const xs = widthByDate.get(d)?.get(w);
       return xs?.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
@@ -335,7 +339,7 @@ export default function WearAnalysisTab() {
         depth: c != null ? Math.round(c * 100) / 100 : null,
       };
     });
-  }, [widthDates, roundIdx, widthByDate, t]);
+  }, [widthDates, curRound, widthByDate, t]);
 
   // ── 차트 3. 마모속도 비교 — 이 차량의 세그먼트를 낮은 순으로
   const rateData = useMemo(
@@ -415,7 +419,7 @@ export default function WearAnalysisTab() {
             {TMS_DATA.units.map((u) => (
               <button
                 key={u.ch}
-                onClick={() => { setSelCh(u.ch); setRoundIdx(0); }}
+                onClick={() => { setSelCh(u.ch); setRoundIdx(null); }}
                 aria-pressed={selCh === u.ch}
                 className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
                   selCh === u.ch
@@ -432,7 +436,7 @@ export default function WearAnalysisTab() {
           <span className="text-xs text-muted-foreground font-semibold">{tx.position}</span>
           <select
             value={selPos}
-            onChange={(e) => { setSelPos(e.target.value); setRoundIdx(0); }}
+            onChange={(e) => { setSelPos(e.target.value); setRoundIdx(null); }}
             className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-foreground font-semibold font-mono"
           >
             {POSITIONS.map((p) => (
@@ -600,14 +604,14 @@ export default function WearAnalysisTab() {
                     <input
                       type="range"
                       min={0}
-                      max={widthDates.length - 1}
-                      value={Math.min(roundIdx, widthDates.length - 1)}
+                      max={roundMax}
+                      value={curRound}
                       onChange={(e) => setRoundIdx(Number(e.target.value))}
                       aria-label={tx.round}
                       className="w-36 accent-primary"
                     />
                     <span className="font-mono text-[11px] text-foreground">
-                      {widthDates[Math.min(roundIdx, widthDates.length - 1)]}
+                      {widthDates[curRound]}
                     </span>
                   </label>
                 }
