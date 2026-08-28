@@ -570,113 +570,118 @@ export default function WearAnalysisTab() {
             </ResponsiveContainer>
           </ChartCard>
 
-          {/* ── 차트 2. 폭 방향 누적 마모량 ──────────────────── */}
-          {widthDates.length > 0 && (
-            <ChartCard
-              title={tx.ch2}
-              right={
-                <label className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground">{tx.round}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={widthDates.length - 1}
-                    value={Math.min(roundIdx, widthDates.length - 1)}
-                    onChange={(e) => setRoundIdx(Number(e.target.value))}
-                    aria-label={tx.round}
-                    className="w-36 accent-primary"
-                  />
-                  <span className="font-mono text-[11px] text-foreground">
-                    {widthDates[Math.min(roundIdx, widthDates.length - 1)]}
-                  </span>
-                </label>
-              }
-            >
-              <ResponsiveContainer width="100%" height={240}>
-                <BarChart data={widthData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
-                  <XAxis dataKey="width" tick={{ fontSize: 12, fill: HEX.line }} />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: HEX.line }}
-                    label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.line }}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => fmtTreadAvg(v as number)}
-                    labelFormatter={(l: unknown) =>
-                      `${l} · ${widthData.find((d) => d.width === l)?.label ?? ""}`
-                    }
-                  />
-                  <Bar dataKey="wear" name={t("wear.total")} fill={HEX.line} isAnimationActive={false} />
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="mt-2 text-[11px] text-muted-foreground">
-                L = Kiri · C1/C2 = Tengah ({t("pos.center")}) · R = Kanan — {tx.dirPending}
-              </p>
-            </ChartCard>
-          )}
-
-          {/* ── 차트 3. 마모속도 비교 ────────────────────────── */}
-          {rateData.length > 0 && (
-            <ChartCard title={tx.ch3}>
-              <ResponsiveContainer width="100%" height={Math.max(200, rateData.length * 28)}>
-                <BarChart data={rateData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 11, fill: HEX.line }}
-                    label={{ value: tx.axisRate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
-                  />
-                  <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => fmtWearRate(v as number)}
-                  />
-                  <Bar dataKey="rate" name={t("wear.rate")} isAnimationActive={false}>
-                    {rateData.map((d) => (
-                      <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
-
-          {/* ── 차트 4. CV — 플릿 중앙값 기준선 ──────────────── */}
-          {cvData.length > 0 && (
-            <ChartCard title={tx.ch4}>
-              <ResponsiveContainer width="100%" height={Math.max(200, cvData.length * 28)}>
-                <BarChart data={cvData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 11, fill: HEX.line }}
-                    label={{ value: tx.axisPct, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
-                  />
-                  <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
-                  <Tooltip
-                    contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: unknown) => fmtPercent(v as number)}
-                  />
-                  <Bar dataKey="cv" name={t("tread.cv")} isAnimationActive={false}>
-                    {cvData.map((d) => (
-                      <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
-                    ))}
-                  </Bar>
-                  {/* 합격선이 아니라 플릿 내 위치 참고선이다 (설계서 §10). */}
-                  {fleetCvMedian != null && (
-                    <ReferenceLine
-                      x={fleetCvMedian}
-                      stroke={HEX.warn}
-                      strokeDasharray="5 4"
-                      label={{ value: `${tx.fleetMedian} ${fmtPercent(fleetCvMedian)}`, fontSize: 10, fill: HEX.warn, position: "top" }}
+          {/* 넓은 화면에서는 2단. 폭 4점·세그먼트 비교 차트는 가로를 다 쓸 이유가
+              없다 — 한 행에 둘씩 놓아야 서로 비교가 된다. 추이 차트(1·5)는 x축이
+              날짜/거리라 좁히면 눈금이 뭉개지므로 전폭을 유지한다. */}
+          <div className="grid gap-4 xl:grid-cols-2">
+            {/* ── 차트 2. 폭 방향 누적 마모량 ──────────────────── */}
+            {widthDates.length > 0 && (
+              <ChartCard
+                title={tx.ch2}
+                right={
+                  <label className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">{tx.round}</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={widthDates.length - 1}
+                      value={Math.min(roundIdx, widthDates.length - 1)}
+                      onChange={(e) => setRoundIdx(Number(e.target.value))}
+                      aria-label={tx.round}
+                      className="w-36 accent-primary"
                     />
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
-              <p className="mt-2 text-[11px] text-muted-foreground">{tx.cvNoCriteria}</p>
-            </ChartCard>
-          )}
+                    <span className="font-mono text-[11px] text-foreground">
+                      {widthDates[Math.min(roundIdx, widthDates.length - 1)]}
+                    </span>
+                  </label>
+                }
+              >
+                <ResponsiveContainer width="100%" height={240}>
+                  <BarChart data={widthData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
+                    <XAxis dataKey="width" tick={{ fontSize: 12, fill: HEX.line }} />
+                    <YAxis
+                      tick={{ fontSize: 11, fill: HEX.line }}
+                      label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.line }}
+                    />
+                    <Tooltip
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: unknown) => fmtTreadAvg(v as number)}
+                      labelFormatter={(l: unknown) =>
+                        `${l} · ${widthData.find((d) => d.width === l)?.label ?? ""}`
+                      }
+                    />
+                    <Bar dataKey="wear" name={t("wear.total")} fill={HEX.line} isAnimationActive={false} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  L = Kiri · C1/C2 = Tengah ({t("pos.center")}) · R = Kanan — {tx.dirPending}
+                </p>
+              </ChartCard>
+            )}
+
+            {/* ── 차트 3. 마모속도 비교 ────────────────────────── */}
+            {rateData.length > 0 && (
+              <ChartCard title={tx.ch3}>
+                <ResponsiveContainer width="100%" height={Math.max(200, rateData.length * 28)}>
+                  <BarChart data={rateData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 11, fill: HEX.line }}
+                      label={{ value: tx.axisRate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
+                    />
+                    <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
+                    <Tooltip
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: unknown) => fmtWearRate(v as number)}
+                    />
+                    <Bar dataKey="rate" name={t("wear.rate")} isAnimationActive={false}>
+                      {rateData.map((d) => (
+                        <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
+
+            {/* ── 차트 4. CV — 플릿 중앙값 기준선 ──────────────── */}
+            {cvData.length > 0 && (
+              <ChartCard title={tx.ch4}>
+                <ResponsiveContainer width="100%" height={Math.max(200, cvData.length * 28)}>
+                  <BarChart data={cvData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
+                    <XAxis
+                      type="number"
+                      tick={{ fontSize: 11, fill: HEX.line }}
+                      label={{ value: tx.axisPct, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
+                    />
+                    <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
+                    <Tooltip
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: unknown) => fmtPercent(v as number)}
+                    />
+                    <Bar dataKey="cv" name={t("tread.cv")} isAnimationActive={false}>
+                      {cvData.map((d) => (
+                        <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
+                      ))}
+                    </Bar>
+                    {/* 합격선이 아니라 플릿 내 위치 참고선이다 (설계서 §10). */}
+                    {fleetCvMedian != null && (
+                      <ReferenceLine
+                        x={fleetCvMedian}
+                        stroke={HEX.warn}
+                        strokeDasharray="5 4"
+                        label={{ value: `${tx.fleetMedian} ${fmtPercent(fleetCvMedian)}`, fontSize: 10, fill: HEX.warn, position: "top" }}
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+                <p className="mt-2 text-[11px] text-muted-foreground">{tx.cvNoCriteria}</p>
+              </ChartCard>
+            )}
+          </div>
 
           {/* ── 차트 5. Shoulder vs Center + S/C 보조축 ──────── */}
           {scData.length > 0 && (
