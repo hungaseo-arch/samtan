@@ -5,14 +5,10 @@ import type { TreadLevel, TreadSegment, Unit } from "@/data/tmsData";
 import { headPosData, validDates, posSegments, segmentWearRate, vehicleWearRate } from "@/data/tmsUtils";
 import { EMPTY, fmtInt, fmtTread, fmtPressure, fmtWearRate, fmtKmPerMm } from "@/lib/format";
 import { useLang } from "@/i18n";
+import { HEX, LEVEL_HEX, SERIES } from "@/lib/chartColors";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
 } from "recharts";
-
-const COLORS = [
-  "#1B3972","#2563eb","#16a34a","#dc2626","#7c3aed",
-  "#0891b2","#9333ea","#0284c7","#15803d","#b45309",
-];
 
 /**
  * KM 열 한 칸. 원본에 문자열로 들어온 회차가 있어(CH 834 원시값) 숫자만
@@ -23,15 +19,13 @@ const kmCell = (v: number | string | null) =>
 
 type Thresholds = ReturnType<typeof treadThresholds>;
 
-// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
-// recharts(SVG stroke/fill)는 Tailwind 클래스를 못 받으므로 hex 로 둔다.
-const LEVEL_HEX: Record<TreadLevel, string> = {
-  ok: "#4ade80", warn: "#eab308", order: "#f97316", danger: "#ef4444",
-};
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm.
+// 색은 @/lib/chartColors 정본을 쓴다. 표 안 글자는 SVG 가 아니라 Tailwind 로 두되,
+// 400 계열은 흰 카드 위에서 흐려 읽히지 않아 700 계열로 맞춘다(LayoutTab 과 동일).
 const LEVEL_CELL_CLS: Record<TreadLevel, string> = {
-  ok: "text-green-400",
-  warn: "text-yellow-400 font-bold",
-  order: "text-orange-400 font-bold",
+  ok: "text-green-700",
+  warn: "text-yellow-700 font-bold",
+  order: "text-orange-700 font-bold",
   danger: "text-destructive font-bold",
 };
 
@@ -192,17 +186,17 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
         </div>
         <ResponsiveContainer width="100%" height={320}>
           <LineChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.07)" />
-            <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9ca3af" }} />
+            <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
+            <XAxis dataKey="date" tick={{ fontSize: 11, fill: HEX.ink }} />
             <YAxis
               domain={metric === "tread" ? [0, 24] : [60, 145]}
-              tick={{ fontSize: 11, fill: "#9ca3af" }}
+              tick={{ fontSize: 11, fill: HEX.ink }}
               tickFormatter={(v) => `${v}${metric === "tread" ? "mm" : "psi"}`}
             />
             <Tooltip
-              contentStyle={{ background: "#1c1c1e", border: "1px solid #3a3a3c", borderRadius: 10, fontSize: 12 }}
-              labelStyle={{ color: "#FFB800", fontWeight: "bold" }}
-              itemStyle={{ color: "#e5e7eb" }}
+              contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: HEX.ink, fontWeight: "bold" }}
+              itemStyle={{ color: HEX.ink }}
               formatter={(value: number) => [
                 metric === "tread" ? fmtTread(value) : fmtPressure(value),
               ]}
@@ -216,7 +210,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
               </>
             )}
             {metric === "press" && [1, 3].map((p) => (
-              <ReferenceLine key={p} y={recPsi(p)} stroke="#3b82f6" strokeDasharray="4 2" />
+              <ReferenceLine key={p} y={recPsi(p)} stroke={HEX.divider} strokeDasharray="4 2" />
             ))}
             {/* 구간별로 별도 계열 — 교체 지점에서 선이 이어지지 않는다.
                 제거된 타이어는 가는 점선으로 낮춰 현재 장착분과 구분한다. */}
@@ -227,7 +221,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                   type="monotone"
                   dataKey={`${rp}#${seg.segNo}`}
                   name={seg.segNo === 0 ? rp : `${rp} (${seg.segNo + 1})`}
-                  stroke={COLORS[pi % COLORS.length]}
+                  stroke={SERIES[pi % SERIES.length]}
                   strokeWidth={seg.isCurrent ? 2 : 1}
                   strokeDasharray={seg.isCurrent ? undefined : "4 3"}
                   dot={{ r: 3 }}
@@ -429,7 +423,7 @@ function TinySparkline({
   const xs = (i: number) => (pairs.length === 1 ? W / 2 : padX + (i * (W - 2 * padX)) / (pairs.length - 1));
   const ys = (v: number) => H - 4 - ((v - mn) / (mx - mn || 1)) * (H - 8);
   const last = pairs[pairs.length - 1].v;
-  const color = metric === "tread" ? LEVEL_HEX[treadLevel(last)] : "#FFB800";
+  const color = metric === "tread" ? LEVEL_HEX[treadLevel(last)] : HEX.ink;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-24 h-7">

@@ -29,18 +29,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend, Cell,
 } from "recharts";
 import { AlertTriangle, Info, Loader2 } from "lucide-react";
-
-// 사내 디자인 지침 (v3 §E-2 색상표). recharts 는 SVG 속성이라 Tailwind 클래스를 못 받는다.
-const HEX = {
-  band: "#ECEFF1",     // min~max 밴드
-  line: "#546E7A",     // 평균선·텍스트·경계선
-  divider: "#90A4AE",  // 세그먼트 구분선 (점선)
-  primary: "#E3F2FD",  // 주요 요소
-  accent: "#E8F5E9",   // 강조·성공
-  // 경고색은 팔레트에 없어 #546E7A 기반 저채도 주황을 쓴다 (v3 §E-2 각주).
-  // 대비 검증: #B4611F on #F0F0F0 = 4.55:1 (WCAG AA 통과).
-  warn: "#B4611F",
-} as const;
+import { HEX } from "@/lib/chartColors";
 
 const POSITIONS = Array.from({ length: 10 }, (_, i) => HEAD_MAP[i + 1]);
 
@@ -66,7 +55,7 @@ const CHART_MARGIN = { top: 18, right: 24, bottom: 4, left: 8 } as const;
 const CategoryTick = ({ x, y, payload }: {
   x?: number; y?: number; payload?: { value?: string | number };
 }) => (
-  <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill={HEX.line}>
+  <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill={HEX.ink}>
     {String(payload?.value ?? "")}
   </text>
 );
@@ -547,16 +536,16 @@ export default function WearAnalysisTab() {
                   // 주행거리 눈금은 정수·천 단위 콤마가 규약이다 (CLAUDE.md 숫자 표기).
                   // 소수 1자리는 KPI「시험 주행거리」가 아니라 축이라 버려도 되는 자리다.
                   tickFormatter={xAxis === "km" ? (v: number) => fmtInt(v) : undefined}
-                  tick={{ fontSize: 11, fill: HEX.line }}
-                  label={{ value: xAxis === "km" ? tx.axisKm : tx.axisDate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
+                  tick={{ fontSize: 11, fill: HEX.ink }}
+                  label={{ value: xAxis === "km" ? tx.axisKm : tx.axisDate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.ink }}
                 />
                 <YAxis
                   domain={[0, NEW_TREAD]}
-                  tick={{ fontSize: 11, fill: HEX.line }}
-                  label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.line }}
+                  tick={{ fontSize: 11, fill: HEX.ink }}
+                  label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.ink }}
                 />
                 <Tooltip
-                  contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                  contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
                   labelFormatter={(l: unknown) =>
                     xAxis === "km" ? fmtDistanceKm(l as number) : String(l)
                   }
@@ -587,9 +576,9 @@ export default function WearAnalysisTab() {
                     type="monotone"
                     dataKey={`avg#${n}`}
                     name={`${tx.segLabel} ${n} · ${t("tread.avg")}`}
-                    stroke={HEX.line}
+                    stroke={HEX.ink}
                     strokeWidth={2}
-                    dot={{ r: 3, fill: HEX.line }}
+                    dot={{ r: 3, fill: HEX.ink }}
                     connectNulls={false}
                     isAnimationActive={false}
                   />
@@ -631,19 +620,19 @@ export default function WearAnalysisTab() {
                 <ResponsiveContainer width="100%" height={CHART_H}>
                   <BarChart data={widthData} margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
-                    <XAxis dataKey="width" tick={{ fontSize: 12, fill: HEX.line }} />
+                    <XAxis dataKey="width" tick={{ fontSize: 12, fill: HEX.ink }} />
                     <YAxis
-                      tick={{ fontSize: 11, fill: HEX.line }}
-                      label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.line }}
+                      tick={{ fontSize: 11, fill: HEX.ink }}
+                      label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.ink }}
                     />
                     <Tooltip
-                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
                       formatter={(v: unknown) => fmtTreadAvg(v as number)}
                       labelFormatter={(l: unknown) =>
                         `${l} · ${widthData.find((d) => d.width === l)?.label ?? ""}`
                       }
                     />
-                    <Bar dataKey="wear" name={t("wear.total")} fill={HEX.line} isAnimationActive={false} />
+                    <Bar dataKey="wear" name={t("wear.total")} fill={HEX.ink} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
                 <p className="mt-auto pt-2 text-[11px] text-muted-foreground">
@@ -660,17 +649,17 @@ export default function WearAnalysisTab() {
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
-                      tick={{ fontSize: 11, fill: HEX.line }}
-                      label={{ value: tx.axisRate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
+                      tick={{ fontSize: 11, fill: HEX.ink }}
+                      label={{ value: tx.axisRate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.ink }}
                     />
                     <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
                     <Tooltip
-                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
                       formatter={(v: unknown) => fmtWearRate(v as number)}
                     />
                     <Bar dataKey="rate" name={t("wear.rate")} isAnimationActive={false}>
                       {rateData.map((d) => (
-                        <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
+                        <Cell key={d.label} fill={d.isSel ? HEX.ink : HEX.divider} />
                       ))}
                     </Bar>
                   </BarChart>
@@ -686,17 +675,17 @@ export default function WearAnalysisTab() {
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
-                      tick={{ fontSize: 11, fill: HEX.line }}
-                      label={{ value: tx.axisPct, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
+                      tick={{ fontSize: 11, fill: HEX.ink }}
+                      label={{ value: tx.axisPct, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.ink }}
                     />
                     <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
                     <Tooltip
-                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                      contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
                       formatter={(v: unknown) => fmtPercent(v as number)}
                     />
                     <Bar dataKey="cv" name={t("tread.cv")} isAnimationActive={false}>
                       {cvData.map((d) => (
-                        <Cell key={d.label} fill={d.isSel ? HEX.line : HEX.divider} />
+                        <Cell key={d.label} fill={d.isSel ? HEX.ink : HEX.divider} />
                       ))}
                     </Bar>
                     {/* 합격선이 아니라 플릿 내 위치 참고선이다 (설계서 §10). */}
@@ -721,11 +710,11 @@ export default function WearAnalysisTab() {
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={scData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: HEX.line }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: HEX.ink }} />
                   <YAxis
                     yAxisId="mm"
-                    tick={{ fontSize: 11, fill: HEX.line }}
-                    label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.line }}
+                    tick={{ fontSize: 11, fill: HEX.ink }}
+                    label={{ value: tx.axisMm, angle: -90, position: "insideLeft", fontSize: 10, fill: HEX.ink }}
                   />
                   <YAxis
                     yAxisId="sc"
@@ -734,12 +723,12 @@ export default function WearAnalysisTab() {
                     label={{ value: "S/C", angle: 90, position: "insideRight", fontSize: 10, fill: HEX.warn }}
                   />
                   <Tooltip
-                    contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
+                    contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.ink}`, borderRadius: 8, fontSize: 12 }}
                     formatter={(v: unknown, name: string) =>
                       name === "S/C" ? fmtRatio(v as number) : fmtTreadAvg(v as number)
                     }
                   />
-                  <Line yAxisId="mm" type="monotone" dataKey="shoulder" name={t("pos.shoulder")} stroke={HEX.line} strokeWidth={2} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
+                  <Line yAxisId="mm" type="monotone" dataKey="shoulder" name={t("pos.shoulder")} stroke={HEX.ink} strokeWidth={2} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
                   <Line yAxisId="mm" type="monotone" dataKey="center" name={t("pos.center")} stroke={HEX.divider} strokeWidth={2} dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
                   <Line yAxisId="sc" type="monotone" dataKey="sc" name="S/C" stroke={HEX.warn} strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls={false} isAnimationActive={false} />
                   <Legend wrapperStyle={{ fontSize: 11 }} />

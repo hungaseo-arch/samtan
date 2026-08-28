@@ -28,17 +28,7 @@ import {
 import { AlertTriangle, Info, Loader2, Layers } from "lucide-react";
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
-
-// 사내 색상 지침 (지시서 T-9). recharts 는 SVG 속성이라 Tailwind 클래스를 못 받아
-// WearAnalysisTab 과 같은 방식으로 hex 를 둔다.
-const HEX = {
-  blue: "#E3F2FD",     // 구매가
-  bluegrey: "#ECEFF1", // 부대비용
-  ink: "#546E7A",      // 본문·경계선·다운타임
-  sage: "#E8F5E9",     // 회수가치
-  // 경고색은 팔레트에 없어 저채도 주황을 쓴다. #B4611F on #F0F0F0 = 4.55:1 (WCAG AA).
-  warn: "#B4611F",
-} as const;
+import { HEX } from "@/lib/chartColors";
 
 /** 사유별 분포의 기본 필터. 제품 책임분이 이 화면의 첫 질문이다 (지시서 T-9 3번). */
 const DEFAULT_CATEGORY: TcoCategory = "PRODUCT";
@@ -444,14 +434,14 @@ export default function TcoTab() {
           <div className="rounded-xl border border-border bg-card p-4">
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={costByCh} stackOffset="sign">
-                <CartesianGrid strokeDasharray="3 3" stroke={HEX.bluegrey} />
+                <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                 <XAxis dataKey="ch" tick={{ fontSize: 11, fill: HEX.ink }} />
                 <YAxis tick={{ fontSize: 11, fill: HEX.ink }} width={80}
                   tickFormatter={(v: number) => fmtCurrencyDoc(v).split(" (")[0]} />
                 <Tooltip formatter={(v: number, n) => [fmtCurrencyDoc(v), String(n)]} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="purchase" stackId="c" name={tx.cPurchase} fill={HEX.blue} stroke={HEX.ink} />
-                <Bar dataKey="extra" stackId="c" name={tx.cExtra} fill={HEX.bluegrey} stroke={HEX.ink} />
+                <Bar dataKey="extra" stackId="c" name={tx.cExtra} fill={HEX.band} stroke={HEX.ink} />
                 <Bar dataKey="downtime" stackId="c" name={tx.cDowntime} fill={HEX.ink} />
                 <Bar dataKey="recovery" stackId="c" name={tx.cRecovery} fill={HEX.sage} stroke={HEX.ink} />
               </BarChart>
