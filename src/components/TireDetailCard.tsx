@@ -5,11 +5,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { getTireDetail, type TireDetail } from "@/api/tires";
-import { fmtInt } from "@/lib/format";
-import { codeName, fmtTread } from "@/data/tmsUtils";
+import { EMPTY, fmtInt, fmtTread } from "@/lib/format";
+import { codeName } from "@/data/tmsUtils";
 import { useLang } from "@/i18n";
 
-const DASH = "—";
 
 const TX = {
   ko: {
@@ -122,12 +121,12 @@ export default function TireDetailCard({ serial }: { serial: string }) {
 
   const reg = data.is_registered;
   const mounted = data.current_ch
-    ? `CH ${data.current_ch} · ${data.current_pos ?? DASH}`
+    ? `CH ${data.current_ch} · ${data.current_pos ?? EMPTY}`
     : tx.notMounted;
   const range =
     data.first_inspection || data.last_inspection
-      ? `${data.first_inspection ?? DASH} ~ ${data.last_inspection ?? DASH}`
-      : DASH;
+      ? `${data.first_inspection ?? EMPTY} ~ ${data.last_inspection ?? EMPTY}`
+      : EMPTY;
 
   return (
     <div
@@ -148,12 +147,12 @@ export default function TireDetailCard({ serial }: { serial: string }) {
 
       <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {/* 수명 DB 등록 정보 — 미등록이면 전부 — 로 비운다 */}
-        <Row label={tx.no} value={reg ? fmtInt(data.lifetime_no) : DASH} mono />
-        <Row label={tx.install} value={reg ? (data.install_date ?? DASH) : DASH} mono />
-        <Row label={tx.status} value={reg ? (data.status ?? DASH) : DASH} />
+        <Row label={tx.no} value={reg ? fmtInt(data.lifetime_no) : EMPTY} mono />
+        <Row label={tx.install} value={reg ? (data.install_date ?? EMPTY) : EMPTY} mono />
+        <Row label={tx.status} value={reg ? (data.status ?? EMPTY) : EMPTY} />
         <Row
           label={tx.lifetimeDays}
-          value={reg && data.lifetime_days != null ? `${fmtInt(data.lifetime_days)} ${tx.days}` : DASH}
+          value={reg && data.lifetime_days != null ? `${fmtInt(data.lifetime_days)} ${tx.days}` : EMPTY}
           mono
         />
         {reg && data.damage_code && data.damage_code !== "-" && (
@@ -163,23 +162,23 @@ export default function TireDetailCard({ serial }: { serial: string }) {
 
         {/* 현재 장착 위치 — 등록 여부와 무관하게 v_current_tire 에서 온다 */}
         <Row label={tx.current} value={mounted} mono />
-        <Row label={tx.mountedAt} value={data.current_mounted_at ?? DASH} mono />
+        <Row label={tx.mountedAt} value={data.current_mounted_at ?? EMPTY} mono />
 
         {/* 점검 이력 — 미등록 타이어의 대체 표시원 */}
         <Row label={tx.inspectionRange} value={range} mono />
         <Row
           label={tx.inspectionCount}
-          value={data.inspection_count != null ? `${fmtInt(data.inspection_count)} ${tx.rounds}` : DASH}
+          value={data.inspection_count != null ? `${fmtInt(data.inspection_count)} ${tx.rounds}` : EMPTY}
           mono
         />
         <Row
           label={tx.lastTread}
-          value={data.last_tread != null ? `${fmtTread(data.last_tread)} mm` : DASH}
+          value={data.last_tread != null ? `${fmtTread(data.last_tread, false)} mm` : EMPTY}
           mono
         />
         <Row
           label={tx.lastPressure}
-          value={data.last_pressure != null ? `${fmtInt(data.last_pressure)} psi` : DASH}
+          value={data.last_pressure != null ? `${fmtInt(data.last_pressure)} psi` : EMPTY}
           mono
         />
       </div>

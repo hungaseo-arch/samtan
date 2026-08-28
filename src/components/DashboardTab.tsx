@@ -1,7 +1,8 @@
 // @section: dashboard-tab
 import { Fragment, useState } from "react";
 import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds } from "@/data/tmsData";
-import { headPosData, statusOf, getUnitAlerts, fmtInt, validDates } from "@/data/tmsUtils";
+import { headPosData, statusOf, getUnitAlerts, validDates } from "@/data/tmsUtils";
+import { EMPTY, fmtInt } from "@/lib/format";
 import { Truck, Circle, ChevronRight, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
@@ -256,8 +257,8 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
               <tbody>
                 {TMS_DATA.units.map((u) => {
                   const vd = validDates(u);
-                  const fd = vd.length ? vd[0].d : "−";
-                  const ld = vd.length ? vd[vd.length - 1].d : "−";
+                  const fd = vd.length ? vd[0].d : EMPTY;
+                  const ld = vd.length ? vd[vd.length - 1].d : EMPTY;
                   // 실제 주행량 = 최신 − 최초 (수치 회차 기준)
                   const hms = vd.map((x) => u.hm[x.i]).filter((v): v is number => typeof v === "number");
                   const kms = vd.map((x) => u.km[x.i]).filter((v): v is number => typeof v === "number");

@@ -1,8 +1,9 @@
 // @section: layout-tab
 import { useState } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, fmtTread, currentSegmentPairs } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
+import { EMPTY, fmtTread } from "@/lib/format";
 import { X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/i18n";
@@ -319,8 +320,8 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                       hint={tx.serialHint}
                     />
                   </div>
-                  <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : "−"} mono />
-                  <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : "−"} mono />
+                  <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : EMPTY} mono />
+                  <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread, false)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
                   {modalData.d.remark && <Row label={tx.remark} value={modalData.d.remark} danger />}
                   {(() => {
                     const scrap = TMS_DATA.life.find((l) => l.serial === modalData.d!.serial && l.status === "Scrap");
@@ -357,7 +358,7 @@ function Row({ label, value, mono, danger }: { label: string; value: string | nu
     <div className="flex gap-2">
       <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{label}</span>
       <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-destructive font-bold" : ""}`}>
-        {value ?? "−"}
+        {value ?? EMPTY}
       </span>
     </div>
   );

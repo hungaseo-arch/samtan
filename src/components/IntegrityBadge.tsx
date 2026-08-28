@@ -10,7 +10,7 @@ import {
   checkDataIntegrity, listDataQuality,
   type IntegrityCheck, type IntegritySeverity, type DataQualityRow,
 } from "@/api/tires";
-import { fmtInt } from "@/lib/format";
+import { EMPTY, fmtInt } from "@/lib/format";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -99,7 +99,7 @@ function flatten(row: unknown): string {
   if (row == null) return "";
   if (typeof row !== "object") return String(row);
   return Object.entries(row as Record<string, unknown>)
-    .map(([k, v]) => `${k} ${v ?? "−"}`)
+    .map(([k, v]) => `${k} ${v ?? EMPTY}`)
     .join(" · ");
 }
 

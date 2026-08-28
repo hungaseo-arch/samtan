@@ -3,8 +3,9 @@
 // 포지션의 권장압·시리얼·최근 공기압/트레드 + 트레드·공기압 추이 미니차트.
 // LayoutTab · InspectionTab(점검 이력 배치도) 공용. 부모가 <AnimatePresence>로 감싼다.
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, fmtTread, currentSegmentPairs } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
+import { EMPTY, fmtTread } from "@/lib/format";
 import { X } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLang } from "@/i18n";
@@ -98,8 +99,8 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
                 hint={tx.serialHint}
               />
             </div>
-            <Row label={tx.latestPress} value={d.latestPress != null ? `${Math.round(d.latestPress)} psi (${d.latestPressDate})` : "−"} mono />
-            <Row label={tx.latestTread} value={d.latestTread != null ? `${fmtTread(d.latestTread)} mm (${d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : "−"} mono />
+            <Row label={tx.latestPress} value={d.latestPress != null ? `${Math.round(d.latestPress)} psi (${d.latestPressDate})` : EMPTY} mono />
+            <Row label={tx.latestTread} value={d.latestTread != null ? `${fmtTread(d.latestTread, false)} mm (${d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
             {d.remark && <Row label={tx.remark} value={d.remark} danger />}
             {(() => {
               const scrap = TMS_DATA.life.find((l) => l.serial === d.serial && l.status === "Scrap");
@@ -131,7 +132,7 @@ function Row({ label, value, mono, danger }: { label: string; value: string | nu
   return (
     <div className="flex gap-2">
       <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-destructive font-bold" : ""}`}>{value ?? "−"}</span>
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-destructive font-bold" : ""}`}>{value ?? EMPTY}</span>
     </div>
   );
 }

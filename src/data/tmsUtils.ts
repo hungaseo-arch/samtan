@@ -1,7 +1,7 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
 import type { Unit, TirePosition, TreadLevel, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
-import { fmtNumber } from "@/lib/format";
+import { EMPTY, fmtTread } from "@/lib/format";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
 export type TireStatus = TreadLevel | "none";
@@ -144,28 +144,17 @@ export function codeName(c: string | null | undefined): string {
   return name ? `${c} (${name})` : c;
 }
 
-export function fmtN(n: number | string | null | undefined): string {
-  if (n == null || n === "") return "−";
-  if (typeof n === "number") return fmtNumber(n);
-  return String(n);
-}
-
+/**
+ * 장착일 표기. 원본이 "-" 인 행은 미상이라는 뜻이라 빈값 기호로 바꾼다.
+ *
+ * 숫자·트레드 서식 함수는 여기 두지 않는다. 예전에는 fmtInt·fmtTread 가
+ * 이 파일에도 있어서, 같은 이름이 파일마다 다른 함수를 가리켰다 —
+ * `@/lib/format` 쪽은 «11.2 mm» 를, 이쪽은 «11.2» 를 돌려주고 빈값 기호도
+ * «—» 와 «−» 로 갈렸다. 서식은 `@/lib/format` 하나만 쓴다 (CLAUDE.md §숫자 표기).
+ */
 export function fmtD(d: string | null | undefined): string {
-  if (!d || d === "-") return "−";
+  if (!d || d === "-") return EMPTY;
   return d;
-}
-
-/** KM·HM 표기: 정수 반올림 + 천단위 콤마 (#,000). */
-export function fmtInt(n: number | string | null | undefined): string {
-  if (n == null || n === "") return "−";
-  if (typeof n === "number") return fmtNumber(Math.round(n));
-  return String(n);
-}
-
-/** 트레드 표기: 소수점 1자리. */
-export function fmtTread(n: number | null | undefined): string {
-  if (n == null) return "−";
-  return n.toFixed(1);
 }
 
 export function unitByCh(ch: string) {
@@ -708,17 +697,17 @@ export function getUnitAlerts(u: Unit) {
       if (lv === "danger") {
         alerts.push({
           lv: "danger",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 즉시 교체`,
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 즉시 교체`,
         });
       } else if (lv === "order") {
         alerts.push({
           lv: "order",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 교체 타이어 발주`,
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 교체 타이어 발주`,
         });
       } else if (lv === "warn") {
         alerts.push({
           lv: "warn",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread)}mm — 마모 진행`,
+          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 마모 진행`,
         });
       }
     }

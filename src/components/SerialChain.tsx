@@ -5,6 +5,7 @@
 // LayoutTab · TireDetailModal 공용.
 import { Fragment } from "react";
 import type { SerialChainEntry } from "@/data/tmsData";
+import { EMPTY } from "@/lib/format";
 
 export default function SerialChain({
   chain,
@@ -26,7 +27,7 @@ export default function SerialChain({
         ? [{ seqNo: 0, serial: fallbackSerial, mountedAt: null, source: "initial" }]
         : [];
 
-  if (!items.length) return <span className="text-xs font-mono text-muted-foreground">−</span>;
+  if (!items.length) return <span className="text-xs font-mono text-muted-foreground">{EMPTY}</span>;
 
   return (
     <span className="text-xs font-mono">

@@ -2,7 +2,8 @@
 // 재사용 배치도(Head 10본) — 포지션별 공기압/트레드/시리얼을 신호등 색상으로 렌더.
 // LayoutTab · InspectionTab(점검 이력) 공용.
 import { HEAD_MAP } from "@/data/tmsData";
-import { statusFromValues, fmtTread } from "@/data/tmsUtils";
+import { statusFromValues } from "@/data/tmsUtils";
+import { EMPTY, fmtTread } from "@/lib/format";
 import type { TireStatus } from "@/data/tmsUtils";
 
 export interface SchematicCell {
@@ -96,7 +97,7 @@ function Cell({
   const press = c?.pressure ?? null;
   const st = statusFromValues(tread, press, pos);
   const parts = rp.split(" ");          // "L2 Out" → ["L2","Out"]
-  const title = `${rp} · ${press ?? "-"}psi / ${tread != null ? fmtTread(tread) : "-"}mm`;
+  const title = `${rp} · ${press ?? EMPTY}psi / ${fmtTread(tread, false)}mm`;
 
   return (
     <button

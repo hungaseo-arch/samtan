@@ -1,8 +1,8 @@
 // @section: inspection-tab
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi } from "@/data/tmsData";
-import { unitByCh, fmtTread } from "@/data/tmsUtils";
-import { fmtMeter, fmtTreadAvg, fmtPercent } from "@/lib/format";
+import { unitByCh } from "@/data/tmsUtils";
+import { EMPTY, fmtMeter, fmtTread, fmtTreadAvg, fmtPercent } from "@/lib/format";
 import {
   listInspections,
   saveInspectionRoundWithPoints,
@@ -1066,8 +1066,8 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                             return (
                               <tr key={pos} className="border-b border-border/30 text-center">
                                 <th scope="row" className="px-3 py-1.5 font-bold text-primary">{pos}</th>
-                                <td className="px-3 py-1.5">{r?.pressure != null ? Math.round(r.pressure) : "−"}</td>
-                                <td className="px-3 py-1.5">{r?.tread != null ? fmtTread(r.tread) : "−"}</td>
+                                <td className="px-3 py-1.5">{r?.pressure != null ? Math.round(r.pressure) : EMPTY}</td>
+                                <td className="px-3 py-1.5">{fmtTread(r?.tread, false)}</td>
                                 <td className="px-3 py-1.5">
                                   {gp && WIDTH_ORDER.every((w) => gp[w] != null) ? (
                                     <span className="inline-flex items-center gap-1.5">
@@ -1079,10 +1079,10 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                                       )}
                                     </span>
                                   ) : (
-                                    <span className="text-muted-foreground">−</span>
+                                    <span className="text-muted-foreground">{EMPTY}</span>
                                   )}
                                 </td>
-                                <td className="px-3 py-1.5 text-muted-foreground truncate max-w-40">{r?.serial ?? "−"}</td>
+                                <td className="px-3 py-1.5 text-muted-foreground truncate max-w-40">{r?.serial ?? EMPTY}</td>
                               </tr>
                             );
                           })}

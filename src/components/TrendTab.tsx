@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds } from "@/data/tmsData";
 import type { TreadLevel, TreadSegment, Unit } from "@/data/tmsData";
-import { headPosData, validDates, fmtInt, posSegments, segmentWearRate, vehicleWearRate } from "@/data/tmsUtils";
-import { EMPTY, fmtTread, fmtPressure, fmtWearRate, fmtKmPerMm } from "@/lib/format";
+import { headPosData, validDates, posSegments, segmentWearRate, vehicleWearRate } from "@/data/tmsUtils";
+import { EMPTY, fmtInt, fmtTread, fmtPressure, fmtWearRate, fmtKmPerMm } from "@/lib/format";
 import { useLang } from "@/i18n";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
@@ -13,6 +13,13 @@ const COLORS = [
   "#1B3972","#2563eb","#16a34a","#dc2626","#7c3aed",
   "#0891b2","#9333ea","#0284c7","#15803d","#b45309",
 ];
+
+/**
+ * KM 열 한 칸. 원본에 문자열로 들어온 회차가 있어(CH 834 원시값) 숫자만
+ * 서식을 입히고 문자열은 그대로 둔다. 파싱하면 없는 정밀도를 만들게 된다.
+ */
+const kmCell = (v: number | string | null) =>
+  typeof v === "number" ? fmtInt(v) : (v ?? EMPTY);
 
 type Thresholds = ReturnType<typeof treadThresholds>;
 
@@ -344,7 +351,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
               <tr className="border-b border-border/40 bg-muted/5">
                 <td colSpan={3} className="px-2 py-1.5 text-right font-bold text-muted-foreground text-[10px]">KM</td>
                 {vd.map((x) => (
-                  <td key={x.d} className="px-2 py-1.5 text-center text-[10px] text-muted-foreground">{fmtInt(u.km[x.i])}</td>
+                  <td key={x.d} className="px-2 py-1.5 text-center text-[10px] text-muted-foreground">{kmCell(u.km[x.i])}</td>
                 ))}
                 <td colSpan={2} />
               </tr>

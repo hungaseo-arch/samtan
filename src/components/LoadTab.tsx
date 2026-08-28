@@ -1,6 +1,7 @@
 // @section: load-tab
 import { LOAD_UNITS, LOAD_GROUPS, LOAD_GROSS_KG, HEAD_GROUP_SHARE, groupTotal } from "@/data/loadData";
-import { loadPerTire, loadRatio, ratedByMount, fmtInt } from "@/data/tmsUtils";
+import { loadPerTire, loadRatio, ratedByMount } from "@/data/tmsUtils";
+import { fmtInt } from "@/lib/format";
 import { Weight, AlertTriangle } from "lucide-react";
 import { Fragment } from "react";
 import { motion } from "framer-motion";

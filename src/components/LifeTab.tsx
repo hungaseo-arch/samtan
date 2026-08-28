@@ -2,7 +2,8 @@
 import { Fragment, useState, useEffect, useRef } from "react";
 import { TMS_DATA, treadLevel, treadThresholds } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
-import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements } from "@/data/tmsUtils";
+import { codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements } from "@/data/tmsUtils";
+import { EMPTY, fmtInt, fmtTread } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
@@ -264,7 +265,6 @@ const buildTX = () => ({
 const TARGET_KM = 75000; // 목표 수명 (km)
 
 /** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
-const DASH = "−";
 
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
   Install: "text-green-400 border-green-500/40 bg-green-500/10",
@@ -475,46 +475,46 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   <td className="px-2 py-1.5 text-right">
                     {tread != null ? (
                       <>
-                        <span className={treadCls}>{fmtTread(tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                        <span className={treadCls}>{fmtTread(tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
                         {/* 4점 평균 병기 — 최소값이 0.0 이어도 숄더가 남았는지 여기서 보인다.
                             판정·색상은 위의 최소값이 그대로 쥔다. 평균은 읽기 보조일 뿐이다.
                             평균이 최소값과 같으면(4점이 모두 동일) 줄만 차지하므로 생략한다. */}
                         {treadAvg != null && treadAvg !== tread && (
                           <div className="text-[10px] text-muted-foreground/60 leading-tight">
-                            {tx.avgPrefix}{fmtTread(treadAvg)}
+                            {tx.avgPrefix}{fmtTread(treadAvg, false)}
                           </div>
                         )}
                       </>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.km != null ? (
                       <span className="font-bold text-primary">{fmtInt(c.km)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.hr != null ? (
                       <span className="text-foreground">{fmtInt(c.hr)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedKm != null && !noExpected ? (
                       <span className={`font-bold ${c.expectedKm >= TARGET_KM ? "text-green-600" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedHm != null && !noExpected ? (
                       <span className="font-bold text-primary">{fmtInt(c.expectedHm)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-center">
@@ -543,7 +543,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             <tfoot>
               <tr className="border-t-2 border-border bg-muted/30 font-bold">
                 <td className="px-2 py-2 text-muted-foreground" colSpan={3}>{tx.avg}</td>
-                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : "−"}</td>
+                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : EMPTY}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.km)}</td>
                 <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
@@ -560,11 +560,11 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           <br />
           <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
           <br />
-          <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">−</span>{tx.foot4c}
+          <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
           <br />
           {tx.foot5}
           <br />
-          <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">−</span>{tx.foot6c}
+          <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
           <br />
           {tx.foot7a}<strong className="text-destructive">{tx.foot7b}</strong>{tx.foot7c}<button className="text-primary hover:underline font-semibold" onClick={() => openCodes(null)}>{tx.foot7d}</button>
         </p>
@@ -651,7 +651,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <HRow
                   label={tx.hTread}
                   value={hist.latestTread != null
-                    ? `${fmtTread(hist.latestTread)} mm (${tx.hTreadMin})`
+                    ? `${fmtTread(hist.latestTread, false)} mm (${tx.hTreadMin})`
                     : null}
                   mono
                 />
@@ -668,14 +668,14 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                           <span key={w.k} className="inline-block mr-3">
                             <span className="text-[10px] text-muted-foreground mr-1">{w.label}</span>
                             <span className={isMin ? "font-bold text-foreground" : ""}>
-                              {v != null ? fmtTread(v) : DASH}
+                              {v != null ? fmtTread(v, false) : EMPTY}
                             </span>
                           </span>
                         );
                       })}
                       {hist.latestTreadAvg != null && (
                         <span className="text-muted-foreground">
-                          · {tx.hTreadAvg} {fmtTread(hist.latestTreadAvg)} mm
+                          · {tx.hTreadAvg} {fmtTread(hist.latestTreadAvg, false)} mm
                         </span>
                       )}
                     </p>
@@ -703,7 +703,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                         const current = hist.ch === m.ch && hist.pos === m.pos;
                         return (
                           <tr key={i} className={`border-b border-border/30 ${current ? "bg-primary/5" : ""}`}>
-                            <td className="px-2 py-1">{m.date ?? "−"}</td>
+                            <td className="px-2 py-1">{m.date ?? EMPTY}</td>
                             <td className="px-2 py-1 font-bold text-primary">CH {m.ch}</td>
                             <td className="px-2 py-1">{m.pos}</td>
                             <td className="px-2 py-1">
@@ -756,14 +756,14 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                               const isMin = v != null && r.tread != null && v === r.tread;
                               return (
                                 <td key={w.k} className={`px-2 py-1 text-right ${isMin ? "font-bold text-foreground" : "text-muted-foreground"}`}>
-                                  {v != null ? fmtTread(v) : DASH}
+                                  {v != null ? fmtTread(v, false) : EMPTY}
                                 </td>
                               );
                             })}
                             <td className={`px-2 py-1 text-right font-bold ${r.tread != null ? TREAD_CLS[treadLevel(r.tread)] : ""}`}>
-                              {r.tread != null ? fmtTread(r.tread) : DASH}
+                              {r.tread != null ? fmtTread(r.tread, false) : EMPTY}
                             </td>
-                            <td className="px-2 py-1 text-right text-muted-foreground">{r.treadAvg != null ? fmtTread(r.treadAvg) : DASH}</td>
+                            <td className="px-2 py-1 text-right text-muted-foreground">{r.treadAvg != null ? fmtTread(r.treadAvg, false) : EMPTY}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.km)}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.hm)}</td>
                           </tr>
@@ -786,8 +786,8 @@ function HRow({ label, value, mono, danger, sub }: { label: string; value: strin
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[11px] text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== "−" ? "text-destructive font-bold" : "text-foreground"}`}>
-        {value || "−"}{sub && value && value !== "−" ? <span className="text-[10px] text-muted-foreground ml-1">{sub}</span> : null}
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== EMPTY ? "text-destructive font-bold" : "text-foreground"}`}>
+        {value || EMPTY}{sub && value && value !== EMPTY ? <span className="text-[10px] text-muted-foreground ml-1">{sub}</span> : null}
       </span>
     </div>
   );

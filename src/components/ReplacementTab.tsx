@@ -278,7 +278,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   };
   const installOf = (serial: string | null) => {
     const l = serial ? TMS_DATA.life.find((x) => x.serial === serial) : undefined;
-    return l?.install && l.install !== "-" ? l.install : "−";
+    return l?.install && l.install !== "-" ? l.install : EMPTY;
   };
   const replChains: ReplChain[] = useMemo(() => {
     const byPos = new Map<string, ReplacementRow[]>();
@@ -360,7 +360,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
       const row: Record<string, string | number> = {
         [tx.chVehicle]: `CH ${c.ch}`,
         [tx.position]: c.pos,
-        [tx.install1]: c.firstInstall === "−" ? "" : c.firstInstall,
+        [tx.install1]: c.firstInstall === EMPTY ? "" : c.firstInstall,
         [`1${tx.stage} ${tx.colSerial}`]: c.firstSerial ?? "",
       };
       // 회차 수는 행마다 다르므로 표시 중인 최대 회차까지 열을 맞춘다.
@@ -480,7 +480,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                 const dateCell = (stageIdx: number) => {
                   const st = stageIdx === 0 ? null : c.stages[stageIdx - 1];
                   const date = stageIdx === 0 ? c.firstInstall : st?.date;
-                  if (!date || date === "−") return <span className="text-muted-foreground">−</span>;
+                  if (!date || date === EMPTY) return <span className="text-muted-foreground">{EMPTY}</span>;
                   return (
                     <span className="inline-flex items-center gap-1.5 flex-wrap">
                       <button
@@ -575,7 +575,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                       </div>
                       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
                         <dt className="text-muted-foreground">{tx.colInstall}</dt>
-                        <dd className="font-mono">{row.date || "−"}</dd>
+                        <dd className="font-mono">{row.date || EMPTY}</dd>
                         <dt className="text-muted-foreground">{tx.colSerial}</dt>
                         <dd className="font-mono">
                           {row.serial ? (
@@ -586,12 +586,12 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                             >
                               {row.serial}
                             </button>
-                          ) : <span className="text-muted-foreground">−</span>}
+                          ) : <span className="text-muted-foreground">{EMPTY}</span>}
                         </dd>
                         <dt className="text-muted-foreground">{tx.colReason}</dt>
                         <dd>
                           {!st ? (
-                            <span className="text-muted-foreground/50">−</span>
+                            <span className="text-muted-foreground/50">{EMPTY}</span>
                           ) : st.reason.scrap ? (
                             <button
                               className="text-destructive font-bold hover:underline"
