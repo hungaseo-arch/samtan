@@ -45,6 +45,18 @@ const HEX = {
 const POSITIONS = Array.from({ length: 10 }, (_, i) => HEAD_MAP[i + 1]);
 
 /**
+ * 3단으로 놓인 비교 차트(2·3·4)의 공통 높이와 여백.
+ *
+ * 세로 막대차트를 「항목 수 × 28px」로 잡았더니 포지션 수가 다른 차트끼리
+ * 길이가 달라져 한 행에서 그림 바닥이 층졌다. 셋이 나란히 놓이는 이상
+ * 높이는 같아야 눈금 위치가 비교된다 — 항목이 늘면 막대가 얇아질 뿐이다.
+ * top 여백 18 은 CV 차트의 중앙값 기준선 라벨(position: "top")이 위로
+ * 잘리지 않게 확보한 자리이며, 셋이 같은 여백을 써야 그림틀이 정렬된다.
+ */
+const CHART_H = 320;
+const CHART_MARGIN = { top: 18, right: 24, bottom: 4, left: 8 } as const;
+
+/**
  * 세로 막대차트 Y축의 세그먼트 라벨 tick.
  *
  * 기본 tick 은 축 width 안에 글자를 우겨넣으려고 공백에서 줄을 접는다.
@@ -608,7 +620,7 @@ export default function WearAnalysisTab() {
                       value={curRound}
                       onChange={(e) => setRoundIdx(Number(e.target.value))}
                       aria-label={tx.round}
-                      className="w-36 accent-primary"
+                      className="w-28 accent-primary"
                     />
                     <span className="font-mono text-[11px] text-foreground">
                       {widthDates[curRound]}
@@ -616,8 +628,8 @@ export default function WearAnalysisTab() {
                   </label>
                 }
               >
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart data={widthData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
+                <ResponsiveContainer width="100%" height={CHART_H}>
+                  <BarChart data={widthData} margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis dataKey="width" tick={{ fontSize: 12, fill: HEX.line }} />
                     <YAxis
@@ -634,7 +646,7 @@ export default function WearAnalysisTab() {
                     <Bar dataKey="wear" name={t("wear.total")} fill={HEX.line} isAnimationActive={false} />
                   </BarChart>
                 </ResponsiveContainer>
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-auto pt-2 text-[11px] text-muted-foreground">
                   L = Kiri · C1/C2 = Tengah ({t("pos.center")}) · R = Kanan — {tx.dirPending}
                 </p>
               </ChartCard>
@@ -643,8 +655,8 @@ export default function WearAnalysisTab() {
             {/* ── 차트 3. 마모속도 비교 ────────────────────────── */}
             {rateData.length > 0 && (
               <ChartCard title={tx.ch3}>
-                <ResponsiveContainer width="100%" height={Math.max(200, rateData.length * 28)}>
-                  <BarChart data={rateData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
+                <ResponsiveContainer width="100%" height={CHART_H}>
+                  <BarChart data={rateData} layout="vertical" margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
@@ -669,8 +681,8 @@ export default function WearAnalysisTab() {
             {/* ── 차트 4. CV — 플릿 중앙값 기준선 ──────────────── */}
             {cvData.length > 0 && (
               <ChartCard title={tx.ch4}>
-                <ResponsiveContainer width="100%" height={Math.max(200, cvData.length * 28)}>
-                  <BarChart data={cvData} layout="vertical" margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
+                <ResponsiveContainer width="100%" height={CHART_H}>
+                  <BarChart data={cvData} layout="vertical" margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
@@ -698,7 +710,7 @@ export default function WearAnalysisTab() {
                     )}
                   </BarChart>
                 </ResponsiveContainer>
-                <p className="mt-2 text-[11px] text-muted-foreground">{tx.cvNoCriteria}</p>
+                <p className="mt-auto pt-2 text-[11px] text-muted-foreground">{tx.cvNoCriteria}</p>
               </ChartCard>
             )}
           </div>
@@ -800,13 +812,16 @@ function ChartCard({
   right?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  // h-full = 그리드 한 행에서 카드끼리 같은 높이. 안쪽을 세로 플렉스로 두어야
+  // 각주의 mt-auto 가 바닥에 붙는다. 머리글 min-h 는 조작부(회차 슬라이더)가
+  // 있는 카드와 없는 카드의 차트 시작선을 맞추기 위한 것이다.
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+    <div className="flex h-full flex-col rounded-xl border border-border bg-card p-4">
+      <div className="mb-4 flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1">
         <span className="text-xs font-bold text-primary uppercase tracking-widest">{title}</span>
         {right && <div className="ml-auto">{right}</div>}
       </div>
-      {children}
+      <div className="flex flex-1 flex-col">{children}</div>
     </div>
   );
 }
