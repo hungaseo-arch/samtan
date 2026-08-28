@@ -11,6 +11,7 @@ import PressureTab from "@/components/PressureTab";
 import WearAnalysisTab from "@/components/WearAnalysisTab";
 import InspectionTab from "@/components/InspectionTab";
 import LoadTab from "@/components/LoadTab";
+import TcoTab from "@/components/TcoTab";
 import { useLang, LANGS } from "@/i18n";
 import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
@@ -18,9 +19,9 @@ import SetPasswordCard from "@/auth/SetPasswordCard";
 import { toast } from "sonner";
 import AdminTab from "@/components/AdminTab";
 import { LogOut, X, ChevronDown, Menu, ShieldCheck, KeyRound } from "lucide-react";
-import { LayoutDashboard, Map, Weight, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Map, Weight, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle, Coins } from "lucide-react";
 
-type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "wear" | "pressure" | "input" | "admin";
+type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "wear" | "pressure" | "input" | "tco" | "admin";
 
 // label·desc는 i18n 사전(`tab.<id>.label/desc`)에서 가져옵니다. sub(영문 약칭)·icon은 공통.
 const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
@@ -33,6 +34,7 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
   { id: "trend",    sub: "Trend",       icon: <TrendingDown className="w-4 h-4" /> },
   { id: "wear",     sub: "Wear",        icon: <Activity className="w-4 h-4" /> },
   { id: "pressure", sub: "Pressure",    icon: <Gauge className="w-4 h-4" /> },
+  { id: "tco",      sub: "TCO",         icon: <Coins className="w-4 h-4" /> },
   // 관리자 페이지 — 그룹 내비에는 넣지 않는다. 헤더의 방패 아이콘(admin 에게만 노출)으로 들어간다.
   { id: "admin",    sub: "Admin",       icon: <ShieldCheck className="w-4 h-4" /> },
 ];
@@ -43,6 +45,7 @@ const GROUPS: { id: string; tabs: TabId[] }[] = [
   { id: "vehicle",  tabs: ["layout", "load"] },
   { id: "tire",     tabs: ["repl", "life"] },
   { id: "inspect",  tabs: ["input", "trend", "wear", "pressure"] },
+  { id: "cost",     tabs: ["tco"] },
 ];
 
 // URL 경로 1개 = 탭 1개. '/' 는 대시보드.
@@ -371,6 +374,7 @@ export default function Index() {
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
           {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
+          {activeTab === "tco"      && <TcoTab key={dataVersion} />}
           {activeTab === "admin"    && <AdminTab />}
         </div>
       </main>

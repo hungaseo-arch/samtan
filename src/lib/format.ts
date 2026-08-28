@@ -165,6 +165,23 @@ export function fmtCurrencyDoc(
   return scaled ? `${full} (${scaled})` : full;
 }
 
+// ── TCO ──────────────────────────────────────────────────────────
+
+/**
+ * 주행거리당 원가(CPK) — 소수점 2자리, 통화 코드 선행. `IDR 118.91/km`
+ * 지시서 WO-TMS-2026-09-TCO T-9 표기 규약. 재생 반영 전후 차이가 IDR 0.54/km
+ * 수준이라 자리수를 줄이면 시나리오 비교 자체가 무의미해진다.
+ *
+ * **null 은 그대로 EMPTY 로 돌려준다.** 단가 미확정 상태에서 0 으로 채우면
+ * 화면에 `IDR 0.00/km` 가 찍혀 "원가가 없다"로 읽힌다.
+ */
+export function fmtCpk(
+  v: number | null | undefined,
+  currency = "IDR",
+): string {
+  return isBlank(v) ? EMPTY : `${currency} ${fixed(v, 2)}/km`;
+}
+
 // ── §6.4 예외: 콤마를 쓰지 않는 항목 ───────────────────────────────
 
 /**
