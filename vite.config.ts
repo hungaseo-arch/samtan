@@ -231,6 +231,24 @@ export default defineConfig(({ mode }) => {
         "react-router-dom-original": "react-router-dom",
       },
     },
+    build: {
+      // 벤더를 갈라 두면 앱 코드만 바뀐 배포에서 recharts·supabase 청크가 캐시에
+      // 그대로 남는다. 합쳐 두면 문구 하나 고쳐도 1.3 MB 를 다시 받게 된다.
+      // xlsx 는 이미 동적 import 로 갈라져 있어 여기서 다루지 않는다.
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            recharts: ["recharts"],
+            supabase: ["@supabase/supabase-js"],
+            motion: ["framer-motion"],
+            vendor: ["@tanstack/react-query", "radix-ui", "lucide-react"],
+          },
+        },
+      },
+      // 위 분리 후 최대 청크가 500 kB 밑으로 내려간다. 경고선을 낮춰 두어야
+      // 다음에 무거운 의존성이 들어올 때 다시 눈에 띈다.
+      chunkSizeWarningLimit: 500,
+    },
     define: {
       // Define environment variables for build-time configuration
       // In production, this will be false by default unless explicitly set to 'true'

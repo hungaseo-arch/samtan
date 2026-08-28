@@ -1,23 +1,26 @@
 // @section: tms-main-page
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, lazy, Suspense } from "react";
 import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { loadData } from "@/data/loadData";
 import DashboardTab from "@/components/DashboardTab";
-import LayoutTab from "@/components/LayoutTab";
-import TrendTab from "@/components/TrendTab";
-import LifeTab from "@/components/LifeTab";
-import ReplacementTab from "@/components/ReplacementTab";
-import PressureTab from "@/components/PressureTab";
-import WearAnalysisTab from "@/components/WearAnalysisTab";
-import InspectionTab from "@/components/InspectionTab";
-import LoadTab from "@/components/LoadTab";
-import TcoTab from "@/components/TcoTab";
+// 기본 탭(대시보드)만 즉시 로드하고 나머지는 눌렀을 때 받는다.
+// 한 번에 다 묶으면 대시보드만 보는 사용자도 recharts(115 kB gzip)와
+// 점검 입력 화면까지 내려받는다. 탭은 어차피 조건부 렌더라 지연 로드와 맞물린다.
+const LayoutTab = lazy(() => import("@/components/LayoutTab"));
+const TrendTab = lazy(() => import("@/components/TrendTab"));
+const LifeTab = lazy(() => import("@/components/LifeTab"));
+const ReplacementTab = lazy(() => import("@/components/ReplacementTab"));
+const PressureTab = lazy(() => import("@/components/PressureTab"));
+const WearAnalysisTab = lazy(() => import("@/components/WearAnalysisTab"));
+const InspectionTab = lazy(() => import("@/components/InspectionTab"));
+const LoadTab = lazy(() => import("@/components/LoadTab"));
+const TcoTab = lazy(() => import("@/components/TcoTab"));
 import { useLang, LANGS } from "@/i18n";
 import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
 import SetPasswordCard from "@/auth/SetPasswordCard";
 import { toast } from "sonner";
-import AdminTab from "@/components/AdminTab";
+const AdminTab = lazy(() => import("@/components/AdminTab"));
 import { LogOut, X, ChevronDown, Menu, ShieldCheck, KeyRound } from "lucide-react";
 import { LayoutDashboard, Map, Weight, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle, Coins } from "lucide-react";
 
@@ -50,6 +53,15 @@ const GROUPS: { id: string; tabs: TabId[] }[] = [
 
 // URL 경로 1개 = 탭 1개. '/' 는 대시보드.
 const TAB_IDS = TABS.map((t) => t.id);
+
+/** 지연 로드 중 자리표시. 탭 전환이 순간적이라 문구 없이 높이만 잡는다. */
+function TabFallback() {
+  return (
+    <div className="flex items-center justify-center py-24 text-muted-foreground">
+      <RefreshCw className="w-5 h-5 animate-spin" />
+    </div>
+  );
+}
 const isTabId = (v: string | undefined): v is TabId => v != null && (TAB_IDS as string[]).includes(v);
 
 // 공통 컨테이너 폭 — 헤더·탭내비·배너·메인·푸터 5곳에서 재사용 (정렬 일치 보장)
@@ -365,6 +377,7 @@ export default function Index() {
       {/* ── 메인 콘텐츠 ── */}
       <main className="flex-1 bg-background">
         <div className={`${CONTAINER} py-6`}>
+          <Suspense fallback={<TabFallback />}>
           {activeTab === "dash"     && <DashboardTab key={dataVersion} onVehicleClick={goToVehicle} />}
           {activeTab === "layout"   && <LayoutTab key={dataVersion} onSerialClick={goToSerial} focusCh={focusCh} />}
           {activeTab === "load"     && <LoadTab />}
@@ -376,6 +389,7 @@ export default function Index() {
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
           {activeTab === "tco"      && <TcoTab key={dataVersion} />}
           {activeTab === "admin"    && <AdminTab />}
+          </Suspense>
         </div>
       </main>
 
