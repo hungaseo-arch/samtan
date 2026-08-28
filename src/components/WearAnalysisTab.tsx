@@ -44,6 +44,21 @@ const HEX = {
 
 const POSITIONS = Array.from({ length: 10 }, (_, i) => HEAD_MAP[i + 1]);
 
+/**
+ * 세로 막대차트 Y축의 세그먼트 라벨 tick.
+ *
+ * 기본 tick 은 축 width 안에 글자를 우겨넣으려고 공백에서 줄을 접는다.
+ * 「L3 Out #2」처럼 공백이 둘인 라벨이 «L3 Out» / «#2» 두 줄로 갈라져
+ * 막대와 눈금이 어긋나 보였다. 한 줄로 고정한다.
+ */
+const CategoryTick = ({ x, y, payload }: {
+  x?: number; y?: number; payload?: { value?: string | number };
+}) => (
+  <text x={x} y={y} dy={4} textAnchor="end" fontSize={11} fill={HEX.line}>
+    {String(payload?.value ?? "")}
+  </text>
+);
+
 const TX = {
   ko: {
     vehicle: "차량(CH):",
@@ -612,7 +627,7 @@ export default function WearAnalysisTab() {
                     tick={{ fontSize: 11, fill: HEX.line }}
                     label={{ value: tx.axisRate, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
                   />
-                  <YAxis type="category" dataKey="label" width={72} tick={{ fontSize: 11, fill: HEX.line }} />
+                  <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
                   <Tooltip
                     contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
                     formatter={(v: unknown) => fmtWearRate(v as number)}
@@ -638,7 +653,7 @@ export default function WearAnalysisTab() {
                     tick={{ fontSize: 11, fill: HEX.line }}
                     label={{ value: tx.axisPct, position: "insideBottomRight", offset: -2, fontSize: 10, fill: HEX.line }}
                   />
-                  <YAxis type="category" dataKey="label" width={72} tick={{ fontSize: 11, fill: HEX.line }} />
+                  <YAxis type="category" dataKey="label" width={84} tick={<CategoryTick />} />
                   <Tooltip
                     contentStyle={{ background: "var(--card)", border: `1px solid ${HEX.line}`, borderRadius: 8, fontSize: 12 }}
                     formatter={(v: unknown) => fmtPercent(v as number)}
