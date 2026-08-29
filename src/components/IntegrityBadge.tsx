@@ -10,7 +10,8 @@ import {
   checkDataIntegrity, listDataQuality,
   type IntegrityCheck, type IntegritySeverity, type DataQualityRow,
 } from "@/api/tires";
-import { EMPTY, fmtInt } from "@/lib/format";
+import { EMPTY, fmtInt, fmtVehicle } from "@/lib/format";
+import { dqDetail } from "@/lib/dqDetail";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -36,6 +37,9 @@ const TX = {
       hm_jump: "가동시간 급증·감소",
       groove_missing: "측정점 수 이상 (4·16 아님)",
       serial_break_unlogged: "시리얼 변경이 교체 원장에 없음",
+      tread_min_avg_conflict: "최소 0인데 4점 평균 5 mm 초과",
+      inner_position_unmeasured: "복륜 내측 공기압 미입력",
+      removal_reason_missing: "교체 사유 미입력",
     } as Record<string, string>,
   },
   id: {
@@ -60,6 +64,9 @@ const TX = {
       hm_jump: "Lonjakan / penurunan jam operasi",
       groove_missing: "Jumlah titik ukur tidak wajar (bukan 4 / 16)",
       serial_break_unlogged: "Serial berubah tapi tidak ada di buku penggantian",
+      tread_min_avg_conflict: "Minimum 0 tapi rata-rata 4 titik > 5 mm",
+      inner_position_unmeasured: "Tekanan angin ban dalam tidak diisi",
+      removal_reason_missing: "Alasan penggantian tidak diisi",
     } as Record<string, string>,
   },
   en: {
@@ -84,6 +91,9 @@ const TX = {
       hm_jump: "Hour-meter jump / decrease",
       groove_missing: "Unexpected measurement point count (not 4 / 16)",
       serial_break_unlogged: "Serial changed but not in replacement ledger",
+      tread_min_avg_conflict: "Min 0 but 4-point average over 5 mm",
+      inner_position_unmeasured: "Inner dual-wheel pressure not recorded",
+      removal_reason_missing: "Removal reason missing",
     } as Record<string, string>,
   },
 } as const;
@@ -155,9 +165,12 @@ export default function IntegrityBadge() {
     severity: "warning" as const,
     cnt: rows.length,
     // 목록이 길어지면 배지 팝오버가 화면을 덮는다 — 앞 5건만 싣는다.
-    detail: rows.slice(0, 5).map((r) => ({
-      ch: r.ch, pos: r.pos, date: r.inspection_date, detail: r.detail,
-    })),
+    // 정합성 RPC 의 detail 은 필드명이 그대로 보여도 되는 jsonb 지만, 품질 경고는
+    // 문장이라 여기서 로케일에 맞춰 한 줄로 조립한다 (flatten 을 타지 않는다).
+    detail: rows.slice(0, 5).map((r) =>
+      [r.ch && fmtVehicle(r.ch), r.pos, r.inspection_date, dqDetail(r, lang)]
+        .filter(Boolean).join(" · "),
+    ),
   }));
 
   const dqCnt = dqChecks.reduce((s, c) => s + c.cnt, 0);

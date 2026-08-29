@@ -67,6 +67,11 @@ export interface DataQualityRow {
    * T-8 에서 뷰 맨 뒤에 붙인 컬럼이다.
    */
   severity: "ERROR" | "WARN";
+  /**
+   * 로케일별 문구 조립용 원값 (규칙마다 키가 다르다). 20260829100000 에서 뷰 맨 뒤에
+   * 붙였다. 문장은 src/lib/dqDetail.ts 가 만들고, 이 값이 없으면 detail 로 물러난다.
+   */
+  params: Record<string, unknown> | null;
 }
 
 /**

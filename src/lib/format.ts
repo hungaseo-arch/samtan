@@ -107,12 +107,18 @@ export function fmtPressure(v: number | null | undefined, withUnit = true): stri
   return withUnit ? `${fixed(Math.round(v), 0)} psi` : fixed(Math.round(v), 0);
 }
 
-/** 가동시간·주행거리 — 소수점 1자리. `5,188.4 HM` */
+/**
+ * 가동시간·주행거리 — 소수점 1자리. `5,188.4 HM`
+ * `5,188.4 → 6,718.8 HM` 처럼 단위를 한 번만 붙이는 자리에서는 withUnit=false 로
+ * 숫자만 받는다. 자리수 규칙을 컴포넌트로 흘리지 않기 위한 것이다.
+ */
 export function fmtMeter(
   v: number | null | undefined,
   unit: "HM" | "KM" = "HM",
+  withUnit = true,
 ): string {
-  return isBlank(v) ? EMPTY : `${fixed(v, 1)} ${unit}`;
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(v, 1)} ${unit}` : fixed(v, 1);
 }
 
 // ── §6.3 통화 ────────────────────────────────────────────────────
