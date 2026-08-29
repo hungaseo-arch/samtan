@@ -108,10 +108,10 @@ const TX = {
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
-  ok: "border-green-600 bg-green-50 text-green-700",
-  warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
-  order: "border-orange-500 bg-orange-50 text-orange-700",
-  danger: "border-red-500 bg-red-50 text-red-700",
+  ok: "border-level-ok bg-level-ok/10 text-level-ok",
+  warn: "border-level-warn bg-level-warn/10 text-level-warn",
+  order: "border-level-order bg-level-order/10 text-level-order",
+  danger: "border-level-danger bg-level-danger/10 text-level-danger",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
@@ -261,9 +261,9 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
         {/* 범례 */}
         <div className="flex flex-wrap gap-4 mt-3 text-xs">
           {[
-            { cls: "bg-green-500/15 border-green-500", label: tx.statusOk },
-            { cls: "bg-yellow-400/15 border-yellow-400", label: tx.statusWarn },
-            { cls: "bg-red-500/15 border-red-500", label: tx.statusDanger },
+            { cls: "bg-level-ok/15 border-level-ok", label: tx.statusOk },
+            { cls: "bg-level-warn/15 border-level-warn", label: tx.statusWarn },
+            { cls: "bg-level-danger/15 border-level-danger", label: tx.statusDanger },
             { cls: "bg-muted/20 border-border/50 border-dashed opacity-50", label: tx.legendNone },
           ].map((l) => (
             <span key={l.label} className="flex items-center gap-1.5">
@@ -357,7 +357,7 @@ function Row({ label, value, mono, danger }: { label: string; value: string | nu
   return (
     <div className="flex gap-2">
       <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-destructive font-bold" : ""}`}>
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-level-danger font-bold" : ""}`}>
         {value ?? EMPTY}
       </span>
     </div>

@@ -20,13 +20,13 @@ const kmCell = (v: number | string | null) =>
 type Thresholds = ReturnType<typeof treadThresholds>;
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm.
-// 색은 @/lib/chartColors 정본을 쓴다. 표 안 글자는 SVG 가 아니라 Tailwind 로 두되,
-// 400 계열은 흰 카드 위에서 흐려 읽히지 않아 700 계열로 맞춘다(LayoutTab 과 동일).
+// 차트(SVG)는 @/lib/chartColors 의 hex 를, 표 글자는 같은 값을 물고 있는
+// --color-level-* 유틸리티를 쓴다. 전에는 text-*-400 이라 흰 카드 위에서 흐렸다.
 const LEVEL_CELL_CLS: Record<TreadLevel, string> = {
-  ok: "text-green-700",
-  warn: "text-yellow-700 font-bold",
-  order: "text-orange-700 font-bold",
-  danger: "text-destructive font-bold",
+  ok: "text-level-ok",
+  warn: "text-level-warn font-bold",
+  order: "text-level-order font-bold",
+  danger: "text-level-danger font-bold",
 };
 
 const buildTX = () => ({

@@ -37,10 +37,10 @@ const TX = {
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
-  ok: "border-green-600 bg-green-50 text-green-700",
-  warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
-  order: "border-orange-500 bg-orange-50 text-orange-700",
-  danger: "border-red-500 bg-red-50 text-red-700",
+  ok: "border-level-ok bg-level-ok/10 text-level-ok",
+  warn: "border-level-warn bg-level-warn/10 text-level-warn",
+  order: "border-level-order bg-level-order/10 text-level-order",
+  danger: "border-level-danger bg-level-danger/10 text-level-danger",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {

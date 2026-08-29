@@ -264,8 +264,8 @@ const pressureStd = () => [
 
 // ── 상태 판정 기준 ────────────────────────────────────────────
 const JUDGE = [
-  { lvKey: "judgeNormal", subKey: "kpiNormal", rangeKey: "judgeNormalRange", descKey: "judgeNormalDesc", cls: "border-green-500/40 bg-green-500/10 text-green-600" },
-  { lvKey: "judgeWarn", subKey: "judgeWarn", rangeKey: "judgeWarnRange", descKey: "judgeWarnDesc", cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-600" },
+  { lvKey: "judgeNormal", subKey: "kpiNormal", rangeKey: "judgeNormalRange", descKey: "judgeNormalDesc", cls: "border-level-ok/40 bg-level-ok/10 text-level-ok" },
+  { lvKey: "judgeWarn", subKey: "judgeWarn", rangeKey: "judgeWarnRange", descKey: "judgeWarnDesc", cls: "border-level-warn/40 bg-level-warn/10 text-level-warn" },
   { lvKey: "judgeDanger", subKey: "judgeDanger", rangeKey: "judgeDangerRange", descKey: "judgeDangerDesc", cls: "border-destructive/40 bg-destructive/10 text-destructive" },
 ] as const;
 
@@ -328,8 +328,8 @@ export default function PressureTab() {
 
   const kpis = [
     { label: tx.kpiMeasured, sub: "Diukur", value: measured, cls: "border-primary/40 bg-primary/5 text-primary" },
-    { label: tx.kpiNormal, sub: "Normal", value: ok, cls: "border-green-500/40 bg-green-500/10 text-green-600" },
-    { label: tx.kpiWarn, sub: "Perhatian", value: warn, cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-600" },
+    { label: tx.kpiNormal, sub: "Normal", value: ok, cls: "border-level-ok/40 bg-level-ok/10 text-level-ok" },
+    { label: tx.kpiWarn, sub: "Perhatian", value: warn, cls: "border-level-warn/40 bg-level-warn/10 text-level-warn" },
     { label: tx.kpiDanger, sub: "Bahaya", value: danger, cls: "border-destructive/40 bg-destructive/10 text-destructive" },
   ];
 
@@ -357,13 +357,13 @@ export default function PressureTab() {
         </motion.div>
 
         <motion.div variants={staggerItem} className="flex flex-col">
-          <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-yellow-500" />} ko={tx.alertTitle} />
+          <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-level-warn" />} ko={tx.alertTitle} />
           <div className="rounded-xl border border-border bg-card p-5 flex-1">
             <div className="flex items-center justify-end mb-2">
               <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alerts.length}{tx.alertCount}</span>
             </div>
             {alerts.length === 0 ? (
-              <div className="flex items-center gap-2 text-green-600 text-sm py-2">
+              <div className="flex items-center gap-2 text-level-ok text-sm py-2">
                 <CheckCircle2 className="w-4 h-4" />
                 {tx.noAlert}
               </div>
@@ -375,7 +375,7 @@ export default function PressureTab() {
                     className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
                       a.lv === "danger"
                         ? "text-destructive border-destructive/40 bg-destructive/10"
-                        : "text-yellow-600 border-yellow-500/40 bg-yellow-500/10"
+                        : "text-level-warn border-level-warn/40 bg-level-warn/10"
                     }`}
                   >
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold border border-current">

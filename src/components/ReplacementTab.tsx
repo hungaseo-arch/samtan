@@ -440,7 +440,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           {canDownload && (
             <button
               onClick={exportExcel}
-              className="ml-auto inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+              className="ml-auto inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-level-ok text-white hover:bg-level-ok/85 transition-colors"
             >
               <Download className="w-3.5 h-3.5" />
               {tx.excelDownload}

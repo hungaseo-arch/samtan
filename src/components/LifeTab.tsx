@@ -13,10 +13,10 @@ import TireDetailCard from "./TireDetailCard";
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const TREAD_CLS: Record<TreadLevel, string> = {
-  ok: "text-green-600",
-  warn: "text-yellow-600 font-bold",
-  order: "text-orange-600 font-bold",
-  danger: "text-destructive font-bold",
+  ok: "text-level-ok",
+  warn: "text-level-warn font-bold",
+  order: "text-level-order font-bold",
+  danger: "text-level-danger font-bold",
 };
 
 const buildTX = () => ({
@@ -267,9 +267,9 @@ const TARGET_KM = 75000; // 목표 수명 (km)
 /** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
 
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
-  Install: "text-green-400 border-green-500/40 bg-green-500/10",
-  Scrap: "text-destructive border-destructive/40 bg-destructive/10",
-  Spare: "text-yellow-400 border-yellow-500/40 bg-yellow-500/10",
+  Install: "text-level-ok border-level-ok/40 bg-level-ok/10",
+  Scrap: "text-level-danger border-level-danger/40 bg-level-danger/10",
+  Spare: "text-level-warn border-level-warn/40 bg-level-warn/10",
   "Not Install": "text-muted-foreground border-border bg-muted/20",
 };
 
@@ -411,7 +411,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             {canDownload && (
               <button
                 onClick={exportExcel}
-                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-level-ok text-white hover:bg-level-ok/85 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {tx.excelDownload}
@@ -505,7 +505,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedKm != null && !noExpected ? (
-                      <span className={`font-bold ${c.expectedKm >= TARGET_KM ? "text-green-600" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
+                      <span className={`font-bold ${c.expectedKm >= TARGET_KM ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
                       <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
@@ -531,7 +531,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       !monitored && <span key="nm" className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
                       damage && <button key="dmg" className="text-destructive font-bold hover:underline" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
                       l.note && <span key="note">{l.note}</span>,
-                      hmReset && <span key="hmr" className="text-yellow-600 font-semibold">{tx.hmReset}</span>,
+                      hmReset && <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>,
                     ].filter(Boolean).map((node, i) => (
                       <Fragment key={i}>{i > 0 && " · "}{node}</Fragment>
                     ))}
@@ -708,7 +708,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                             <td className="px-2 py-1">{m.pos}</td>
                             <td className="px-2 py-1">
                               <span className="font-sans text-muted-foreground">{m.kind === "install" ? tx.mInstall : tx.mMount}</span>
-                              {current && <span className="font-sans ml-1 text-[10px] text-green-600 font-bold">· {tx.mCurrent}</span>}
+                              {current && <span className="font-sans ml-1 text-[10px] text-level-ok font-bold">· {tx.mCurrent}</span>}
                             </td>
                           </tr>
                         );
@@ -786,7 +786,7 @@ function HRow({ label, value, mono, danger, sub }: { label: string; value: strin
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[11px] text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== EMPTY ? "text-destructive font-bold" : "text-foreground"}`}>
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== EMPTY ? "text-level-danger font-bold" : "text-foreground"}`}>
         {value || EMPTY}{sub && value && value !== EMPTY ? <span className="text-[10px] text-muted-foreground ml-1">{sub}</span> : null}
       </span>
     </div>

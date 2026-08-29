@@ -89,8 +89,8 @@ const TX = {
 } as const;
 
 const SEVERITY_STYLE: Record<IntegritySeverity, string> = {
-  error: "border-orange-500 bg-orange-50 text-orange-700",
-  warning: "border-yellow-500 bg-yellow-50 text-yellow-700",
+  error: "border-level-order bg-level-order/10 text-level-order",
+  warning: "border-level-warn bg-level-warn/10 text-level-warn",
   info: "border-border bg-muted/30 text-muted-foreground",
 };
 
@@ -170,8 +170,8 @@ export default function IntegrityBadge() {
         onClick={() => setOpen((v) => !v)}
         className={`inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
           ok
-            ? "border-green-600 bg-green-50 text-green-700"
-            : "border-orange-500 bg-orange-50 text-orange-700"
+            ? "border-level-ok bg-level-ok/10 text-level-ok"
+            : "border-level-order bg-level-order/10 text-level-order"
         }`}
       >
         {ok ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}

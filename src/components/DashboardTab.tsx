@@ -126,9 +126,9 @@ const buildTX = () => ({
 } as const);
 
 const STATUS_COLOR: Record<string, string> = {
-  danger: "text-destructive border-destructive/50 bg-destructive/10",
-  order: "text-orange-400 border-orange-500/50 bg-orange-500/10",
-  warn: "text-yellow-400 border-yellow-500/50 bg-yellow-500/10",
+  danger: "text-level-danger border-level-danger/50 bg-level-danger/10",
+  order: "text-level-order border-level-order/50 bg-level-order/10",
+  warn: "text-level-warn border-level-warn/50 bg-level-warn/10",
 };
 
 export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch: string) => void }) {
@@ -150,11 +150,11 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
   const kpis = [
     { label: tx.monitoringUnits, value: TMS_DATA.units.length, unit: tx.unitDae, cls: "border-primary/40 bg-primary/5" },
     { label: tx.testTires, value: TMS_DATA.units.length * 10, unit: tx.pcsHead, cls: "border-primary/40 bg-primary/5" },
-    { label: tx.normal, value: okCount, unit: tx.pcs, cls: "border-green-500/40 bg-green-500/10 text-green-400" },
-    { label: tx.caution, value: warnCount, unit: tx.pcs, cls: "border-yellow-500/40 bg-yellow-500/10 text-yellow-400" },
-    { label: tx.orderTire, value: orderCount, unit: tx.pcs, cls: "border-orange-500/40 bg-orange-500/10 text-orange-400" },
-    { label: tx.replaceScrap, value: dangerCount, unit: tx.pcs, cls: "border-destructive/40 bg-destructive/10 text-destructive" },
-    { label: tx.cumulativeScrap, value: TMS_DATA.summary["Scrap"] ?? 0, unit: tx.pcs, cls: "border-destructive/40 bg-destructive/10 text-destructive" },
+    { label: tx.normal, value: okCount, unit: tx.pcs, cls: "border-level-ok/40 bg-level-ok/10 text-level-ok" },
+    { label: tx.caution, value: warnCount, unit: tx.pcs, cls: "border-level-warn/40 bg-level-warn/10 text-level-warn" },
+    { label: tx.orderTire, value: orderCount, unit: tx.pcs, cls: "border-level-order/40 bg-level-order/10 text-level-order" },
+    { label: tx.replaceScrap, value: dangerCount, unit: tx.pcs, cls: "border-level-danger/40 bg-level-danger/10 text-level-danger" },
+    { label: tx.cumulativeScrap, value: TMS_DATA.summary["Scrap"] ?? 0, unit: tx.pcs, cls: "border-level-danger/40 bg-level-danger/10 text-level-danger" },
     { label: tx.installed, value: TMS_DATA.summary["Install"] ?? 0, unit: tx.pcs, cls: "border-border bg-muted/30" },
     { label: tx.spareTires, value: TMS_DATA.summary["Spare"] ?? 0, unit: tx.pcs, cls: "border-border bg-muted/30" },
   ];
@@ -283,16 +283,16 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                       <td className="px-3 py-2 font-mono text-xs text-center">{fmtInt(drivenHm)}</td>
                       <td className="px-3 py-2 font-mono text-xs text-center">{fmtInt(drivenKm)}</td>
                       <td className="px-3 py-2 text-center">
-                        {ok > 0 && <span className="font-mono text-xs text-green-400 font-bold">{ok}</span>}
+                        {ok > 0 && <span className="font-mono text-xs text-level-ok font-bold">{ok}</span>}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {warn > 0 && <button className="font-mono text-xs text-yellow-400 font-bold hover:underline" title={tx.cautionAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "warn" })}>{warn}</button>}
+                        {warn > 0 && <button className="font-mono text-xs text-level-warn font-bold hover:underline" title={tx.cautionAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "warn" })}>{warn}</button>}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {order > 0 && <button className="font-mono text-xs text-orange-400 font-bold hover:underline" title={tx.orderAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "order" })}>{order}</button>}
+                        {order > 0 && <button className="font-mono text-xs text-level-order font-bold hover:underline" title={tx.orderAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "order" })}>{order}</button>}
                       </td>
                       <td className="px-3 py-2 text-center">
-                        {danger > 0 && <button className="font-mono text-xs text-destructive font-bold hover:underline" title={tx.replaceAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "danger" })}>{danger}</button>}
+                        {danger > 0 && <button className="font-mono text-xs text-level-danger font-bold hover:underline" title={tx.replaceAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "danger" })}>{danger}</button>}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {rc > 0 && <span className="font-mono text-xs text-muted-foreground">{rc}{tx.times}</span>}
@@ -306,10 +306,10 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                   <td className="px-3 py-2 text-muted-foreground" colSpan={3}>{tx.totalAvg}<span className="font-normal opacity-70">{tx.totalAvgNote}</span></td>
                   <td className="px-3 py-2 text-center font-mono">{fmtInt(dashTotal.hm)}</td>
                   <td className="px-3 py-2 text-center font-mono">{fmtInt(dashTotal.km)}</td>
-                  <td className="px-3 py-2 text-center font-mono text-green-400">{dashTotal.ok}</td>
-                  <td className="px-3 py-2 text-center font-mono text-yellow-400">{dashTotal.warn}</td>
-                  <td className="px-3 py-2 text-center font-mono text-orange-400">{dashTotal.order}</td>
-                  <td className="px-3 py-2 text-center font-mono text-destructive">{dashTotal.danger}</td>
+                  <td className="px-3 py-2 text-center font-mono text-level-ok">{dashTotal.ok}</td>
+                  <td className="px-3 py-2 text-center font-mono text-level-warn">{dashTotal.warn}</td>
+                  <td className="px-3 py-2 text-center font-mono text-level-order">{dashTotal.order}</td>
+                  <td className="px-3 py-2 text-center font-mono text-level-danger">{dashTotal.danger}</td>
                   <td className="px-3 py-2 text-center font-mono text-muted-foreground">{dashTotal.rc}{tx.times}</td>
                 </tr>
               </tfoot>

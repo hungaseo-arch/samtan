@@ -58,6 +58,16 @@
   --input: oklch(0.88 0.01 255);
   --ring: oklch(0.32 0.12 255);           /* navy focus ring */
 
+  /* ── 4단계 신호등 (사용자 승인 2026-08-29) ──
+     정본은 src/lib/chartColors.ts. recharts 는 SVG 속성이라 hex 를 직접 받아야 하고
+     표·배지는 Tailwind 클래스를 쓰므로, 같은 값을 양쪽에서 꺼내 쓸 수 있게 여기에도 둔다.
+     승인색 warn(#B4611F)과 같은 자리(OKLCH L≈0.52·C≈0.11)라 팔레트와 같은 무게로 보인다.
+     대비는 흰 카드·#F0F0F0 양쪽 4.5:1 이상 (CLAUDE.md §디자인 토큰의 표). */
+  --level-ok:     #357A47;   /* 녹색 정상  10.0 mm 이상 */
+  --level-warn:   #7C6705;   /* 황색 주의  5.0 ~ 10.0 mm */
+  --level-order:  #B4611F;   /* 주황 발주  3.0 ~ 5.0 mm */
+  --level-danger: #A04037;   /* 적색 위험  3.0 mm 미만 */
+
   /* Chart Tokens */
   --chart-1: oklch(0.32 0.12 255);        /* navy */
   --chart-2: oklch(0.52 0.18 150);        /* green */
@@ -134,6 +144,12 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* 신호등 — text-level-ok · bg-level-warn/10 · border-level-danger/40 … */
+  --color-level-ok: var(--level-ok);
+  --color-level-warn: var(--level-warn);
+  --color-level-order: var(--level-order);
+  --color-level-danger: var(--level-danger);
 
   /* Charts Mapping */
   --color-chart-1: var(--chart-1);

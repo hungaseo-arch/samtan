@@ -131,14 +131,14 @@ export default function TireDetailCard({ serial }: { serial: string }) {
   return (
     <div
       className={`rounded-xl border bg-card p-5 ${
-        reg ? "border-border" : "border-orange-500/60"
+        reg ? "border-border" : "border-level-order/60"
       }`}
     >
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <span className="text-xs font-bold text-primary uppercase tracking-widest">{tx.title}</span>
         <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{data.serial}</span>
         {!reg && (
-          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full border border-orange-500 bg-orange-50 text-orange-700">
+          <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full border border-level-order bg-level-order/10 text-level-order">
             <AlertTriangle className="w-3 h-3" />
             {tx.unregistered}
           </span>
@@ -184,7 +184,7 @@ export default function TireDetailCard({ serial }: { serial: string }) {
       </div>
 
       {!reg && (
-        <p className="mt-3 text-xs text-orange-700 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+        <p className="mt-3 text-xs text-level-order bg-level-order/10 border border-level-order/40 rounded-lg px-3 py-2">
           {tx.unregisteredHint}
         </p>
       )}

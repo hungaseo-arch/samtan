@@ -184,8 +184,8 @@ export default function LoadTab() {
 
   const overUnits = rows.filter((r) => r.status === "danger");
   const STATUS = {
-    ok: { label: tx.statusOk, cls: "text-green-600", bar: "bg-green-500" },
-    warn: { label: tx.statusWarn, cls: "text-yellow-600", bar: "bg-yellow-400" },
+    ok: { label: tx.statusOk, cls: "text-level-ok", bar: "bg-level-ok" },
+    warn: { label: tx.statusWarn, cls: "text-level-warn", bar: "bg-level-warn" },
     danger: { label: tx.statusDanger, cls: "text-destructive", bar: "bg-destructive" },
   };
   const mountLabel = (m: "single" | "dual") => (m === "dual" ? tx.mountDual : tx.mountSingle);

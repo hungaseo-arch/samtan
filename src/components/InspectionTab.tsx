@@ -1102,9 +1102,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                       />
                       <div className="flex flex-wrap gap-4 mt-3 text-xs px-1">
                         {[
-                          { cls: "bg-green-500/15 border-green-500", label: tx.statusOk },
-                          { cls: "bg-yellow-400/15 border-yellow-400", label: tx.statusWarn },
-                          { cls: "bg-red-500/15 border-red-500", label: tx.statusDanger },
+                          { cls: "bg-level-ok/15 border-level-ok", label: tx.statusOk },
+                          { cls: "bg-level-warn/15 border-level-warn", label: tx.statusWarn },
+                          { cls: "bg-level-danger/15 border-level-danger", label: tx.statusDanger },
                         ].map((l) => (
                           <span key={l.label} className="flex items-center gap-1.5">
                             <span className={`w-4 h-5 rounded border-2 ${l.cls} inline-block`} />
@@ -1174,10 +1174,10 @@ function TreadPreview({
         {fmtTreadAvg(s.range, false)}
       </span>
       {pv.pattern && (
-        <span className="text-[11px] font-semibold text-yellow-400">{pv.pattern}</span>
+        <span className="text-[11px] font-semibold text-level-warn">{pv.pattern}</span>
       )}
       {pv.checks.map((c) => (
-        <span key={c} className="text-[11px] text-yellow-400">
+        <span key={c} className="text-[11px] text-level-warn">
           ⚠ {c}
         </span>
       ))}
