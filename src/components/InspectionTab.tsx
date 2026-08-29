@@ -42,6 +42,7 @@ const TX = {
     readOnly: "조회 권한 계정입니다. 입력·수정은 실무자(staff) 이상 권한이 필요합니다.",
     resultInput: "점검결과 입력 — CH",
     filledSuffix: "입력",
+    openHint: "눌러서 입력",
     inspDate: "점검일",
     hmLabel: "HM (가동시간)",
     kmLabel: "KM (주행거리)",
@@ -129,6 +130,7 @@ const TX = {
     readOnly: "Akun hanya-baca. Input memerlukan izin staf ke atas.",
     resultInput: "Input hasil inspeksi — CH",
     filledSuffix: "terisi",
+    openHint: "Ketuk untuk mengisi",
     inspDate: "Tgl inspeksi",
     hmLabel: "HM (Jam operasi)",
     kmLabel: "KM (Jarak tempuh)",
@@ -216,6 +218,7 @@ const TX = {
     readOnly: "Viewer account. Entering or editing data requires Inspector permission or above.",
     resultInput: "Inspection result entry — CH",
     filledSuffix: "filled",
+    openHint: "Tap to enter",
     inspDate: "Inspection date",
     hmLabel: "HM (Operating hours)",
     kmLabel: "KM (Distance)",
@@ -498,6 +501,14 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     (p) => cells[p] && (cells[p].pressure.trim() !== "" || (previews[p]?.filled ?? 0) > 0),
   ).length;
 
+  // 진행 배지도 신호로 쓴다 — 0본은 무채색, 진행 중은 황색, 10본 완료는 녹색.
+  const filledCls =
+    filledCount === 0
+      ? "border-border bg-muted text-muted-foreground"
+      : filledCount >= POS_ORDER.length
+        ? "border-level-ok/40 bg-level-ok/10 text-level-ok"
+        : "border-level-warn/40 bg-level-warn/10 text-level-warn";
+
   /** 4점을 전부 채웠는데 최소값이 0인 포지션 — 실측 0 인지 미측정인지 물어야 한다. */
   const zeroPositions = POS_ORDER.filter((p) => {
     const pv = previews[p];
@@ -690,12 +701,37 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
 
       {/* 입력 폼 */}
       <motion.div variants={staggerItem}>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <button onClick={() => setFormOpen((o) => !o)} className="w-full flex items-center gap-2 mb-4">
+        {/* 접힌 상태는 다른 카드와 같은 흰 판이라 «눌러야 하는 것»으로 보이지 않았다.
+            닫혔을 때만 primary 톤·그림자·CTA 문구를 입혀 손잡이임을 드러내고,
+            열리면 입력 폼이 주인공이므로 평범한 카드로 되돌린다. */}
+        <div
+          className={`rounded-xl border transition-all ${
+            formOpen
+              ? "border-border bg-card p-5"
+              : "border-primary/30 bg-primary/5 p-4 shadow-sm hover:border-primary/60 hover:bg-primary/10 hover:shadow-md"
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setFormOpen((o) => !o)}
+            aria-expanded={formOpen}
+            className={`w-full flex items-center gap-2 text-left cursor-pointer ${formOpen ? "mb-4" : ""}`}
+          >
             <div className="w-1 h-5 bg-primary rounded-full" />
             <span className="text-sm font-bold text-foreground">{tx.resultInput} {selCh}</span>
-            <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{filledCount}/10 {tx.filledSuffix}</span>
-            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${formOpen ? "" : "-rotate-90"}`} />
+            <span className={`ml-auto font-mono text-xs px-2 py-0.5 rounded-full border ${filledCls}`}>
+              {filledCount}/10 {tx.filledSuffix}
+            </span>
+            {!formOpen && canWrite && (
+              <span className="hidden sm:inline text-xs font-semibold text-primary">{tx.openHint}</span>
+            )}
+            <span
+              className={`inline-flex items-center justify-center w-6 h-6 rounded-full shrink-0 transition-colors ${
+                formOpen ? "text-muted-foreground" : "bg-primary text-primary-foreground"
+              }`}
+            >
+              <ChevronDown className={`w-4 h-4 transition-transform ${formOpen ? "" : "-rotate-90"}`} />
+            </span>
           </button>
 
           {formOpen && (canWrite ? (

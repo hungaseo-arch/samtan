@@ -4,7 +4,7 @@ import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
 import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
 import { EMPTY, fmtTread } from "@/lib/format";
-import { X } from "lucide-react";
+import { MousePointerClick, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/i18n";
 import SerialChain from "./SerialChain";
@@ -16,6 +16,7 @@ const TX = {
     roadTrainImgAlt: "Road Train 차량",
     layoutTitle: "Road Train 차량 배치도",
     direction: "← 진행 방향",
+    tapHint: "타이어를 누르면 상세",
     primeMover: "프라임무버",
     trailer1: "트레일러 1",
     dolly: "돌리",
@@ -47,6 +48,7 @@ const TX = {
     roadTrainImgAlt: "Unit Road Train",
     layoutTitle: "Tata Letak Road Train",
     direction: "← Arah jalan",
+    tapHint: "Ketuk ban untuk detail",
     primeMover: "Prime Mover",
     trailer1: "Trailer 1",
     dolly: "Dolly",
@@ -78,6 +80,7 @@ const TX = {
     roadTrainImgAlt: "Road Train vehicle",
     layoutTitle: "Road Train vehicle layout",
     direction: "← Travel direction",
+    tapHint: "Tap a tire for details",
     primeMover: "Prime Mover",
     trailer1: "Trailer 1",
     dolly: "Dolly",
@@ -205,6 +208,12 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-bold text-primary uppercase tracking-widest">{tx.layoutTitle}</span>
           <span className="text-xs text-muted-foreground">{tx.direction}</span>
+          {/* 배치도의 Head 10본은 눌러야 상세가 열린다. 눌리는 줄 모르고 지나치는
+              화면이라 색·그림자만으로 두지 않고 문구로도 말한다. */}
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <MousePointerClick className="w-3 h-3" />
+            {tx.tapHint}
+          </span>
         </div>
         <div className="overflow-x-auto pb-2">
           <div className="flex items-stretch gap-1 w-max mx-auto px-2 py-2" style={{ zoom: 1.5 }}>
@@ -380,14 +389,23 @@ function TireCell({ pos, isHead, u, onClick }: {
   const st = statusOf(d, pos);
   const label = HEAD_MAP[pos] ?? String(pos);
   const parts = label.split(" ");
+  // 시험 외(Vessel·Dolly) 칸은 점선·평면이고, 누를 수 있는 Head 칸은 그림자로 떠 있다.
+  // 호버에 뜨고 클릭에 눌리는 반응까지 붙여 «버튼»으로 읽히게 한다.
   return (
     <button
       onClick={onClick}
       title={`${label} · ${d?.latestPress ?? "-"}psi / ${d?.latestTread ?? "-"}mm`}
-      className={`w-10 h-6 rounded border-2 flex flex-col items-center justify-center transition-all hover:scale-105 hover:shadow-lg cursor-pointer ${STATUS_STYLE[st]}`}
+      aria-label={label}
+      className={`group relative w-10 h-6 rounded border-2 flex flex-col items-center justify-center
+        shadow-sm transition-all cursor-pointer
+        hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
+        ${STATUS_STYLE[st]}`}
     >
       <span className="text-[10px] font-black leading-none">{parts[0]}</span>
       {parts[1] && <span className="text-[8px] font-bold leading-none opacity-80">{parts.slice(1).join(" ")}</span>}
+      {/* 우하단 손잡이 점 — 호버 전에도 «누를 수 있는 칸»을 구분해 주는 유일한 표식이다. */}
+      <span className="pointer-events-none absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-current opacity-45 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }

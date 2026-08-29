@@ -9,6 +9,7 @@ import {
 import { motion } from "framer-motion";
 import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
+import { fmtInt, fmtPercent, fmtPressure, fmtVehicle } from "@/lib/format";
 
 const buildTX = () => ({
   ko: {
@@ -357,11 +358,16 @@ export default function PressureTab() {
         </motion.div>
 
         <motion.div variants={staggerItem} className="flex flex-col">
-          <SectionTitle icon={<AlertTriangle className="w-4 h-4 text-level-warn" />} ko={tx.alertTitle} />
-          <div className="rounded-xl border border-border bg-card p-5 flex-1">
-            <div className="flex items-center justify-end mb-2">
-              <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alerts.length}{tx.alertCount}</span>
-            </div>
+          <SectionTitle
+            icon={<AlertTriangle className="w-4 h-4 text-level-warn" />}
+            ko={tx.alertTitle}
+            right={
+              <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
+                {fmtInt(alerts.length)}{tx.alertCount}
+              </span>
+            }
+          />
+          <div className="rounded-xl border border-border bg-card p-4 flex-1 flex flex-col">
             {alerts.length === 0 ? (
               <div className="flex items-center gap-2 text-level-ok text-sm py-2">
                 <CheckCircle2 className="w-4 h-4" />
@@ -382,14 +388,14 @@ export default function PressureTab() {
                       {a.lv === "danger" ? tx.badgeLow : tx.badgeDev}
                     </span>
                     <span className="font-mono">
-                      CH {a.ch} · {a.pos} — {Math.round(a.psi)}psi
-                      <span className="text-muted-foreground"> ({tx.rec} {a.target} / {a.dev > 0 ? "+" : ""}{a.dev.toFixed(0)}%)</span>
+                      {fmtVehicle(a.ch)} · {a.pos} — {fmtPressure(a.psi, false)}psi
+                      <span className="text-muted-foreground"> ({tx.rec} {fmtPressure(a.target, false)} / {a.dev > 0 ? "+" : ""}{fmtPercent(a.dev)})</span>
                     </span>
                   </li>
                 ))}
               </ul>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">
+            <p className="mt-auto pt-3 text-xs text-muted-foreground">
               {tx.alertNote}
             </p>
           </div>
@@ -547,12 +553,15 @@ export default function PressureTab() {
   );
 }
 
-function SectionTitle({ icon, ko }: { icon: React.ReactNode; ko: string }) {
+// right = 제목 줄 오른쪽 끝에 붙는 슬롯. 건수 배지처럼 카드 안에서 한 줄을
+// 통째로 잡아먹던 요소를 여기로 올려 카드 세로 여백을 줄인다.
+function SectionTitle({ icon, ko, right }: { icon: React.ReactNode; ko: string; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 mb-3">
+    <div className="flex items-center gap-2 mb-3 min-h-6">
       <div className="w-1 h-5 bg-primary rounded-full" />
       {icon}
       <span className="text-sm font-bold text-foreground">{ko}</span>
+      {right && <span className="ml-auto">{right}</span>}
     </div>
   );
 }
