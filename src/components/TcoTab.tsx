@@ -96,6 +96,8 @@ const TX = {
     retreadTitle: "재생 시나리오",
     retreadSub: "탈착 기준과 재생 여부를 바꿨을 때의 CPK 를 비교합니다.",
     retreadWaiting: "재생 파라미터가 확정되면 활성화됩니다.",
+    retreadOffTitle: "재생타이어를 쓰지 않는 정책입니다.",
+    retreadOffBody: "원가 설정에서 재생 시나리오가 꺼져 있습니다 (cost_params.retread_allowed). 재생을 운용하는 곳에서 켜면 그대로 동작합니다.",
     thLabel: "탈착 기준",
     retreadOn: "재생 1회 반영",
     retreadOff: "신품만",
@@ -159,6 +161,8 @@ const TX = {
     retreadTitle: "Skenario vulkanisir",
     retreadSub: "Membandingkan CPK bila batas pelepasan dan vulkanisir diubah.",
     retreadWaiting: "Aktif setelah parameter vulkanisir ditetapkan.",
+    retreadOffTitle: "Kebijakan: tidak memakai ban vulkanisir.",
+    retreadOffBody: "Skenario vulkanisir dimatikan di pengaturan biaya (cost_params.retread_allowed). Aktifkan bila unit Anda memakai ban vulkanisir.",
     thLabel: "Batas pelepasan",
     retreadOn: "Dengan 1× vulkanisir",
     retreadOff: "Ban baru saja",
@@ -222,6 +226,8 @@ const TX = {
     retreadTitle: "Retread scenario",
     retreadSub: "Compares CPK across removal thresholds and retreading.",
     retreadWaiting: "Enabled once retread parameters are set.",
+    retreadOffTitle: "Retreading is not used by policy.",
+    retreadOffBody: "The retread scenario is switched off in the cost settings (cost_params.retread_allowed). Turn it on where retreads are in use and the panel works as-is.",
     thLabel: "Removal threshold",
     retreadOn: "With one retread",
     retreadOff: "New tire only",
@@ -348,6 +354,14 @@ export default function TcoTab() {
       .filter((v): v is number => v != null && v > 0)),
     [removals.data],
   );
+
+  /**
+   * 재생 사용 여부는 고객사 정책이라 원가 설정(cost_params)이 정본이다.
+   * 현재 고객사(PT. Trasindo Murni Perkasa)는 재생을 쓰지 않아 false 지만, 기능은
+   * 지운 것이 아니라 꺼둔 것이다 — 켜면 아래 시나리오 계산이 그대로 동작한다.
+   * 컬럼이 없는 환경에서는 undefined 이므로 `=== true` 로만 켠다.
+   */
+  const retreadAllowed = params.data?.retread_allowed === true;
 
   const retreadMissing = useMemo(() => {
     const p = params.data;
@@ -533,7 +547,17 @@ export default function TcoTab() {
       {/* ── 5. 재생 시나리오 ─────────────────────────────────── */}
       <motion.section variants={staggerItem}>
         <SectionHead title={tx.retreadTitle} sub={tx.retreadSub} />
-        {scenario === null ? (
+        {!retreadAllowed ? (
+          <div className="rounded-xl border border-border bg-muted/20 p-5">
+            <div className="flex items-start gap-2">
+              <Layers className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-bold text-foreground">{tx.retreadOffTitle}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{tx.retreadOffBody}</p>
+              </div>
+            </div>
+          </div>
+        ) : scenario === null ? (
           <div className="rounded-xl border border-border bg-card p-5 opacity-60">
             <div className="flex items-start gap-2">
               <Layers className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />

@@ -127,6 +127,12 @@ export interface CostParamsRow {
   scrap_value: number | null;
   retread_cost: number | null;
   retread_life_km: number | null;
+  /**
+   * 재생타이어 시나리오 사용 여부 (20260829110000). false = 정책상 재생 미사용.
+   * 고객사 정책이라 빌드 플래그가 아니라 원가 설정에 둔다 — 관리자가 재배포 없이 켠다.
+   * 컬럼이 아직 없는 환경에서는 undefined 로 오므로 `=== true` 로만 켠다.
+   */
+  retread_allowed: boolean | null;
   currency: string;
   note: string | null;
 }
