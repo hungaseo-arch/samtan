@@ -29,6 +29,9 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
 ## 필수 준수
 
 - 마이그레이션은 멱등하게: `IF NOT EXISTS`, `ON CONFLICT DO UPDATE`, `CREATE OR REPLACE`
+- 마이그레이션 적용은 `supabase db push` 만. MCP `apply_migration`·대시보드 SQL 편집기 금지 —
+  자동 타임스탬프로 기록돼 원격 이력과 로컬 파일명이 어긋난다
+  (2026-08-29 그렇게 어긋난 30건을 `migration repair` 로 정리했음)
 - 타임존: 저장 UTC / 표시 `Asia/Jakarta` (WIB)
 - 로케일: `ko` / `id` 2개. 현장 점검자 화면 기본값은 `id`
 - 커밋: Conventional Commits (`feat(schema): ...`). `main` 직접 푸시 금지
