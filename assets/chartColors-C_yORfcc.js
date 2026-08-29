@@ -1,0 +1,1 @@
+const E={ink:"#546E7A",band:"#ECEFF1",divider:"#90A4AE",blue:"#E3F2FD",sage:"#E8F5E9",warn:"#B4611F"},a={ok:"#357A47",warn:"#7C6705",order:E.warn,danger:"#A04037"},n=["#3B6692","#5F5C92","#7A5280","#8A4E63","#8D5042","#825A27","#6A6626","#466F41","#187363","#0C6F81"];export{E as H,a as L,n as S};
