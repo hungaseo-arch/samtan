@@ -33,7 +33,8 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
   자동 타임스탬프로 기록돼 원격 이력과 로컬 파일명이 어긋난다
   (2026-08-29 그렇게 어긋난 30건을 `migration repair` 로 정리했음)
 - 타임존: 저장 UTC / 표시 `Asia/Jakarta` (WIB)
-- 로케일: `ko` / `id` 2개. 현장 점검자 화면 기본값은 `id`
+- 로케일: `ko` / `id` / `en` 3개 (`Lang`, `src/i18n/index.tsx`). 기본값은 `id` — 현장 점검자 화면 기준.
+  새 UI 문구는 세 로케일을 전부 채울 것. 하나라도 비면 그 화면만 언어가 튄다
 - 커밋: Conventional Commits (`feat(schema): ...`). `main` 직접 푸시 금지
 - Task 완료 시 완료 조건(DoD)을 항목별로 체크해 보고. 미충족 시 다음 Task 진행 금지
 
