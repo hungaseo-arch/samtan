@@ -80,6 +80,7 @@ export default function Index() {
   const [showPwChange, setShowPwChange] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [userMenu, setUserMenu] = useState(false);
 
   // ── 화면 상태를 URL 에 둔다 ────────────────────────────────
   // 탭은 경로(`/life`), 교차 이동 포커스는 쿼리(`?serial=` · `?ch=`)에 싣는다.
@@ -293,49 +294,76 @@ export default function Index() {
                 </button>
               ))}
             </div>
-            {/* 로그인 시 역할 배지·이메일·로그아웃 표시 (로그인은 점검 입력 탭의 버튼 → 모달) */}
+            {/* 계정 메뉴 — 역할 배지 하나만 남기고 비밀번호 변경·사용자 관리·로그아웃을
+                드롭다운으로 접었다. 헤더에 아이콘 4개가 나열되면 어느 것이 무슨 뜻인지
+                아이콘만으로 구분되지 않아 전부 눌러 봐야 한다. 여는 방식은 위 내비게이션
+                그룹 드롭다운과 같다 (바깥 클릭 오버레이 포함). */}
             {user && (
-              <span
-                aria-label={t("role.badge.aria")}
-                className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
-                style={{ backgroundColor: ROLE_BADGE_BG[role], color: "#546E7A" }}
-              >
-                {t(`role.${role}`)}
-              </span>
-            )}
-            {/* 비밀번호 변경 */}
-            {user && (
-              <button
-                onClick={() => setShowPwChange(true)}
-                title={t("pw.changeTitle")}
-                aria-label={t("pw.changeTitle")}
-                className="shrink-0 p-1 text-muted-foreground hover:text-primary transition-colors"
-              >
-                <KeyRound className="w-4 h-4" />
-              </button>
-            )}
-            {/* 사용자 관리 — admin 에게만 노출(실제 권한 검사는 Edge Function) */}
-            {isAdmin && (
-              <button
-                onClick={() => goToTab("admin")}
-                title={t("tab.admin.label")}
-                aria-label={t("tab.admin.label")}
-                className={`shrink-0 p-1 transition-colors ${activeTab === "admin" ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-              </button>
-            )}
-            {user && (
-              <button
-                onClick={() => signOut()}
-                title={`${displayName}${user.email ? ` · ${user.email}` : ""}`}
-                aria-label={t("auth.logout")}
-                className="flex items-center gap-1 shrink-0 text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors"
-              >
-                <LogOut className="w-3.5 h-3.5 shrink-0" />
-                {/* 좁은 화면에서는 아이콘만 — 이름/라벨을 그대로 두면 헤더가 넘친다 */}
-                <span className="hidden md:inline max-w-28 truncate">{displayName}</span>
-              </button>
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setUserMenu((o) => !o)}
+                  aria-haspopup="menu"
+                  aria-expanded={userMenu}
+                  title={`${displayName}${user.email ? ` · ${user.email}` : ""}`}
+                  className="flex items-center gap-1.5 rounded-full border border-border py-0.5 pl-0.5 pr-1.5 hover:border-primary/50 hover:bg-muted/40 transition-colors"
+                >
+                  <span
+                    aria-label={t("role.badge.aria")}
+                    className="rounded-full px-2 py-0.5 text-[11px] font-bold"
+                    style={{ backgroundColor: ROLE_BADGE_BG[role], color: "#546E7A" }}
+                  >
+                    {t(`role.${role}`)}
+                  </span>
+                  {/* 좁은 화면에서는 배지만 — 이름을 그대로 두면 헤더가 넘친다 */}
+                  <span className="hidden md:inline max-w-28 truncate text-xs font-semibold text-muted-foreground">
+                    {displayName}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-muted-foreground transition-transform ${userMenu ? "rotate-180" : ""}`} />
+                </button>
+                {userMenu && (
+                  <>
+                    {/* 바깥 클릭 시 닫기 */}
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenu(false)} />
+                    <div className="absolute right-0 mt-1 z-50 min-w-52 rounded-lg border border-border bg-card shadow-lg py-1" role="menu">
+                      <div className="px-4 py-2 border-b border-border">
+                        <p className="text-xs font-bold text-foreground truncate">{displayName}</p>
+                        {user.email && <p className="text-[11px] text-muted-foreground truncate">{user.email}</p>}
+                      </div>
+                      <button
+                        role="menuitem"
+                        onClick={() => { setUserMenu(false); setShowPwChange(true); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-foreground hover:bg-muted/40 transition-colors"
+                      >
+                        <KeyRound className="w-4 h-4 shrink-0" />
+                        {t("pw.changeTitle")}
+                      </button>
+                      {/* 사용자 관리 — admin 에게만 노출(실제 권한 검사는 Edge Function) */}
+                      {isAdmin && (
+                        <button
+                          role="menuitem"
+                          onClick={() => { setUserMenu(false); goToTab("admin"); }}
+                          className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
+                            activeTab === "admin" ? "text-primary font-bold bg-primary/5" : "text-foreground hover:bg-muted/40"
+                          }`}
+                        >
+                          <ShieldCheck className="w-4 h-4 shrink-0" />
+                          {t("tab.admin.label")}
+                        </button>
+                      )}
+                      <div className="my-1 h-px bg-border" />
+                      <button
+                        role="menuitem"
+                        onClick={() => { setUserMenu(false); signOut(); }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-left text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 shrink-0" />
+                        {t("auth.logout")}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>
