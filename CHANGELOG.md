@@ -30,6 +30,12 @@
 
 ### Docs
 - `README.md` 갱신, `CONTRIBUTING.md` · `CHANGELOG.md` · `ARCHITECTURE.md` 신설.
+- 로컬 스키마 검증 경로를 프로덕션 덤프 기준으로 고침. `supabase db reset` 은 `20260827201000` 데이터 백필에서 멈춘다는 사실을 기록.
+
+### Schema (로컬 재생)
+- `20260826035500` 빈 `lifetimes` 에서 `setval(…, 0, true)` 범위 오류 → `max+1 · is_called=false`.
+- `20260826134000` 뷰가 참조하는 `inspections.center_avg` · `point_count` 를 `add column if not exists` 로 선행 생성.
+  프로덕션은 이미 적용된 파일이라 `db push` 대상이 아니며 결과 스키마는 같다.
 
 ## 2026-08-26 ~ 08-29 · Phase 2 TCO (WO-TMS-2026-09-TCO) · 트레드 4점
 

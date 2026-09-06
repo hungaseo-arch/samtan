@@ -26,11 +26,19 @@
 
 ```
 supabase/migrations/YYYYMMDDHHMMSS_<주제>.sql 작성
-  → supabase start && supabase db reset      # 처음부터 재현되는가
-  → supabase test db                          # pgTAP 전체 통과
+  → supabase start
+  → supabase db dump --linked -f prod_schema.sql   # 프로덕션 스키마 기준선 (파일은 커밋하지 말 것)
+  → psql "$DB" -c 'drop schema public cascade; create schema public;' -f prod_schema.sql
+  → psql "$DB" -f supabase/migrations/<새 파일>.sql   # 두 번 적용해 멱등성 확인
+  → supabase test db                                 # pgTAP 전체 통과
   → PR · 사용자 승인
   → supabase db push --dry-run && supabase db push
 ```
+
+`DB=postgresql://postgres:postgres@127.0.0.1:54322/postgres` 입니다.
+`supabase db reset`(빈 DB 에서 전체 재생)은 **`20260827201000_backfill_tread_points.sql` 에서 멈춥니다** —
+프로덕션 원장(엑셀 초기 적재, 마이그레이션이 아님)이 있다는 전제로 없으면 예외를 내는 데이터 백필이라
+빈 DB 에서는 통과할 수 없습니다. 그래서 기준선은 위처럼 프로덕션 덤프로 잡습니다 (2026-09-06 확인).
 
 - 파일명은 타임스탬프 14자리. `supabase db push` 만 사용합니다 — 다른 경로로 적용하면 원격 이력과 파일명이 어긋납니다 (2026-08-29 에 30건을 `migration repair` 로 정리한 전례).
 - 멱등하게: `create ... if not exists`, `create or replace`, `drop policy if exists` 후 재생성, `on conflict do update`.
@@ -68,7 +76,7 @@ supabase test db       # 스키마를 건드렸다면
 ## 6. PR 체크리스트
 
 - [ ] `.env` · 서비스 롤 키가 diff 에 없다
-- [ ] 마이그레이션이 `supabase db reset` 으로 재현되고 `supabase test db` 가 통과한다
+- [ ] 마이그레이션이 프로덕션 덤프 위에서 두 번 적용되고(멱등) `supabase test db` 가 통과한다
 - [ ] 새 UI 문구가 `ko` / `id` / `en` 세 곳에 다 있다
 - [ ] 숫자는 `format.ts` 헬퍼, 색은 토큰, 임계치는 `treadLevel()` 경유
 - [ ] `docs/schema.md` · `docs/사용설명서.md` · `CHANGELOG.md` 를 갱신했다

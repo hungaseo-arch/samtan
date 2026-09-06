@@ -68,13 +68,20 @@ supabase migration new <설명>          # supabase/migrations/YYYYMMDDHHMMSS_�
 ### 2.2 로컬 검증
 
 ```bash
-supabase start                         # 로컬 Postgres 기동 (Docker 필요)
-supabase db reset                      # 전체 마이그레이션을 처음부터 재적용
-supabase test db                       # pgTAP 테스트 (supabase/tests/)
-supabase stop                          # 종료
+DB=postgresql://postgres:postgres@127.0.0.1:54322/postgres
+supabase start                                    # 로컬 Postgres 기동 (Docker 필요)
+supabase db dump --linked -f prod_schema.sql      # 프로덕션 스키마 기준선 (커밋 금지)
+psql "$DB" -c 'drop schema public cascade; create schema public;' -f prod_schema.sql
+psql "$DB" -f supabase/migrations/<새 파일>.sql   # 두 번 적용해 멱등성 확인
+supabase test db                                  # pgTAP 테스트 (supabase/tests/)
+supabase stop                                     # 종료
 ```
 
-`db reset`이 실패하면 마이그레이션이 순서대로 재현되지 않는 것이므로 **적용하지 않습니다.**
+새 파일이 두 번째 적용에서 실패하면 멱등하지 않은 것이므로 **적용하지 않습니다.**
+
+`supabase db reset`(빈 DB 에서 전체 재생)은 `20260827201000_backfill_tread_points.sql` 에서 멈춥니다.
+프로덕션 원장(엑셀 초기 적재)이 있다는 전제로 없으면 예외를 내는 데이터 백필이라 빈 DB 에서는 통과할 수
+없고, 그 앞 두 파일(`035500` setval · `134000` 선행 컬럼)은 2026-09-06 에 재생되도록 손봤습니다.
 
 ### 2.3 스키마 동일성 확인
 
@@ -159,7 +166,7 @@ npm run deploy                         # 재배포
 ## 5. 배포 전 체크리스트
 
 - [ ] `.env` / 서비스 롤 키가 커밋에 포함되지 않았는가 (`git diff --staged`로 확인)
-- [ ] 마이그레이션이 `supabase db reset`으로 처음부터 재현되는가
+- [ ] 마이그레이션이 프로덕션 덤프 위에서 두 번 적용되는가 (멱등, §2.2)
 - [ ] `supabase test db` 전체 통과하는가
 - [ ] `npm run typecheck` · `npm run lint` · `npm run build` 통과하는가
 - [ ] 해당 Task의 완료 조건(DoD)이 항목별로 충족되었는가 (§3.2-2)
