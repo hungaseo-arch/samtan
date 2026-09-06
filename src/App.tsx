@@ -7,7 +7,17 @@ import NotFound from "./pages/not-found/Index";
 import { LanguageProvider } from "@/i18n/provider";
 import { AuthProvider } from "@/auth/AuthProvider";
 
-const queryClient = new QueryClient();
+// 화면 데이터는 회차 단위로만 바뀐다 — 창 포커스마다 다시 받을 이유가 없다.
+// 저장 직후에는 호출부가 invalidateQueries / reloadData() 로 명시적으로 갱신한다.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
