@@ -122,7 +122,13 @@ export default function Index() {
     }
   }, []);
 
-  useEffect(() => { reloadData(); }, [reloadData]);
+  // 로그인 이후에만 로드한다. RLS 가 authenticated 전용이라 로그인 전 호출은 빈 결과·오류만 낸다.
+  // 로그아웃(세션 만료 포함) 시에는 다음 로그인에서 다시 로드하도록 상태를 되돌린다.
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) reloadData();
+    else setStatus("loading");
+  }, [userId, reloadData]);
 
   // 시리얼 클릭 → 교체·수명 DB로 이동 + 해당 행 포커스
   const goToSerial = useCallback((serial: string) => goToTab("life", { serial }), [goToTab]);
