@@ -133,10 +133,14 @@ supabase functions logs <함수명>                   # 배포 후 확인
 ## 4. 프론트엔드 배포
 
 ```bash
+npm run typecheck
 npm run lint
 npm run build                          # dist/ 생성
 npm run deploy                         # GitHub Pages (VITE_BASE=/samtan/)
 ```
+
+> `public/_headers`(캐시·보안 헤더)와 `public/_redirects`(SPA 폴백)는 **Cloudflare Pages 에서만** 읽힙니다.
+> GitHub Pages 는 두 파일을 무시하고 `dist/404.html` 복사본으로 폴백합니다.
 
 배포 대상: `https://hungaseo-arch.github.io/samtan`
 
@@ -157,7 +161,7 @@ npm run deploy                         # 재배포
 - [ ] `.env` / 서비스 롤 키가 커밋에 포함되지 않았는가 (`git diff --staged`로 확인)
 - [ ] 마이그레이션이 `supabase db reset`으로 처음부터 재현되는가
 - [ ] `supabase test db` 전체 통과하는가
-- [ ] `npm run lint` 통과하는가
+- [ ] `npm run typecheck` · `npm run lint` · `npm run build` 통과하는가
 - [ ] 해당 Task의 완료 조건(DoD)이 항목별로 충족되었는가 (§3.2-2)
 - [ ] `docs/schema.md`가 스키마 변경을 반영해 갱신되었는가
 - [ ] 브랜치가 `main`이 아닌가 (§3.2-4)
