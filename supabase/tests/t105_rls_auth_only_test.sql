@@ -52,7 +52,7 @@ do $$ begin perform set_config('request.jwt.claims',
 set local role authenticated;
 select lives_ok(
   $$insert into public.inspections (ch, inspection_date, pos, pressure)
-      values ('T99', date '2026-01-06', 'L1', 100)$$,
+      values ('T96', date '2026-01-06', 'L1', 100)$$,
   'authenticated 로 insert — 트리거 함수 EXECUTE 없이도 트리거가 돈다');
 reset role;
 do $$ begin perform set_config('request.jwt.claims', '', true); end $$;
