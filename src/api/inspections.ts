@@ -1,6 +1,6 @@
 // @section: inspections-api
 // 점검 입력 데이터 (공기압·트레드) Supabase CRUD
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchAll } from "@/lib/supabase";
 import type { WidthPos } from "@/lib/treadStats";
 
 /** 설계서 §15 · v3 §C-3. OUTLIER 만 통계에서 제외되고, 행 자체는 항상 보존된다. */
@@ -62,16 +62,19 @@ const READ_VIEW = "v_inspections_wide";
 /** 차량(ch) 기준 점검 이력 조회. ch 미지정 시 전체.
  *  소프트 삭제(deleted_at)된 회차는 제외한다. */
 export async function listInspections(ch?: string): Promise<InspectionRow[]> {
-  let q = supabase
-    .from(READ_VIEW)
-    .select("*")
-    .is("deleted_at", null)
-    .order("inspection_date", { ascending: false })
-    .order("pos", { ascending: true });
-  if (ch) q = q.eq("ch", ch);
-  const { data, error } = await q;
-  if (error) throw error;
-  return (data ?? []) as InspectionRow[];
+  // 1,000행(max_rows) 을 넘으면 최신순 정렬 탓에 **오래된 회차부터 조용히 사라진다** → 페이지네이션 필수.
+  // (ch, inspection_date, pos) 가 유일 키라 ch 를 마지막 정렬 키로 둬 페이지 경계를 고정한다.
+  return fetchAll<InspectionRow>(() => {
+    let q = supabase
+      .from(READ_VIEW)
+      .select("*")
+      .is("deleted_at", null)
+      .order("inspection_date", { ascending: false })
+      .order("pos", { ascending: true })
+      .order("ch", { ascending: true });
+    if (ch) q = q.eq("ch", ch);
+    return q;
+  });
 }
 
 /** 한 회차(여러 포지션) 저장 — (ch, inspection_date, pos) 충돌 시 갱신(upsert).

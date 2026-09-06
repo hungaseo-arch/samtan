@@ -10,7 +10,7 @@
 //   v_wear_pattern      — 편마모(S/C · O/I) — 마모량의 비
 //   v_cv_benchmark      — 점검일별 CV 중앙값·P90 (합격 기준 미설정)
 //   v_tire_comparison   — 4개 평가축 분리 비교 (단일 종합점수 금지)
-import { supabase } from "@/lib/supabase";
+import { supabase, fetchAll } from "@/lib/supabase";
 import type { TreadStatus } from "@/api/inspections";
 import type { WidthPos } from "@/lib/treadStats";
 
@@ -116,48 +116,45 @@ export interface TreadPointRow {
 
 /** 특정 차량의 점검 시계열. 오래된 순 — 차트가 그대로 쓸 수 있게 정렬해 둔다. */
 export async function listTreadSeries(ch: string): Promise<TreadSeriesRow[]> {
-  const { data, error } = await supabase
-    .from("v_tread_series")
-    .select("*")
-    .eq("ch", ch)
-    .order("pos", { ascending: true })
-    .order("inspection_date", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as TreadSeriesRow[];
+  return fetchAll<TreadSeriesRow>(() =>
+    supabase
+      .from("v_tread_series")
+      .select("*")
+      .eq("ch", ch)
+      .order("pos", { ascending: true })
+      .order("inspection_date", { ascending: true }),
+  );
 }
 
 /** 세그먼트 마모속도. ch 미지정 시 전체(차트 3의 플릿 비교용). */
 export async function listWearRateSegments(ch?: string): Promise<WearRateSegmentRow[]> {
-  let q = supabase.from("v_wear_rate_segment").select("*");
-  if (ch) q = q.eq("ch", ch);
-  const { data, error } = await q
-    .order("ch", { ascending: true })
-    .order("pos", { ascending: true })
-    .order("seg_no", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as WearRateSegmentRow[];
+  return fetchAll<WearRateSegmentRow>(() => {
+    let q = supabase.from("v_wear_rate_segment").select("*");
+    if (ch) q = q.eq("ch", ch);
+    return q
+      .order("ch", { ascending: true })
+      .order("pos", { ascending: true })
+      .order("seg_no", { ascending: true });
+  });
 }
 
 /** 편마모 시계열. 차트 5(Shoulder vs Center)와 S/C·O/I 카드가 함께 쓴다. */
 export async function listWearPattern(ch: string): Promise<WearPatternRow[]> {
-  const { data, error } = await supabase
-    .from("v_wear_pattern")
-    .select("*")
-    .eq("ch", ch)
-    .order("pos", { ascending: true })
-    .order("inspection_date", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as WearPatternRow[];
+  return fetchAll<WearPatternRow>(() =>
+    supabase
+      .from("v_wear_pattern")
+      .select("*")
+      .eq("ch", ch)
+      .order("pos", { ascending: true })
+      .order("inspection_date", { ascending: true }),
+  );
 }
 
 /** 점검일별 CV 중앙값·P90. 합격 임계가 아니라 **플릿 내 위치** 참고용이다 (설계서 §10). */
 export async function listCvBenchmark(): Promise<CvBenchmarkRow[]> {
-  const { data, error } = await supabase
-    .from("v_cv_benchmark")
-    .select("*")
-    .order("inspection_date", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as CvBenchmarkRow[];
+  return fetchAll<CvBenchmarkRow>(() =>
+    supabase.from("v_cv_benchmark").select("*").order("inspection_date", { ascending: true }),
+  );
 }
 
 /** 타이어 세그먼트 비교 — 4개 축을 따로 보여 준다. 가중합 금지 (설계서 §16). */
@@ -172,13 +169,16 @@ export async function listTireComparison(): Promise<TireComparisonRow[]> {
 
 /** 원시 측정점(폭 4점). inspections 를 inner join 해 차량으로 좁힌다. */
 export async function listTreadPoints(ch: string): Promise<TreadPointRow[]> {
-  const { data, error } = await supabase
-    .from("tread_points")
-    .select("circ_pos, width_pos, depth_mm, flag, inspections!inner(ch, pos, serial, inspection_date, deleted_at)")
-    .eq("inspections.ch", ch)
-    .is("deleted_at", null)
-    .is("inspections.deleted_at", null);
-  if (error) throw error;
+  // 회차당 포지션 10 × 폭 4점 = 40행씩 늘어 1,000행을 금방 넘는다. id 정렬로 페이지 경계를 고정.
+  const data = await fetchAll(() =>
+    supabase
+      .from("tread_points")
+      .select("circ_pos, width_pos, depth_mm, flag, inspections!inner(ch, pos, serial, inspection_date, deleted_at)")
+      .eq("inspections.ch", ch)
+      .is("deleted_at", null)
+      .is("inspections.deleted_at", null)
+      .order("id", { ascending: true }),
+  );
 
   type Joined = {
     circ_pos: string;
