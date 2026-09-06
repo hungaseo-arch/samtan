@@ -198,9 +198,13 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
       <div className="rounded-xl border border-border bg-card p-4 relative overflow-hidden">
         {/* 실제 Road Train 차량(CH 834) 흐릿한 배경 */}
         <img
-          src={`${import.meta.env.BASE_URL}roadtrain.jpg`}
+          src={`${import.meta.env.BASE_URL}roadtrain.webp`}
           alt={tx.roadTrainImgAlt}
           aria-hidden="true"
+          width={1200}
+          height={513}
+          loading="lazy"
+          decoding="async"
           className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover opacity-[0.25]"
         />
         <div className="relative">
