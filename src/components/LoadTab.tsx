@@ -4,8 +4,6 @@ import { loadPerTire, loadRatio, ratedByMount } from "@/data/tmsUtils";
 import { fmtInt } from "@/lib/format";
 import { Weight, AlertTriangle } from "lucide-react";
 import { Fragment } from "react";
-import { motion } from "framer-motion";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -191,9 +189,9 @@ export default function LoadTab() {
   const mountLabel = (m: "single" | "dual") => (m === "dual" ? tx.mountDual : tx.mountSingle);
 
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+    <div className="stagger-in space-y-6">
       {/* 안내 배너 */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 flex items-start gap-3">
           <Weight className="w-5 h-5 text-primary shrink-0 mt-0.5" />
           <div>
@@ -205,11 +203,11 @@ export default function LoadTab() {
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* 과적 경고 (정격 초과 시에만 표시) */}
       {overUnits.length > 0 && (
-        <motion.div variants={staggerItem}>
+        <div>
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
             <div className="text-sm">
@@ -219,11 +217,11 @@ export default function LoadTab() {
               </p>
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* 하중 표 */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
@@ -328,10 +326,10 @@ export default function LoadTab() {
             </table>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* 근거 */}
-      <motion.div variants={staggerItem}>
+      <div>
         <p className="text-[11px] text-muted-foreground leading-relaxed">
           {tx.src1}<strong className="text-foreground">Techking — Load Distribution Road Train unit</strong>{tx.src2}<strong className="text-foreground">{tx.srcMount}</strong>{tx.src3}<strong className="text-foreground">{tx.srcDual}</strong>{tx.src4}
           <br />
@@ -339,7 +337,7 @@ export default function LoadTab() {
           <br />
           {tx.egPrefix}{fmtInt(headLoad * 0.2 / 2)}{tx.egSteer}{tx.egMid1}{fmtInt(headLoad * 0.8 / 8)}{tx.egMid2}
         </p>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

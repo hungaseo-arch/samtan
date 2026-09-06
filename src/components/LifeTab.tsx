@@ -5,7 +5,6 @@ import type { TreadLevel } from "@/data/tmsData";
 import { codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements } from "@/data/tmsUtils";
 import { EMPTY, fmtInt, fmtTread } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
@@ -571,16 +570,13 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
       </div>
 
       {/* 손상 코드 모달 (표의 손상 코드 클릭 또는 '손상 코드 전체 보기'로 열림) */}
-      <AnimatePresence>
         {showCodes && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setShowCodes(false)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -603,22 +599,18 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   );
                 })}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* 타이어 히스토리 모달 */}
-      <AnimatePresence>
         {hist && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setHistoryOf(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -774,10 +766,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   </div>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

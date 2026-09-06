@@ -1,13 +1,12 @@
 // @section: tire-detail-modal
 // 타이어 상세 모달 — 차량 배치도(LayoutTab)와 동일한 형태.
 // 포지션의 권장압·시리얼·최근 공기압/트레드 + 트레드·공기압 추이 미니차트.
-// LayoutTab · InspectionTab(점검 이력 배치도) 공용. 부모가 <AnimatePresence>로 감싼다.
+// LayoutTab · InspectionTab(점검 이력 배치도) 공용. 등장 애니메이션은 CSS(.overlay-in/.modal-in).
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
 import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
 import { EMPTY, fmtTread } from "@/lib/format";
 import { X } from "lucide-react";
-import { motion } from "framer-motion";
 import { useLang } from "@/i18n";
 import SerialChain from "./SerialChain";
 
@@ -62,14 +61,12 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
   const st = statusOf(d, pos);
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    <div
+      className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
       onClick={onClose}
     >
-      <motion.div
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
-        initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+      <div
+        className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
@@ -123,8 +120,8 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
             </div>
           </div>
         )}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 

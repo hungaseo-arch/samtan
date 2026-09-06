@@ -6,8 +6,6 @@ import {
   Gauge, AlertTriangle, CheckCircle2, Wrench, ClipboardCheck,
   Activity, Wind, Circle, CheckSquare, Square,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
 import { fmtInt, fmtPercent, fmtPressure, fmtVehicle } from "@/lib/format";
 
@@ -335,11 +333,11 @@ export default function PressureTab() {
   ];
 
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+    <div className="stagger-in space-y-6">
 
       {/* ── 1행: 권장 공기압 기준 + 공기압 이상 알림 (행 높이 맞춤) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        <motion.div variants={staggerItem} className="flex flex-col">
+        <div className="flex flex-col">
           <SectionTitle icon={<Wind className="w-4 h-4 text-primary" />} ko={tx.secStdTitle} />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 auto-rows-fr">
             {pressureStd().map((s) => (
@@ -355,9 +353,9 @@ export default function PressureTab() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div variants={staggerItem} className="flex flex-col">
+        <div className="flex flex-col">
           <SectionTitle
             icon={<AlertTriangle className="w-4 h-4 text-level-warn" />}
             ko={tx.alertTitle}
@@ -399,12 +397,12 @@ export default function PressureTab() {
               {tx.alertNote}
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* ── 2행: 최근 공기압 점검 현황 + 상태 판정 기준 (행 높이 맞춤) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        <motion.div variants={staggerItem} className="flex flex-col">
+        <div className="flex flex-col">
           <SectionTitle icon={<Activity className="w-4 h-4 text-primary" />} ko={tx.secStatusTitle} />
           <div className="grid grid-cols-2 gap-3 flex-1 auto-rows-fr">
             {kpis.map((k) => (
@@ -416,9 +414,9 @@ export default function PressureTab() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
 
-        <motion.div variants={staggerItem} className="flex flex-col">
+        <div className="flex flex-col">
           <SectionTitle icon={<Gauge className="w-4 h-4 text-primary" />} ko={tx.secJudgeTitle} />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1 auto-rows-fr">
             {JUDGE.map((j) => (
@@ -432,11 +430,11 @@ export default function PressureTab() {
               </div>
             ))}
           </div>
-        </motion.div>
+        </div>
       </div>
 
       {/* ── 점검 절차 체크리스트 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <ClipboardCheck className="w-4 h-4 text-primary" />
@@ -467,10 +465,10 @@ export default function PressureTab() {
             })}
           </ul>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── 측정 장비 관리 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Wrench className="w-4 h-4 text-primary" />
@@ -486,10 +484,10 @@ export default function PressureTab() {
             ))}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── 이상 징후 및 대응 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-4 h-4 text-primary" />
@@ -522,10 +520,10 @@ export default function PressureTab() {
             </table>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* ── 결재/담당 라인 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Circle className="w-3 h-3 text-primary fill-primary" />
@@ -548,8 +546,8 @@ export default function PressureTab() {
             {tx.lineNote}
           </p>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
 

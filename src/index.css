@@ -216,3 +216,31 @@
     @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40;
   }
 }
+
+/* ── 등장 애니메이션 (framer-motion 대체 · 2026-09-06) ─────────────────────
+   .stagger-in  : 직계 자식이 순서대로 떠오른다 (탭 진입). 11번째부터는 같은 지연.
+   .overlay-in  : 모달 배경 페이드. .modal-in : 모달 본문 팝.
+   닫힘(exit) 애니메이션은 두지 않는다 — 즉시 사라지는 편이 현장 조작에 낫다. */
+@layer components {
+  @keyframes tms-rise { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+  @keyframes tms-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes tms-pop  { from { opacity: 0; transform: scale(0.92) translateY(20px); } to { opacity: 1; transform: none; } }
+
+  .stagger-in > * { animation: tms-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: 0.1s; }
+  .stagger-in > :nth-child(2)  { animation-delay: 0.16s; }
+  .stagger-in > :nth-child(3)  { animation-delay: 0.22s; }
+  .stagger-in > :nth-child(4)  { animation-delay: 0.28s; }
+  .stagger-in > :nth-child(5)  { animation-delay: 0.34s; }
+  .stagger-in > :nth-child(6)  { animation-delay: 0.40s; }
+  .stagger-in > :nth-child(7)  { animation-delay: 0.46s; }
+  .stagger-in > :nth-child(8)  { animation-delay: 0.52s; }
+  .stagger-in > :nth-child(9)  { animation-delay: 0.58s; }
+  .stagger-in > :nth-child(n + 10) { animation-delay: 0.64s; }
+
+  .overlay-in, .stagger-in > .overlay-in { animation: tms-fade 0.2s ease-out both; animation-delay: 0s; }
+  .modal-in   { animation: tms-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stagger-in > *, .overlay-in, .modal-in { animation: none; }
+  }
+}

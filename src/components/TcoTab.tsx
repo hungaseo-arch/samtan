@@ -26,8 +26,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { AlertTriangle, Info, Loader2, Layers } from "lucide-react";
-import { motion } from "framer-motion";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 import { HEX } from "@/lib/chartColors";
 
 /** 사유별 분포의 기본 필터. 제품 책임분이 이 화면의 첫 질문이다 (지시서 T-9 3번). */
@@ -418,9 +416,9 @@ export default function TcoTab() {
   const ledgerRows = ledger.data ?? [];
 
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+    <div className="stagger-in space-y-6">
       {/* ── 1. CPK 3종 ───────────────────────────────────────── */}
-      <motion.section variants={staggerItem}>
+      <section>
         <SectionHead title={tx.cpkTitle} sub={
           `${tx.basisSample} ${fmtInt(all?.sample_size ?? 0)} ${tx.basisTires} · ` +
           `${tx.basisKm} ${fmtDistanceKm(all?.total_km ?? null)} · ` +
@@ -437,10 +435,10 @@ export default function TcoTab() {
             {" — "}{tx.kmIncompleteHelp}
           </Note>
         )}
-      </motion.section>
+      </section>
 
       {/* ── 2. 비용 구성 ─────────────────────────────────────── */}
-      <motion.section variants={staggerItem}>
+      <section>
         <SectionHead title={tx.costTitle} sub={tx.costSub} />
         {costByCh.length === 0 ? (
           <Note tone="info">{tx.costWaiting}</Note>
@@ -462,10 +460,10 @@ export default function TcoTab() {
             </ResponsiveContainer>
           </div>
         )}
-      </motion.section>
+      </section>
 
       {/* ── 3. 사유별 수명 ───────────────────────────────────── */}
-      <motion.section variants={staggerItem}>
+      <section>
         <SectionHead title={tx.reasonTitle} sub={tx.reasonSub} />
         <div className="flex flex-wrap gap-1.5 mb-3">
           {byCategory.map((c) => (
@@ -492,10 +490,10 @@ export default function TcoTab() {
             <Kpi label={tx.colWearRate} value={fmtWearRate(selectedCat.avgWear)} />
           </div>
         )}
-      </motion.section>
+      </section>
 
       {/* ── 4. 개체 원장 ─────────────────────────────────────── */}
-      <motion.section variants={staggerItem}>
+      <section>
         <SectionHead title={tx.ledgerTitle} sub={tx.ledgerSub} />
         <div className="rounded-xl border border-border bg-card overflow-x-auto">
           <table className="w-full min-w-200 text-sm border-collapse">
@@ -542,10 +540,10 @@ export default function TcoTab() {
             </tbody>
           </table>
         </div>
-      </motion.section>
+      </section>
 
       {/* ── 5. 재생 시나리오 ─────────────────────────────────── */}
-      <motion.section variants={staggerItem}>
+      <section>
         <SectionHead title={tx.retreadTitle} sub={tx.retreadSub} />
         {!retreadAllowed ? (
           <div className="rounded-xl border border-border bg-muted/20 p-5">
@@ -617,8 +615,8 @@ export default function TcoTab() {
             </div>
           </div>
         )}
-      </motion.section>
-    </motion.div>
+      </section>
+    </div>
   );
 }
 

@@ -5,7 +5,6 @@ import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "
 import type { TireStatus } from "@/data/tmsUtils";
 import { EMPTY, fmtTread } from "@/lib/format";
 import { MousePointerClick, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useLang } from "@/i18n";
 import SerialChain from "./SerialChain";
 import IntegrityBadge from "./IntegrityBadge";
@@ -288,16 +287,13 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
       </div>
 
       {/* 모달 */}
-      <AnimatePresence>
         {modal && modalData && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setModal(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -354,10 +350,9 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   </div>
                 </div>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }

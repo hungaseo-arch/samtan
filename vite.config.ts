@@ -240,7 +240,6 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             recharts: ["recharts"],
             supabase: ["@supabase/supabase-js"],
-            motion: ["framer-motion"],
             vendor: ["@tanstack/react-query", "radix-ui", "lucide-react"],
           },
         },

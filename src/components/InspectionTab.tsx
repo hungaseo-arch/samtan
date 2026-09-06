@@ -23,8 +23,6 @@ import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, La
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailModal from "@/components/TireDetailModal";
 import { useLang } from "@/i18n";
@@ -649,9 +647,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
 
   // 조회(이력)는 로그인 없이 가능. 데이터 CRUD(입력·저장·삭제·차량추가)는 로그인 사용자만.
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+    <div className="stagger-in space-y-6">
       {/* 차량 선택 */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-semibold mr-1">{tx.unitLabel}</span>
           {TMS_DATA.units.map((u) => (
@@ -697,10 +695,10 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             </button>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* 입력 폼 */}
-      <motion.div variants={staggerItem}>
+      <div>
         {/* 접힌 상태는 다른 카드와 같은 흰 판이라 «눌러야 하는 것»으로 보이지 않았다.
             닫혔을 때만 primary 톤·그림자·CTA 문구를 입혀 손잡이임을 드러내고,
             열리면 입력 폼이 주인공이므로 평범한 카드로 되돌린다. */}
@@ -902,16 +900,13 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
 
           {/* 트레드 0 mm 확인 모달 (v2 §B-2 · v3 §E-1 규칙 6).
               "다 닳음"과 "못 쟀음"은 마모율 통계에서 정반대로 취급되므로 추측하지 않고 묻는다. */}
-          <AnimatePresence>
             {zeroAsk && (
-              <motion.div
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+              <div
+                className="overlay-in fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
               >
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }}
+                <div
                   role="dialog" aria-modal="true" aria-label={tx.zeroTitle}
-                  className="w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
+                  className="modal-in w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-xl"
                 >
                   <h4 className="flex items-center gap-2 text-base font-bold text-foreground">
                     <AlertTriangle className="w-4 h-4 text-destructive" /> {tx.zeroTitle}
@@ -945,10 +940,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                     </button>
                     <p className="pt-1 text-xs text-muted-foreground">{tx.zeroMustPick}</p>
                   </div>
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
             )}
-          </AnimatePresence>
           </>
           ) : (
             // 앱 전체가 로그인 뒤에 있으므로 여기서는 권한 부족만 안내한다.
@@ -958,10 +952,10 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             </div>
           ))}
         </div>
-      </motion.div>
+      </div>
 
       {/* 저장된 점검 이력 */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-5 bg-primary rounded-full" />
@@ -1155,15 +1149,13 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             })}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* 배치도 타이어 상세 모달 (차량 배치도와 동일 형태) */}
-      <AnimatePresence>
         {detail != null && (
           <TireDetailModal ch={selCh} pos={detail} onClose={() => setDetail(null)} onSerialClick={onSerialClick} />
         )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 

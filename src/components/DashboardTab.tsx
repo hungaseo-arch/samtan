@@ -4,8 +4,6 @@ import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds } from "@/data/tmsData";
 import { headPosData, statusOf, getUnitAlerts, validDates } from "@/data/tmsUtils";
 import { EMPTY, fmtInt } from "@/lib/format";
 import { Truck, Circle, ChevronRight, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { staggerContainer, staggerItem } from "@/lib/motion";
 import { useLang } from "@/i18n";
 
 const buildTX = () => ({
@@ -201,9 +199,9 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
     : [];
 
   return (
-    <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-6">
+    <div className="stagger-in space-y-6">
       {/* ── KPI 카드 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="w-1 h-5 bg-primary rounded-full" />
           <span className="text-xs font-bold text-primary uppercase tracking-widest">{tx.summaryTitle}</span>
@@ -219,11 +217,11 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             </div>
           ))}
         </div>
-      </motion.div>
+      </div>
 
 
       {/* ── 차량별 현황 요약 테이블 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Truck className="w-4 h-4 text-primary" />
@@ -321,11 +319,11 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             {tx.footerSpec}
           </p>
         </div>
-      </motion.div>
+      </div>
 
 
       {/* ── 결재 라인 ── */}
-      <motion.div variants={staggerItem}>
+      <div>
         <div className="rounded-xl border border-border bg-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <Circle className="w-3 h-3 text-primary fill-primary" />
@@ -348,19 +346,16 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             ))}
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* 주의·교체권장 클릭 → 해당 차량 알림 모달 */}
-      <AnimatePresence>
         {alertModal && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setAlertModal(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
@@ -389,10 +384,9 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                   ))}
                 </ul>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }

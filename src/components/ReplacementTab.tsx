@@ -16,7 +16,6 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TMS_DATA } from "@/data/tmsData";
 import { codeName } from "@/data/tmsUtils";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, Download, Loader2, AlertTriangle, Wand2 } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
@@ -524,16 +523,13 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
       </div>
 
       {/* 교체 상세 모달 — 표에서 뺀 시리얼·교체사유와 탈착 정보 입력 폼 */}
-      <AnimatePresence>
         {openChain && detail && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setDetail(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -627,22 +623,18 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                   );
                 })}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* 손상 코드 모달 */}
-      <AnimatePresence>
         {showCodes && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setShowCodes(false)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -665,10 +657,9 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                   );
                 })}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
