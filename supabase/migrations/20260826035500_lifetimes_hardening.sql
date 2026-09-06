@@ -29,7 +29,9 @@ create unique index if not exists lifetimes_serial_uniq
 -- 지금까지 원장 엑셀에서 손으로 매기던 번호다. 트리거가 행을 만들기 시작하면
 -- 채번 주체가 없어지므로 시퀀스를 붙인다.
 create sequence if not exists public.lifetimes_no_seq owned by public.lifetimes.no;
-select setval('public.lifetimes_no_seq', coalesce((select max(no) from public.lifetimes), 0), true);
+-- 빈 테이블(로컬 db reset)에서는 setval(…, 0, true) 가 범위 오류를 내므로 max+1 · is_called=false 로 둔다.
+-- 프로덕션(95행)에서는 이미 적용됐고 결과(다음 값 = max+1)는 같다.
+select setval('public.lifetimes_no_seq', coalesce((select max(no) from public.lifetimes), 0) + 1, false);
 alter table public.lifetimes alter column no set default nextval('public.lifetimes_no_seq');
 
 -- ── 3. 상태 값 통제 ────────────────────────────────────────

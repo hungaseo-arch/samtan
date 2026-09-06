@@ -29,6 +29,12 @@
 -- 어느 항목도 저장을 막지 않는다. 경고 목록일 뿐이다 (작업지시서 v2 §3).
 -- ============================================================
 
+-- 로컬 db reset 재현용: 이 뷰가 참조하는 파생 컬럼 2개는 원래 151000(tread_stats) 에서 붙는다.
+-- 프로덕션은 적용 순서가 달라 문제가 없었지만 파일 순서대로 재생하면 여기서 깨진다.
+-- 151000 도 add column if not exists 라 여기서 먼저 만들어 두어도 결과는 같다.
+alter table public.inspections add column if not exists center_avg  numeric(5,2);
+alter table public.inspections add column if not exists point_count int not null default 0;
+
 create or replace view public.v_data_quality as
 
 -- ① tread = 0 인데 4점 원본으로 설명되지 않는 행 (v3 §C-4-1)
