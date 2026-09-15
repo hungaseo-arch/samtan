@@ -1,0 +1,576 @@
+<title>Verifikasi Ban TECHKING</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Palet mengikuti token proyek SAMTAN TMS (CLAUDE.md):
+   bg #F0F0F0 · surface #ECEFF1 · primary #E3F2FD · accent #E8F5E9 · text #546E7A
+   Warna sinyal: order #B4611F · warn #7C6705 · ok #357A47 · danger #A04037
+   --ink diambil dari keluarga blue-grey yang sama (800) agar formulir tetap
+   terbaca saat dicetak hitam-putih. */
+:root {
+  --bg:        #F0F0F0;
+  --surface:   #ECEFF1;
+  --paper:     #FFFFFF;
+  --primary:   #E3F2FD;
+  --accent:    #E8F5E9;
+  --text:      #546E7A;
+  --ink:       #37474F;
+  --line:      #C4CED3;
+  --line-soft: #DFE5E8;
+  --order:     #B4611F;
+  --warn:      #7C6705;
+  --ok:        #357A47;
+  --field:     #FFFFFF;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #191F22;
+    --surface:   #222A2E;
+    --paper:     #1F272B;
+    --primary:   #24343F;
+    --accent:    #22302A;
+    --text:      #A7B6BD;
+    --ink:       #DCE5E9;
+    --line:      #3C484E;
+    --line-soft: #2F393E;
+    --order:     #E29B5F;
+    --warn:      #C4A932;
+    --ok:        #6FB884;
+    --field:     #171D20;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:        #191F22;
+  --surface:   #222A2E;
+  --paper:     #1F272B;
+  --primary:   #24343F;
+  --accent:    #22302A;
+  --text:      #A7B6BD;
+  --ink:       #DCE5E9;
+  --line:      #3C484E;
+  --line-soft: #2F393E;
+  --order:     #E29B5F;
+  --warn:      #C4A932;
+  --ok:        #6FB884;
+  --field:     #171D20;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 32px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.sheet {
+  max-width: 860px;
+  margin: 0 auto;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  padding: 40px 38px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+}
+
+/* ── Kop surat ─────────────────────────────────────── */
+.kop { display: flex; flex-direction: column; gap: 14px; }
+.kop-atas {
+  display: flex; flex-wrap: wrap; gap: 10px 24px;
+  align-items: baseline; justify-content: space-between;
+  border-bottom: 2px solid var(--ink); padding-bottom: 10px;
+}
+.eyebrow {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 700; font-size: 11.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text);
+}
+.tanggal {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px; font-weight: 500; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+h1 {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 700; font-size: 31px; line-height: 1.15;
+  color: var(--ink); margin: 0; text-wrap: balance;
+}
+.lead { margin: 0; max-width: 62ch; }
+.lead strong { color: var(--ink); font-weight: 600; }
+
+/* ── Angka ringkas ─────────────────────────────────── */
+.hitung {
+  display: flex; flex-wrap: wrap; gap: 0;
+  border: 1px solid var(--line); background: var(--surface);
+}
+.hitung div {
+  flex: 1 1 150px; padding: 12px 16px;
+  border-right: 1px solid var(--line);
+}
+.hitung div:last-child { border-right: 0; }
+.hitung dt {
+  font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 600; margin: 0 0 3px;
+}
+.hitung dd {
+  margin: 0; font-family: "IBM Plex Mono", monospace;
+  font-size: 21px; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.hitung dd small { font-size: 12px; font-weight: 500; color: var(--text); }
+
+/* ── Bagian ────────────────────────────────────────── */
+section { display: flex; flex-direction: column; gap: 16px; }
+.judul { display: flex; gap: 12px; align-items: flex-start; }
+.judul .pita { width: 4px; align-self: stretch; flex: 0 0 4px; }
+.pita-1 { background: var(--order); }
+.pita-2 { background: var(--warn); }
+.pita-3 { background: var(--text); }
+.judul-teks { display: flex; flex-direction: column; gap: 3px; }
+h2 {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 700; font-size: 19px; color: var(--ink); margin: 0;
+  text-wrap: balance;
+}
+.judul-sub { font-size: 13.5px; margin: 0; max-width: 60ch; }
+
+h3 {
+  font-family: "IBM Plex Sans Condensed", "IBM Plex Sans", sans-serif;
+  font-weight: 600; font-size: 15px; color: var(--ink); margin: 0;
+  letter-spacing: 0.02em;
+}
+
+ol.langkah { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+ol.langkah strong { color: var(--ink); font-weight: 600; }
+
+.catatan {
+  background: var(--accent); border-left: 3px solid var(--ok);
+  padding: 12px 16px; font-size: 13.5px;
+}
+.catatan strong { color: var(--ink); font-weight: 600; }
+
+/* ── Kartu ban ─────────────────────────────────────── */
+.daftar { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--line); }
+.ban {
+  border-bottom: 1px solid var(--line);
+  padding: 16px 0;
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 18px 26px;
+  break-inside: avoid;
+}
+.ban-id { display: flex; flex-direction: column; gap: 5px; }
+.no {
+  font-family: "IBM Plex Sans Condensed", sans-serif;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text);
+}
+.seri {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 16px; font-weight: 600; color: var(--ink);
+  letter-spacing: 0.01em; word-break: break-all;
+}
+.riwayat {
+  font-size: 12.5px; line-height: 1.5;
+  border-left: 2px solid var(--line-soft); padding-left: 10px;
+  display: flex; flex-direction: column; gap: 1px;
+}
+.riwayat b { color: var(--ink); font-weight: 600; }
+.riwayat .mono { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; }
+
+.isian { display: flex; flex-direction: column; gap: 12px; }
+.pilihan { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.pilihan label { display: flex; align-items: center; gap: 7px; font-size: 13.5px; cursor: pointer; }
+.pilihan input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  width: 15px; height: 15px; flex: 0 0 15px;
+  border: 1.5px solid var(--ink); background: var(--field);
+  display: grid; place-content: center; cursor: pointer; margin: 0;
+}
+.pilihan input[type="checkbox"]::after { content: "✓"; font-size: 12px; color: var(--ink); opacity: 0; line-height: 1; }
+.pilihan input[type="checkbox"]:checked::after { opacity: 1; }
+.pilihan input[type="checkbox"]:focus-visible { outline: 2px solid var(--order); outline-offset: 2px; }
+
+.baris-isi { display: flex; flex-wrap: wrap; gap: 10px 20px; }
+.kolom { flex: 1 1 200px; display: flex; flex-direction: column; gap: 3px; }
+.kolom span {
+  font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 600;
+}
+.kolom input[type="text"] {
+  font-family: "IBM Plex Sans", sans-serif; font-size: 14px; color: var(--ink);
+  background: var(--field); border: 0; border-bottom: 1px solid var(--line);
+  padding: 4px 2px; width: 100%;
+}
+.kolom input[type="text"]:focus-visible { outline: 0; border-bottom-color: var(--order); }
+
+/* ── Koreksi seri ──────────────────────────────────── */
+.koreksi {
+  border: 1px solid var(--line); background: var(--surface);
+  display: flex; flex-direction: column;
+}
+.koreksi-baris {
+  display: flex; flex-wrap: wrap; gap: 4px 20px;
+  padding: 12px 16px; border-bottom: 1px solid var(--line-soft);
+  align-items: baseline;
+}
+.koreksi-baris:last-child { border-bottom: 0; }
+.koreksi-baris dt {
+  flex: 0 0 150px; font-size: 11.5px; letter-spacing: 0.06em;
+  text-transform: uppercase; font-weight: 600; margin: 0;
+}
+.koreksi-baris dd {
+  margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 15px;
+  font-weight: 600; color: var(--ink); word-break: break-all;
+}
+.koreksi-baris dd em { font-style: normal; background: var(--primary); padding: 0 2px; }
+.salah { text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--text); }
+
+/* ── Tanda tangan ──────────────────────────────────── */
+.ttd {
+  border-top: 2px solid var(--ink); padding-top: 18px;
+  display: flex; flex-wrap: wrap; gap: 22px 30px;
+}
+.ttd .kolom { flex: 1 1 190px; }
+.ttd .kotak-ttd {
+  border-bottom: 1px solid var(--line); height: 46px;
+}
+
+footer {
+  font-size: 12px; text-align: center; color: var(--text);
+  padding-top: 6px;
+}
+footer .mono { font-family: "IBM Plex Mono", monospace; }
+
+/* ── Layar sempit ──────────────────────────────────── */
+@media (max-width: 620px) {
+  body { padding-left: 16px; padding-right: 16px; padding-block: 20px; }
+  .sheet { padding: 24px 18px 22px; gap: 28px; }
+  h1 { font-size: 25px; }
+  .ban { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* ── Cetak ─────────────────────────────────────────── */
+@media print {
+  :root {
+    --bg: #FFFFFF; --paper: #FFFFFF; --surface: #FFFFFF; --field: #FFFFFF;
+    --text: #333333; --ink: #000000; --line: #999999; --line-soft: #CCCCCC;
+    --order: #000000; --warn: #000000; --ok: #000000; --accent: #FFFFFF;
+    --primary: #E8E8E8;
+  }
+  body { padding: 0; font-size: 11pt; }
+  .sheet { border: 0; padding: 0; max-width: none; gap: 22px; }
+  .pita-1, .pita-2, .pita-3 { background: #000000; }
+  .catatan { border-left-width: 2px; }
+  section { break-inside: auto; }
+  .judul { break-after: avoid; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="sheet">
+
+  <header class="kop">
+    <div class="kop-atas">
+      <div class="eyebrow">PT Ascendo International &middot; Uji Coba Ban TECHKING &middot; SAMTAN</div>
+      <div class="tanggal">15 September 2026</div>
+    </div>
+    <h1>Verifikasi Status Ban di Lapangan</h1>
+    <p class="lead">
+      Di berkas pemantauan <span class="tanggal">20260914 MONITORING TIRE TECHKING</span>,
+      dua lembar memberi keterangan yang berbeda untuk sejumlah ban. Lembar
+      <b>Lifetime by Day</b> mencatatnya sebagai <b>Install</b>, tetapi lembar
+      <b>Penggantian</b> mencatat ban itu sudah dilepas &mdash; atau tidak ada
+      catatan pengukuran sama sekali. <strong>Mohon dicek langsung di lapangan.</strong>
+    </p>
+  </header>
+
+  <dl class="hitung">
+    <div>
+      <dt>Posisi dipantau</dt>
+      <dd>70 <small>ban &middot; 7 unit &times; 10</small></dd>
+    </div>
+    <div>
+      <dt>Tercatat Install</dt>
+      <dd>77 <small>ban</small></dd>
+    </div>
+    <div>
+      <dt>Perlu dicek</dt>
+      <dd>20 <small>ban</small></dd>
+    </div>
+  </dl>
+
+  <section>
+    <div class="judul">
+      <div class="pita pita-3"></div>
+      <div class="judul-teks">
+        <h2>Cara pengisian</h2>
+      </div>
+    </div>
+    <ol class="langkah">
+      <li><strong>Cocokkan seluruh 14 karakter nomor seri.</strong> Beberapa nomor hanya
+        berbeda satu angka &mdash; contoh <span class="tanggal">DA12511H03159D</span> dan
+        <span class="tanggal">DA12511H03157D</span>. Jangan mencocokkan hanya empat angka terakhir.</li>
+      <li><strong>Centang satu status</strong> untuk setiap ban.</li>
+      <li><strong>Tulis lokasi sekarang</strong> &mdash; nomor unit dan posisi
+        (contoh <span class="tanggal">835 R2 In</span>), atau nama gudang bila disimpan.</li>
+      <li>Bila ban <strong>tidak ditemukan</strong>, tetap centang dan tulis di kolom keterangan
+        di mana terakhir kali terlihat.</li>
+      <li>Isi nama pemeriksa, tanggal, dan tanda tangan di bagian bawah lembar ini.</li>
+    </ol>
+    <p class="catatan">
+      <strong>Jangan mengubah berkas Excel sendiri.</strong> Serahkan lembar ini kepada admin.
+      Admin yang akan memperbarui berkas dan sistem, supaya keduanya tetap sama.
+    </p>
+  </section>
+
+  <section>
+    <div class="judul">
+      <div class="pita pita-1"></div>
+      <div class="judul-teks">
+        <h2>Bagian 1 &middot; Lima ban dengan catatan penggantian</h2>
+        <p class="judul-sub">
+          Ban berikut tercatat <b>Install</b>, tetapi di lembar Penggantian sudah diganti
+          dengan ban lain pada tanggal di bawah. Tidak ada catatan scrap, jadi ban ini
+          seharusnya masih ada &mdash; mohon dipastikan ada di mana sekarang.
+        </p>
+      </div>
+    </div>
+
+    <div class="daftar">
+
+      <div class="ban">
+        <div class="ban-id">
+          <div class="no">No. 20</div>
+          <div class="seri">DA1BFANH05095D</div>
+          <div class="riwayat">
+            <div>Dilepas dari <b>Unit 832</b>, posisi <b>R3 Out</b></div>
+            <div>Tanggal <b>24 Juni 2026</b></div>
+            <div>Diganti dengan <span class="mono">DA1BFANH04814D</span></div>
+          </div>
+        </div>
+        <div class="isian">
+          <div class="pilihan">
+            <label for="s20a"><input type="checkbox" id="s20a"> Terpasang di unit</label>
+            <label for="s20b"><input type="checkbox" id="s20b"> Stok di gudang</label>
+            <label for="s20c"><input type="checkbox" id="s20c"> Sudah dibuang (scrap)</label>
+            <label for="s20d"><input type="checkbox" id="s20d"> Tidak ditemukan</label>
+          </div>
+          <div class="baris-isi">
+            <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l20"></div>
+            <div class="kolom"><span>Keterangan</span><input type="text" id="k20"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ban">
+        <div class="ban-id">
+          <div class="no">No. 22</div>
+          <div class="seri">DA1BFBPH02433D</div>
+          <div class="riwayat">
+            <div>Dilepas dari <b>Unit 839</b>, posisi <b>L3 In</b></div>
+            <div>Tanggal <b>8 Mei 2026</b></div>
+            <div>Diganti dengan <span class="mono">DA1BFBPH02689D</span></div>
+          </div>
+        </div>
+        <div class="isian">
+          <div class="pilihan">
+            <label for="s22a"><input type="checkbox" id="s22a"> Terpasang di unit</label>
+            <label for="s22b"><input type="checkbox" id="s22b"> Stok di gudang</label>
+            <label for="s22c"><input type="checkbox" id="s22c"> Sudah dibuang (scrap)</label>
+            <label for="s22d"><input type="checkbox" id="s22d"> Tidak ditemukan</label>
+          </div>
+          <div class="baris-isi">
+            <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l22"></div>
+            <div class="kolom"><span>Keterangan</span><input type="text" id="k22"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ban">
+        <div class="ban-id">
+          <div class="no">No. 40</div>
+          <div class="seri">DA1BFANH04816D</div>
+          <div class="riwayat">
+            <div>Dilepas dari <b>Unit 835</b>, posisi <b>R2 In</b></div>
+            <div>Tanggal <b>5 September 2026</b></div>
+            <div>Diganti dengan <span class="mono">DA1BFANH07618D</span></div>
+          </div>
+        </div>
+        <div class="isian">
+          <div class="pilihan">
+            <label for="s40a"><input type="checkbox" id="s40a"> Terpasang di unit</label>
+            <label for="s40b"><input type="checkbox" id="s40b"> Stok di gudang</label>
+            <label for="s40c"><input type="checkbox" id="s40c"> Sudah dibuang (scrap)</label>
+            <label for="s40d"><input type="checkbox" id="s40d"> Tidak ditemukan</label>
+          </div>
+          <div class="baris-isi">
+            <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l40"></div>
+            <div class="kolom"><span>Keterangan</span><input type="text" id="k40"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ban">
+        <div class="ban-id">
+          <div class="no">No. 42</div>
+          <div class="seri">DA1BFBPH02474D</div>
+          <div class="riwayat">
+            <div>Dilepas dari <b>Unit 835</b>, posisi <b>R2 Out</b></div>
+            <div>Tanggal <b>5 September 2026</b></div>
+            <div>Diganti dengan <span class="mono">DA1BFANH04849D</span></div>
+          </div>
+        </div>
+        <div class="isian">
+          <div class="pilihan">
+            <label for="s42a"><input type="checkbox" id="s42a"> Terpasang di unit</label>
+            <label for="s42b"><input type="checkbox" id="s42b"> Stok di gudang</label>
+            <label for="s42c"><input type="checkbox" id="s42c"> Sudah dibuang (scrap)</label>
+            <label for="s42d"><input type="checkbox" id="s42d"> Tidak ditemukan</label>
+          </div>
+          <div class="baris-isi">
+            <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l42"></div>
+            <div class="kolom"><span>Keterangan</span><input type="text" id="k42"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ban">
+        <div class="ban-id">
+          <div class="no">No. 53</div>
+          <div class="seri">DA12511H03159D</div>
+          <div class="riwayat">
+            <div>Dilepas dari <b>Unit 835</b>, posisi <b>L3 Out</b></div>
+            <div>Tanggal <b>12 Juli 2026</b></div>
+            <div>Diganti dengan <span class="mono">DA1BFANH05098D</span></div>
+          </div>
+        </div>
+        <div class="isian">
+          <div class="pilihan">
+            <label for="s53a"><input type="checkbox" id="s53a"> Terpasang di unit</label>
+            <label for="s53b"><input type="checkbox" id="s53b"> Stok di gudang</label>
+            <label for="s53c"><input type="checkbox" id="s53c"> Sudah dibuang (scrap)</label>
+            <label for="s53d"><input type="checkbox" id="s53d"> Tidak ditemukan</label>
+          </div>
+          <div class="baris-isi">
+            <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l53"></div>
+            <div class="kolom"><span>Keterangan</span><input type="text" id="k53"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <div class="judul">
+      <div class="pita pita-2"></div>
+      <div class="judul-teks">
+        <h2>Bagian 2 &middot; Lima belas ban tanpa data pengukuran</h2>
+        <p class="judul-sub">
+          Ban berikut tercatat <b>Install</b> di lembar Lifetime by Day, tetapi tidak pernah
+          muncul di lembar <b>Pressure</b>, <b>Tinggi Tread</b>, maupun <b>Penggantian</b>.
+          Tidak ada satu pun hasil pengukuran dan tidak ada posisi yang ditetapkan, jadi
+          tidak diketahui ban ini terpasang di mana.
+        </p>
+      </div>
+    </div>
+
+    <div class="daftar" id="daftar2"></div>
+  </section>
+
+  <section>
+    <div class="judul">
+      <div class="pita pita-3"></div>
+      <div class="judul-teks">
+        <h2>Bagian 3 &middot; Koreksi nomor seri di lembar Penggantian</h2>
+        <p class="judul-sub">
+          Satu nomor seri di lembar Penggantian kurang satu angka. Nomor yang tertulis
+          tidak ada di daftar mana pun. Mohon dikonfirmasi bahwa ban yang dimaksud
+          memang nomor yang benar di bawah ini.
+        </p>
+      </div>
+    </div>
+
+    <dl class="koreksi">
+      <div class="koreksi-baris">
+        <dt>Letak</dt>
+        <dd>Unit 834 &middot; posisi R2 In &middot; 6 Mei 2026</dd>
+      </div>
+      <div class="koreksi-baris">
+        <dt>Tertulis</dt>
+        <dd class="salah">DA1211H03162D</dd>
+      </div>
+      <div class="koreksi-baris">
+        <dt>Seharusnya</dt>
+        <dd>DA12<em>5</em>11H03162D</dd>
+      </div>
+      <div class="koreksi-baris">
+        <dt>Konfirmasi</dt>
+        <dd>
+          <span class="pilihan" style="gap:8px 18px">
+            <label for="c3a"><input type="checkbox" id="c3a"> Benar</label>
+            <label for="c3b"><input type="checkbox" id="c3b"> Tidak, ban lain</label>
+          </span>
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="ttd">
+    <div class="kolom"><span>Diperiksa oleh</span><input type="text" id="ttd-nama"></div>
+    <div class="kolom"><span>Jabatan</span><input type="text" id="ttd-jabatan"></div>
+    <div class="kolom"><span>Tanggal pemeriksaan</span><input type="text" id="ttd-tanggal"></div>
+    <div class="kolom"><span>Tanda tangan</span><div class="kotak-ttd"></div></div>
+  </div>
+
+  <footer>
+    Lembar verifikasi disusun 15 September 2026 &middot; sumber
+    <span class="mono">20260914, MONITORING TIRE TECHKING.xlsx</span>
+  </footer>
+
+</div>
+
+<script>
+// Bagian 2 berisi 15 ban dengan bentuk isian yang sama persis. Ditulis dari data
+// agar setiap baris benar-benar identik dan nomor seri tidak salah ketik.
+const BAN2 = [
+  [54, "DA1BFANH07564D"], [55, "DA12511H02911D"], [56, "DA1BFBPH02596D"],
+  [57, "DA12510H11574D"], [58, "DA12511H03027D"], [59, "DA1BFANH04850D"],
+  [60, "DA12511H02909D"], [61, "DA1BFANH05053D"], [62, "DA12510H09974D"],
+  [63, "DA12511H02908D"], [64, "DA12510H10027D"], [65, "DA12511H02901D"],
+  [68, "DA1BFANH07568D"], [69, "DA1BFANH07612D"], [72, "DA1BFBPH02426D"],
+];
+const STATUS = [
+  ["a", "Terpasang di unit"], ["b", "Stok di gudang"],
+  ["c", "Sudah dibuang (scrap)"], ["d", "Belum pernah dipakai"],
+  ["e", "Tidak ditemukan"],
+];
+document.getElementById("daftar2").innerHTML = BAN2.map(([no, seri]) => `
+  <div class="ban">
+    <div class="ban-id">
+      <div class="no">No. ${no}</div>
+      <div class="seri">${seri}</div>
+    </div>
+    <div class="isian">
+      <div class="pilihan">
+        ${STATUS.map(([k, teks]) =>
+          `<label for="s${no}${k}"><input type="checkbox" id="s${no}${k}"> ${teks}</label>`
+        ).join("")}
+      </div>
+      <div class="baris-isi">
+        <div class="kolom"><span>Lokasi sekarang</span><input type="text" id="l${no}"></div>
+        <div class="kolom"><span>Keterangan</span><input type="text" id="k${no}"></div>
+      </div>
+    </div>
+  </div>
+`).join("");
+</script>
