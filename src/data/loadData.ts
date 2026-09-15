@@ -4,7 +4,7 @@
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
-import type { Unit, LifeRecord, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
+import type { Unit, LifeRecord, LedgerSegment, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
 
 // ============================================================
@@ -219,7 +219,7 @@ function buildRounds(rows: InspectionRow[]) {
 
 /** 전체 데이터 로드 → TMS_DATA 갱신. 실패 시 throw. */
 export async function loadData(): Promise<void> {
-  const [cfg, veh, pos, cur, hist, repl, life, codes, insp] = await Promise.all([
+  const [cfg, veh, pos, cur, hist, repl, life, codes, insp, ledger] = await Promise.all([
     supabase.from("tire_config").select("*").eq("id", 1).maybeSingle(),
     supabase.from("vehicles").select("*").order("seq", { ascending: true }),
     // 시리얼은 더 이상 여기서 읽지 않는다 — v_current_tire 가 단일 진실원.
@@ -236,12 +236,23 @@ export async function loadData(): Promise<void> {
       .order("seq_no", { ascending: true }),
     // 소프트 삭제(T-103)된 교체 이력은 제외한다.
     supabase.from("replacements").select("*").is("deleted_at", null),
-    supabase.from("lifetimes").select("*").order("no", { ascending: true }),
+    // NONTK-* = 시험 대상 외 타이어(브리지스톤 등)를 표현하는 합성 시리얼.
+    // 엑셀 'Lifetime by Day'(TECHKING 전용)와 집계를 일치시키기 위해 제외한다.
+    supabase
+      .from("lifetimes")
+      .select("*")
+      .not("serial", "like", "NONTK-%")
+      .order("no", { ascending: true }),
     supabase.from("damage_codes").select("*").order("seq", { ascending: true }),
     listInspections(),
+    // 개체 단위 장착 구간 — 주행거리의 정본. 차량을 옮겨 다닌 타이어도 구간별로 복원돼 있다.
+    supabase
+      .from("v_tire_ledger")
+      .select("serial,ch,pos,seq_no,mounted_at,removed_at,is_current,segment_km,km_flag")
+      .order("seq_no", { ascending: true }),
   ]);
 
-  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes]) {
+  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes, ledger]) {
     if (r.error) throw r.error;
   }
 
@@ -275,6 +286,24 @@ export async function loadData(): Promise<void> {
   TMS_DATA.repl = (repl.data ?? []).map((r) => ({
     ch: r.ch, pos: r.pos, date: r.date, newSerial: r.new_serial ?? "",
   }));
+
+  // ledger — 시리얼별로 묶어 둔다. seqNo 순은 쿼리에서 이미 보장된다.
+  const ledgerBySerial: Record<string, LedgerSegment[]> = {};
+  for (const r of ledger.data ?? []) {
+    if (!r.serial) continue;
+    (ledgerBySerial[r.serial] ??= []).push({
+      ch: r.ch,
+      pos: r.pos,
+      seqNo: r.seq_no,
+      mountedAt: r.mounted_at ?? null,
+      removedAt: r.removed_at ?? null,
+      isCurrent: !!r.is_current,
+      // numeric 은 PostgREST 가 문자열로 준다. null 과 0 을 섞지 않도록 명시 변환.
+      segmentKm: r.segment_km == null ? null : Number(r.segment_km),
+      kmFlag: r.km_flag,
+    });
+  }
+  TMS_DATA.ledger = ledgerBySerial;
 
   // life
   TMS_DATA.life = (life.data ?? []).map((r): LifeRecord => ({

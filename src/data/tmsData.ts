@@ -210,6 +210,23 @@ export interface TireConfig {
   wearMinMm: number | null;
 }
 
+/**
+ * `v_tire_ledger` 한 행 — 개체(시리얼)가 한 포지션에 달려 있던 장착 구간.
+ * 구간 주행거리(`segmentKm`)의 정본이다. 점검 점열의 차이로 다시 구하지 말 것 —
+ * 장착·탈착 시점의 차량 km 는 그 타이어가 측정된 회차 밖에 있다.
+ */
+export interface LedgerSegment {
+  ch: string;
+  pos: string;
+  seqNo: number;                  // 0 = 최초 장착(원장에 장착일 없음)
+  mountedAt: string | null;
+  removedAt: string | null;
+  isCurrent: boolean;
+  /** 산출 불가(`kmFlag !== "OK"`)는 null 이다. 0 이 아니다. */
+  segmentKm: number | null;
+  kmFlag: "OK" | "NO_KM" | "KM_DECREASE";
+}
+
 export interface TmsData {
   tire: TireConfig;
   units: Unit[];
@@ -221,6 +238,8 @@ export interface TmsData {
    */
   segments: Record<string, Record<string, TreadSegment[]>>;
   repl: ReplRecord[];
+  /** 시리얼 → 장착 구간(seqNo 순). 수명 계산의 주행거리 근거. */
+  ledger: Record<string, LedgerSegment[]>;
   life: LifeRecord[];
   codes: Record<string, string>;
   summary: Record<string, number>;
@@ -241,6 +260,7 @@ export const TMS_DATA: TmsData = {
   tread: {},
   segments: {},
   repl: [],
+  ledger: {},
   life: [],
   codes: {},
   summary: {},
