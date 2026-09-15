@@ -5,7 +5,7 @@
 --   · CH 847 신규 등록 (차량 1대 + 포지션 10개)
 --   · 2026-07-12  CH 847        10행  (신품 장착 직후 첫 점검)
 --   · 2026-07-26  차량 7대      70행
---   · 교체 이력 2건 (835 L3 Out · 835 R3 In)
+--   · 교체이력 2건 (835 L3 Out · 835 R3 In)
 --
 -- 점검 행은 T-104 `upsert_inspection_round()` 를 경유하므로 재실행해도
 -- 행 수가 늘지 않고 변경 이력도 남지 않는다.
@@ -225,7 +225,7 @@ select public.upsert_inspection_round(
     {"pos": "R3 Out",  "serial": "DA1BFBPH02435D",  "pressure": 98.5,   "tread": 7.10}
   ]$j$::jsonb);
 
--- ── 3. 교체 이력 ──────────────────────────────────────────
+-- ── 3. 교체이력 ──────────────────────────────────────────
 -- replacements 에는 (ch, pos, date) 유니크 제약이 없어 존재 여부로 막는다.
 insert into public.replacements (ch, pos, date, new_serial)
 select '835', 'L3 Out', date '2026-07-12', 'DA1BFANH05098D'

@@ -71,7 +71,7 @@ const TX = {
 
     reasonTitle: "탈착 사유별 수명",
     reasonSub: "사유 분류는 damage_codes.tco_category 를 따릅니다.",
-    reasonNone: "탈착 사유가 입력된 교체 이력이 없습니다.",
+    reasonNone: "탈착 사유가 입력된 교체이력이 없습니다.",
     reasonUnlogged: "사유 미입력",
     colCount: "본수",
     colAvgKm: "평균 수명",

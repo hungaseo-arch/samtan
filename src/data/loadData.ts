@@ -10,10 +10,16 @@ import { listInspections, type InspectionRow } from "@/api/inspections";
 // ============================================================
 // 하중(축하중) 데이터 — Techking "Load Distribution Road Train unit" 시트 기준
 // 하중 그룹: ① 그룹 1 = Head + 트레일러 1 (Payload 55t, 총 94t) — 분배 Head 50% / 트레일러1 50%
+//            Head 50% 는 다시 조향축 : 구동축 = 20 : 80 (Western Star 6900XD 축 정격 비율 28,000 : 110,000 lb ≈ 20.3 : 79.7 을
+//            정수로 반올림 — 고객 하중분배 시트의 축하중 9,400 / 37,600 과 일치. 사용자 결정 2026-09-12)
 //            ② 그룹 2 = 돌리 + 트레일러 2 (Payload 65t, 총 96t) — 분배 50% / 50%
-// 정격(rated): 하중지수(LI) + 장착방식 기준
-//   · Head 385/95R24 단독(single) 6,000 kg/본
-//   · 트레일러·돌리 12.00R24 듀얼(dual) 4,500 kg/본 (단독 LI 162 = 4,750 → 듀얼 LI 160 = 4,500)
+// 정격(rated): 하중지수(LI) + 장착방식 기준. 듀얼(복륜) 장착은 단독 LI 대신 듀얼 LI 적용
+//   · 규칙: 듀얼 LI = 단독 LI − 2단계 (트레일러 325/95R24 22PR 의 공표값 162/160 에서 확인한 규칙)
+//   · Head 조향축 14.00R24 단독(single) — LI 170 = 6,000 kg/본
+//   · Head 구동축 14.00R24 듀얼(dual)   — 단독 LI 170 = 6,000 → 듀얼 LI 168 = 5,600 kg/본
+//     (Techking ETCrane 은 단독 LI 만 공표. 같은 규칙을 적용한 값이며 제조사 확인 전까지의 잠정치)
+//   · 트레일러·돌리 325/95R24 22PR 듀얼(dual) — 단독 LI 162 = 4,750 → 듀얼 LI 160 = 4,500 kg/본
+//     (12.00R24 는 등가 규격이나 20PR 이 LI 160/157 = 4,500/4,125 로 다르므로 실규격으로 표기)
 // ============================================================
 export type Mount = "single" | "dual";
 
@@ -32,8 +38,10 @@ export interface LoadUnit {
   spec: string;        // 타이어 규격
   count: number;       // 본수
   mount: Mount;        // 장착 방식 (단독/듀얼)
+  liSingle: number;    // 단독 하중지수(LI)
+  liDual: number;      // 듀얼 하중지수(LI) — 단독 장착이면 liSingle 과 같다
   ratedSingle: number; // 단독 정격 (kg/본)
-  ratedDual: number;   // 듀얼 정격 (kg/본)
+  ratedDual: number;   // 듀얼 정격 (kg/본) — 단독 장착이면 ratedSingle 과 같다
   unitWeight: number;  // 공차(Unit Weight, kg)
   group: 1 | 2;        // 소속 하중 그룹
   dist: number;        // 분배율 (axleOfHead=true → Head 하중 대비, 그 외 → 그룹 총중량 대비)
@@ -49,12 +57,26 @@ export const LOAD_GROUPS: LoadGroup[] = [
  *  근거: 고객 하중분배 시트(Load Distribution Road Train) — 그룹1 Head 50% / 트레일러1 50%. */
 export const HEAD_GROUP_SHARE = 0.5;
 
+/** Head 차량(프라임무버)과 축 정격(GAWR). 현장 투입 차량 기준 — 사용자 제공 2026-09-12. */
+export const HEAD_VEHICLE = {
+  model: "Western Star 6900XD",
+  steerAxleLb: 28000,     // 전축 최대 28,000 lb (12.7 t)
+  driveTandemLb: 110000,  // 후축 탠덤 최대 110,000 lb (49.9 t)
+} as const;
+
+/** Head 하중의 조향/구동 분배율 = 20% / 80%.
+ *  근거: Western Star 6900XD 축 정격 비율(28,000 : 110,000 lb ≈ 20.3% : 79.7%)을 정수로 반올림한 값.
+ *  고객 하중분배 시트의 축하중(조향 9,400 / 구동 37,600 kg)과 일치시키기 위해 정확 비율 대신 반올림값을 쓴다
+ *  (사용자 결정 2026-09-12). 표의 분배율 열(정수)로 재계산해도 축하중이 그대로 맞아떨어진다. */
+export const HEAD_STEER_SHARE = 0.2;
+export const HEAD_DRIVE_SHARE = 1 - HEAD_STEER_SHARE;
+
 export const LOAD_UNITS: LoadUnit[] = [
-  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (Head 20%)",          spec: "14.00R24", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
-  { key: "headDrive", name: "Head Driving axis", sub: "L2·L3·R2·R3 · Dual (Head 80%)",       spec: "14.00R24", count: 8,  mount: "dual",   ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
-  { key: "trailer1",  name: "Trailer 1",  sub: "Trailer 1",                         spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
-  { key: "dolly",     name: "Dolly",      sub: "Dolly",                               spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
-  { key: "trailer2",  name: "Trailer 2",  sub: "Trailer 2",                         spec: "12.00R24", count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
+  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (steer axle)",   spec: "14.00R24",       count: 2,  mount: "single", liSingle: 170, liDual: 170, ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: HEAD_STEER_SHARE, axleOfHead: true },
+  { key: "headDrive", name: "Head Driving axis",  sub: "L2·L3·R2·R3 · Dual (drive tandem)", spec: "14.00R24",   count: 8,  mount: "dual",   liSingle: 170, liDual: 168, ratedSingle: 6000, ratedDual: 5600, unitWeight: 12800, group: 1, dist: HEAD_DRIVE_SHARE, axleOfHead: true },
+  { key: "trailer1",  name: "Trailer 1",          sub: "Trailer 1",                     spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
+  { key: "dolly",     name: "Dolly",              sub: "Dolly",                         spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "trailer2",  name: "Trailer 2",          sub: "Trailer 2",                     spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
 ];
 
 /** 그룹 총중량(kg) = 그룹 소속 유닛 공차 합 + 그룹 Payload */
@@ -234,7 +256,7 @@ export async function loadData(): Promise<void> {
       .order("ch", { ascending: true })
       .order("pos", { ascending: true })
       .order("seq_no", { ascending: true }),
-    // 소프트 삭제(T-103)된 교체 이력은 제외한다.
+    // 소프트 삭제(T-103)된 교체이력은 제외한다.
     supabase.from("replacements").select("*").is("deleted_at", null),
     // NONTK-* = 시험 대상 외 타이어(브리지스톤 등)를 표현하는 합성 시리얼.
     // 엑셀 'Lifetime by Day'(TECHKING 전용)와 집계를 일치시키기 위해 제외한다.

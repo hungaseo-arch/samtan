@@ -27,7 +27,7 @@ select
   vp.serial                              as serial_initial,     -- 최초 장착
   r.new_serial                           as serial_latest_repl, -- 최신 교체분(교체 없으면 NULL)
   r.date                                 as mounted_at,
-  coalesce(rc.cnt, 0)::int               as repl_count          -- 교체 횟수(>0 이면 교체 이력 있음)
+  coalesce(rc.cnt, 0)::int               as repl_count          -- 교체 횟수(>0 이면 교체이력 있음)
 from public.vehicle_positions vp
 left join lateral (
   select r2.new_serial, r2.date

@@ -32,7 +32,7 @@ create table if not exists public.vehicle_positions (
   primary key (ch, pos)
 );
 
--- ── 타이어 교체 이력 ──
+-- ── 타이어 교체이력 ──
 create table if not exists public.replacements (
   id          uuid primary key default gen_random_uuid(),
   ch          text not null,

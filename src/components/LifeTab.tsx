@@ -292,7 +292,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
     (l) => lifeFilter === "ALL" || l.status === lifeFilter
   );
 
-  // 시리얼 포커스(다른 페이지/교체 이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
+  // 시리얼 포커스(다른 페이지/교체이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
   const focusRow = useRef<HTMLTableRowElement | null>(null);
   const [target, setTarget] = useState<string | null>(focusSerial ?? null);
   const [highlight, setHighlight] = useState<string | null>(null);

@@ -14,6 +14,7 @@ const PressureTab = lazy(() => import("@/components/PressureTab"));
 const WearAnalysisTab = lazy(() => import("@/components/WearAnalysisTab"));
 const InspectionTab = lazy(() => import("@/components/InspectionTab"));
 const LoadTab = lazy(() => import("@/components/LoadTab"));
+const LoadReviewTab = lazy(() => import("@/components/LoadReviewTab"));
 const TcoTab = lazy(() => import("@/components/TcoTab"));
 import { useLang, LANGS } from "@/i18n";
 import { useAuth, type Role } from "@/auth/AuthProvider";
@@ -22,15 +23,16 @@ import SetPasswordCard from "@/auth/SetPasswordCard";
 import { toast } from "sonner";
 const AdminTab = lazy(() => import("@/components/AdminTab"));
 import { LogOut, X, ChevronDown, Menu, ShieldCheck, KeyRound } from "lucide-react";
-import { LayoutDashboard, Map, Weight, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle, Coins } from "lucide-react";
+import { LayoutDashboard, Map, Weight, FileText, TrendingDown, Activity, Database, Gauge, SquarePen, ArrowLeftRight, RefreshCw, AlertTriangle, Coins } from "lucide-react";
 
-type TabId = "dash" | "layout" | "load" | "repl" | "life" | "trend" | "wear" | "pressure" | "input" | "tco" | "admin";
+type TabId = "dash" | "layout" | "load" | "review" | "repl" | "life" | "trend" | "wear" | "pressure" | "input" | "tco" | "admin";
 
 // label·desc는 i18n 사전(`tab.<id>.label/desc`)에서 가져옵니다. sub(영문 약칭)·icon은 공통.
 const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
   { id: "dash",     sub: "Dashboard",   icon: <LayoutDashboard className="w-4 h-4" /> },
   { id: "layout",   sub: "Layout",      icon: <Map className="w-4 h-4" /> },
   { id: "load",     sub: "Load",        icon: <Weight className="w-4 h-4" /> },
+  { id: "review",   sub: "Load Review", icon: <FileText className="w-4 h-4" /> },
   { id: "repl",     sub: "Replacement", icon: <ArrowLeftRight className="w-4 h-4" /> },
   { id: "life",     sub: "Lifetime DB", icon: <Database className="w-4 h-4" /> },
   { id: "input",    sub: "Input",       icon: <SquarePen className="w-4 h-4" /> },
@@ -45,7 +47,7 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
 // 상위 그룹(3~4개) → 하위 탭 배치. label은 i18n `nav.g.<id>`.
 // 대시보드(dash)는 '홈' 화면 — 로고 클릭으로 이동하며 그룹 탭에는 넣지 않음.
 const GROUPS: { id: string; tabs: TabId[] }[] = [
-  { id: "vehicle",  tabs: ["layout", "load"] },
+  { id: "vehicle",  tabs: ["layout", "load", "review"] },
   { id: "tire",     tabs: ["repl", "life"] },
   { id: "inspect",  tabs: ["input", "trend", "wear", "pressure"] },
   { id: "cost",     tabs: ["tco"] },
@@ -415,6 +417,7 @@ export default function Index() {
           {activeTab === "dash"     && <DashboardTab key={dataVersion} onVehicleClick={goToVehicle} />}
           {activeTab === "layout"   && <LayoutTab key={dataVersion} onSerialClick={goToSerial} focusCh={focusCh} />}
           {activeTab === "load"     && <LoadTab />}
+          {activeTab === "review"   && <LoadReviewTab />}
           {activeTab === "repl"     && <ReplacementTab key={dataVersion} onSerialClick={goToSerial} onVehicleClick={goToVehicle} />}
           {activeTab === "trend"    && <TrendTab key={dataVersion} onSerialClick={goToSerial} />}
           {activeTab === "wear"     && <WearAnalysisTab key={dataVersion} />}

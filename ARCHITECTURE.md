@@ -45,7 +45,7 @@ Supabase
 - **페이지네이션.** PostgREST 는 `max_rows = 1000` (`supabase/config.toml`) 을 넘는 행을 오류 없이 자릅니다. 회차마다 늘어나는
   조회(점검 이력 · 측정점 · 시계열 뷰)는 `fetchAll()` (`src/lib/supabase.ts`) 로 `range` 를 끝까지 넘깁니다. 정렬은 유일 키로 끝냅니다.
 - **쓰기는 RPC 로만.** `upsert_inspection_round` · `save_inspection_round_with_points` 등 멱등 UPSERT 함수(T-104)를 호출하고,
-  트리거가 파생 컬럼 · 감사 로그 · 교체 이력 동기화를 처리합니다. 클라이언트가 `inspections` 를 직접 INSERT 하지 않습니다.
+  트리거가 파생 컬럼 · 감사 로그 · 교체이력 동기화를 처리합니다. 클라이언트가 `inspections` 를 직접 INSERT 하지 않습니다.
 
 ### 1.4 판정과 표기
 

@@ -14,7 +14,7 @@
 2026-08-18 Techking 현장(Bpk. Irawan)에서 "타이어 이력이 조회되지 않는다"는 보고가 들어왔다.
 원인은 데이터가 아니라 구조였다.
 
-- `lifetimes` (수명 원장) · `vehicle_positions` (현재 장착) · `replacements` (교체 이력) 세 테이블이
+- `lifetimes` (수명 원장) · `vehicle_positions` (현재 장착) · `replacements` (교체이력) 세 테이블이
   각자의 진실을 들고 있었고, 셋을 맞추는 것은 **사람이 손으로 쓰는 SQL 한 줄**이었다.
 - `vehicle_positions` 의 시리얼 칸은 `serial`(최초) · `serial2`(최신 교체분) **2개뿐**이라
   같은 포지션을 3번째로 교체하면 중간 시리얼이 밀려나 사라졌다.

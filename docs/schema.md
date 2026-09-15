@@ -17,7 +17,7 @@
 | `inspections` | 330 | 활성 | 점검 측정값 (ch · 점검일 · 포지션 단위 1행) |
 | `vehicles` | 6 | 활성 | 차량 마스터 |
 | `vehicle_positions` | 60 | 활성 | 차량별 포지션 및 장착 시리얼 |
-| `replacements` | 17 | 활성 | 타이어 교체 이력 |
+| `replacements` | 17 | 활성 | 타이어 교체이력 |
 | `lifetimes` | 70 | 활성 | 타이어 수명 원장 (§1.2 미기재) |
 | `tire_config` | 1 | 활성 | 타이어 스펙 단일 행 (§1.2 미기재) |
 | `damage_codes` | 14 | 활성 | 손상 코드 참조 (§1.2 미기재) |
@@ -79,7 +79,7 @@ PK: `(ch, pos)` · FK: `ch` → `vehicles(ch)` `ON DELETE CASCADE`
 | `seq` | `integer` | NULL | — | 표시 순서 |
 | 감사 7개 컬럼 | | | | T-103에서 추가 — §14 참조 |
 
-## 4. `public.replacements` — 교체 이력
+## 4. `public.replacements` — 교체이력
 
 PK: `id`
 
@@ -222,7 +222,7 @@ RLS 정책은 다른 테이블과 다릅니다 — **`SELECT`는 `admin`만** �
 NULL 은 모두 허용합니다 — `pressure IS NULL` 은 "미측정"(내측 듀얼 타이어의 N/A 등)을 뜻하며
 값이 없는 것과 잘못된 값은 구분해야 합니다.
 
-FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점검·교체 이력이 남아 있는 한
+FK 는 `ON DELETE` 를 지정하지 않아 기본값 `NO ACTION` 입니다. 점검·교체이력이 남아 있는 한
 포지션(과 `ON DELETE CASCADE` 를 타고 올라가는 상위 차량)을 지울 수 없습니다.
 §3.1-3 의 "측정 레코드 DELETE 금지"와 같은 방향의 보호막입니다.
 

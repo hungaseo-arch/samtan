@@ -1,6 +1,6 @@
 // @section: replacement-tab
 //
-// 교체 이력 조회 + **탈착 시점 정보 소급 입력** (WO-TMS-2026-09-TCO T-10).
+// 교체이력 조회 + **탈착 시점 정보 소급 입력** (WO-TMS-2026-09-TCO T-10).
 //
 // 이 탭의 목적이 하나 늘었다. 예전에는 "언제 무엇으로 갈았나"만 보여줬다.
 // 이제는 "왜 뺐나, 뺀 것은 어떻게 됐나"를 받아야 한다. 그 27건이 비어 있는 한
@@ -28,7 +28,7 @@ import {
 
 const TX = {
   ko: {
-    title: "타이어 교체 이력",
+    title: "타이어 교체이력",
     countSuffix: "건",
     rotation: "로테이션",
     chVehicle: "차량",
@@ -52,8 +52,8 @@ const TX = {
     colReason: "교체사유",
     colInstall: "장착일",
 
-    loading: "교체 이력을 불러오는 중…",
-    loadFail: "교체 이력을 불러오지 못했습니다.",
+    loading: "교체이력을 불러오는 중…",
+    loadFail: "교체이력을 불러오지 못했습니다.",
 
     // 탈착 정보 (T-2 신규 컬럼)
     removalTitle: "탈착 정보",
@@ -269,7 +269,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
 
   const rows = useMemo(() => repls.data ?? [], [repls.data]);
 
-  // 교체 이력을 (차량·포지션)별 체인으로 묶어 1차 → 2차 → 3차 … 단계 구성
+  // 교체이력을 (차량·포지션)별 체인으로 묶어 1차 → 2차 → 3차 … 단계 구성
   const reasonOf = (serial: string | null) => {
     const l = serial ? TMS_DATA.life.find((x) => x.serial === serial) : undefined;
     const scrap = l?.status === "Scrap" && !!l.damage && l.damage !== "-";

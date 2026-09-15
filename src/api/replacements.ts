@@ -1,5 +1,5 @@
 // @section: replacements-api
-// 교체 이력 조회 + 탈착 시점 정보 입력 (WO-TMS-2026-09-TCO T-2·T-10).
+// 교체이력 조회 + 탈착 시점 정보 입력 (WO-TMS-2026-09-TCO T-2·T-10).
 //
 // T-2 이전의 replacements 27건에는 **날짜와 새 시리얼밖에 없다.** 왜 뺐는지,
 // 뺀 타이어가 어떻게 됐는지가 없어 TCO 산출이 불가능하다. 이 모듈은 그 결손을
@@ -59,7 +59,7 @@ const COLS =
   "id,ch,pos,date,new_serial,old_serial,removal_code,removal_tread_min," +
   "casing_grade,retreadable,downtime_minutes,removal_note";
 
-/** 소프트 삭제되지 않은 교체 이력 전건. 최신 교체일이 앞에 온다. */
+/** 소프트 삭제되지 않은 교체이력 전건. 최신 교체일이 앞에 온다. */
 export async function listReplacements(): Promise<ReplacementRow[]> {
   const { data, error } = await supabase
     .from("replacements")
