@@ -14,7 +14,7 @@ import {
   listAuditLog, listAuthEvents, AUDIT_TABLES, RPC_MISSING,
   type AuditEntry, type AuditTable, type AuthEvent, type FieldChange,
 } from "@/api/adminLogs";
-import { fmtDateTimeWIB, fmtRelative, fmtPressure, fmtTread, fmtMeter, EMPTY } from "@/lib/format";
+import { fmtDateTimeWIB, fmtRelative, fmtPressure, fmtTread, fmtMeter, EMPTY, TZ_LABEL } from "@/lib/format";
 
 const TX = {
   ko: {
@@ -38,7 +38,7 @@ const TX = {
     actUserDeleted: "계정 삭제", actUserSignedUp: "계정 생성",
     actRecovery: "비밀번호 재설정 요청",
     srcMigration: "마이그레이션",
-    note: "기록은 트리거가 자동으로 남기며 수정·삭제할 수 없습니다. 시각은 현장 시간대(WIB) 기준입니다.",
+    note: "기록은 트리거가 자동으로 남기며 수정·삭제할 수 없습니다. 시각은 운영지 자카르타(WIB, UTC+7) 기준입니다. 현장 발릭빠빤(WITA)은 1시간 빠릅니다.",
   },
   id: {
     title: "Log Aktivitas Pengguna",
@@ -61,7 +61,7 @@ const TX = {
     actUserDeleted: "Akun dihapus", actUserSignedUp: "Akun dibuat",
     actRecovery: "Permintaan reset kata sandi",
     srcMigration: "Migrasi",
-    note: "Catatan dibuat otomatis oleh trigger dan tidak dapat diubah. Waktu dalam zona lapangan (WIB).",
+    note: "Catatan dibuat otomatis oleh trigger dan tidak dapat diubah. Waktu dalam zona operasional Jakarta (WIB, UTC+7). Lapangan Balikpapan (WITA) 1 jam lebih awal.",
   },
   en: {
     title: "User Activity Log",
@@ -84,7 +84,7 @@ const TX = {
     actUserDeleted: "Account deleted", actUserSignedUp: "Account created",
     actRecovery: "Password reset requested",
     srcMigration: "Migration",
-    note: "Records are written automatically by triggers and cannot be edited. Times are field time (WIB).",
+    note: "Records are written automatically by triggers and cannot be edited. Times are Jakarta operations time (WIB, UTC+7). The Balikpapan site (WITA) is 1 hour ahead.",
   },
 } as const;
 
@@ -385,7 +385,9 @@ function DataTable({
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-border text-muted-foreground">
-            <th className="px-2 py-2 text-left font-semibold w-36">{tx.colWhen}</th>
+            <th className="px-2 py-2 text-left font-semibold w-36">
+              {tx.colWhen} <span className="font-normal text-muted-foreground">({TZ_LABEL})</span>
+            </th>
             <th className="px-2 py-2 text-left font-semibold w-36">{tx.colWho}</th>
             <th className="px-2 py-2 text-left font-semibold w-24">{tx.colWhat}</th>
             <th className="px-2 py-2 text-left font-semibold w-48">{tx.colTarget}</th>
@@ -447,7 +449,9 @@ function AuthTable({
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr className="border-b border-border text-muted-foreground">
-            <th className="px-2 py-2 text-left font-semibold w-40">{tx.colWhen}</th>
+            <th className="px-2 py-2 text-left font-semibold w-40">
+              {tx.colWhen} <span className="font-normal text-muted-foreground">({TZ_LABEL})</span>
+            </th>
             <th className="px-2 py-2 text-left font-semibold">{tx.colWho}</th>
             <th className="px-2 py-2 text-left font-semibold w-40">{tx.colAction}</th>
             <th className="px-2 py-2 text-right font-semibold w-32">{tx.colIp}</th>

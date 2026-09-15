@@ -32,7 +32,11 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
 - 마이그레이션 적용은 `supabase db push` 만. MCP `apply_migration`·대시보드 SQL 편집기 금지 —
   자동 타임스탬프로 기록돼 원격 이력과 로컬 파일명이 어긋난다
   (2026-08-29 그렇게 어긋난 30건을 `migration repair` 로 정리했음)
-- 타임존: 저장 UTC / 표시 `Asia/Jakarta` (WIB)
+- 타임존: 저장 UTC. 표시·입력은 둘로 갈린다 (X-19, 사용자 결정 2026-09-15)
+  - *시각* 표시(감사로그·로그인) = 운영지 자카르타 `Asia/Jakarta` (WIB, UTC+7). 관리자 화면 전용이다
+  - *날짜* 판정(점검일 기본값) = 현장 발릭빠빤 `Asia/Makassar` (**WITA**, UTC+8). WIT(UTC+9)가 아니다
+  - "오늘"을 `new Date().toISOString().slice(0,10)`(UTC)이나 단말 로컬로 만들지 말 것.
+    `src/lib/format.ts` 의 `todayInField()` 만 사용한다
 - 로케일: `ko` / `id` / `en` 3개 (`Lang`, `src/i18n/index.tsx`). 기본값은 `id` — 현장 점검자 화면 기준.
   새 UI 문구는 세 로케일을 전부 채울 것. 하나라도 비면 그 화면만 언어가 튄다
 - 커밋: Conventional Commits (`feat(schema): ...`). `main` 직접 푸시 금지

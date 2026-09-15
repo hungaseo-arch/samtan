@@ -44,6 +44,13 @@ export function fmtPercent(v: number | null | undefined): string {
   return isBlank(v) ? EMPTY : `${fixed(v, 1)}%`;
 }
 
+/** 퍼센트 — 정수. `10%`, `78%`
+ *  하중 탭(분배율·부하율·근거 문단) 전용 — 사용자 결정 2026-09-12. 하중 탭의 퍼센트는 전부 정수로 표시한다.
+ *  그 밖의 화면(트레드 마모율·CV 등)은 CLAUDE.md §숫자 표기대로 fmtPercent 의 1자리를 쓴다. */
+export function fmtPercentInt(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : `${fixed(v, 0)}%`;
+}
+
 /** 구매단가 (FOB/CIF/C&F/EXW) — 소수점 2자리. `USD 84.25/EA` */
 export function fmtUnitPrice(
   v: number | null | undefined,
@@ -205,10 +212,26 @@ export function fmtVehicle(ch: string | null | undefined): string {
 
 // ── 날짜·시각 ─────────────────────────────────────────────────────
 //
-// 저장은 UTC, 표시는 현장 시간대(WIB = Asia/Jakarta) — 규약 §타임존.
+// 저장은 UTC. 표시·입력은 시간대가 **둘로 갈린다** — 사용자 결정 2026-09-15.
+//
+//   WIB  = Asia/Jakarta  (UTC+7) — 시스템 운영지. 감사로그·로그인 등 *시각* 표시.
+//   WITA = Asia/Makassar (UTC+8) — 현장(발릭빠빤, 동칼리만탄). 점검일 등 *날짜* 판정.
+//
+// 시각을 읽는 사람은 자카르타 운영자(관리자 화면 전용)이고, 날짜를 만드는 사람은
+// 발릭빠빤 점검자다. 한쪽으로 통일하면 반드시 다른 쪽이 어긋난다.
+// 발릭빠빤은 WIT(UTC+9, 파푸아·말루쿠)가 아니라 WITA 다 — 혼동 주의.
+//
 // 표기는 화면 언어와 무관하게 ISO 순서(YYYY-MM-DD)로 고정한다. 로케일마다
 // 월/일 순서가 뒤바뀌면 감사 로그의 "입력 시각"과 점검일을 대조할 때 오독이 난다.
 const WIB = "Asia/Jakarta";
+const WITA = "Asia/Makassar";
+
+/** 시각 표시에 병기하는 시간대 라벨. 현장과 통화하며 로그를 읽을 때 1시간 오해를 막는다. */
+export const TZ_LABEL = "WIB";
+
+const WITA_DATE = new Intl.DateTimeFormat("en-CA", {
+  timeZone: WITA, year: "numeric", month: "2-digit", day: "2-digit",
+});
 
 const WIB_DATE = new Intl.DateTimeFormat("en-CA", {
   timeZone: WIB, year: "numeric", month: "2-digit", day: "2-digit",
@@ -229,10 +252,22 @@ export function fmtDateWIB(v: string | Date | null | undefined): string {
   return d ? WIB_DATE.format(d) : EMPTY;
 }
 
-/** 날짜+시각 — 현장 시간대 기준. `2026-08-26 14:03` */
+/** 날짜+시각 — 운영지(WIB) 기준. `2026-08-26 14:03` */
 export function fmtDateTimeWIB(v: string | Date | null | undefined): string {
   const d = asDate(v);
   return d ? `${WIB_DATE.format(d)} ${WIB_TIME.format(d)}` : EMPTY;
+}
+
+/**
+ * 오늘 날짜(YYYY-MM-DD) — **현장(WITA) 기준**. 점검일 기본값은 여기서만 만든다.
+ *
+ * `new Date().toISOString().slice(0,10)` 은 UTC 날짜라 쓰면 안 된다. 발릭빠빤
+ * 00:00~08:00 에 저장하면 점검일이 하루 전으로 들어가는데, 그 구간이 오전 점검
+ * 시간대를 그대로 덮는다. 단말의 로컬 시간대에 기대는 것도 같은 이유로 안 된다 —
+ * 자카르타에서 대신 입력하는 경우가 있다.
+ */
+export function todayInField(): string {
+  return WITA_DATE.format(new Date());
 }
 
 /**

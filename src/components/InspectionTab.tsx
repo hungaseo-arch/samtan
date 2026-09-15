@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi } from "@/data/tmsData";
 import { unitByCh } from "@/data/tmsUtils";
-import { EMPTY, fmtMeter, fmtTread, fmtTreadAvg, fmtPercent } from "@/lib/format";
+import { EMPTY, fmtMeter, fmtTread, fmtTreadAvg, fmtPercent, todayInField } from "@/lib/format";
 import {
   listInspections,
   saveInspectionRoundWithPoints,
@@ -331,7 +331,8 @@ const emptyCell = (serial: string): FormCell => ({
   serial, pressure: "", tL: "", tC1: "", tC2: "", tR: "", flag: "OK", flagNote: "",
 });
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+// 점검일 기본값은 현장(WITA) 날짜다. UTC·단말 로컬로 잡으면 발릭빠빤 오전 입력분이
+// 하루 전으로 저장된다 — 근거는 format.ts 의 todayInField() 주석.
 
 /**
  * 트레드 0 mm 를 설명하는 상태. TreadStatus 에서 "measured" 만 뺀 것이다.
@@ -344,7 +345,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   const tx = TX[lang];
   const { canWrite, canDelete, isAdmin } = useAuth();
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(todayInField());
   const [hm, setHm] = useState("");
   const [km, setKm] = useState("");
   const [driver, setDriver] = useState("");
