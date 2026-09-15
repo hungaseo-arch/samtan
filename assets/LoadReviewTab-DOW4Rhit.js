@@ -1,0 +1,249 @@
+import{r as s,j as t}from"./vendor-BguWtqu0.js";import{u as o}from"./index-QP5qAyN-.js";import"./supabase-CyMq8Or-.js";const c=`<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>차량 하중 용어 정의 및 Road Train 타이어 하중 검토 — Western Star 6900XD Prime Mover</title>
+<style>
+  :root{
+    --grey:#F0F0F0; --blue:#E3F2FD; --sage:#E8F5E9; --bluegrey:#ECEFF1;
+    --ink:#546E7A; --ink-dark:#37474F; --line:#B0BEC5; --white:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--grey);color:var(--ink);font-family:"Noto Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;font-size:14px;line-height:1.65}
+  .page{max-width:1120px;margin:0 auto;padding:32px 24px 64px}
+  header{background:var(--blue);border:1px solid var(--line);border-radius:6px;padding:28px 32px;margin-bottom:28px}
+  header h1{margin:0 0 6px;font-size:24px;font-weight:700;color:var(--ink-dark);letter-spacing:-0.01em}
+  header p{margin:0;font-size:13px}
+  header .meta{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px 24px;font-size:12.5px}
+  section{background:var(--white);border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:22px}
+  h2{margin:0 0 14px;font-size:17px;color:var(--ink-dark);padding-bottom:8px;border-bottom:2px solid var(--blue)}
+  h3{margin:18px 0 8px;font-size:14.5px;color:var(--ink-dark)}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin:10px 0}
+  th,td{border:1px solid var(--line);padding:7px 10px;vertical-align:top}
+  th{background:var(--bluegrey);color:var(--ink-dark);font-weight:600;text-align:left}
+  td.num,th.num{text-align:right;white-space:nowrap}
+  td.key{font-weight:600;color:var(--ink-dark);white-space:nowrap}
+  td.grp{background:var(--bluegrey);font-weight:600;color:var(--ink-dark);text-align:center;vertical-align:middle}
+  tr.sub td{background:var(--bluegrey);font-weight:600;color:var(--ink-dark)}
+  tr.hl td{background:var(--sage);font-weight:600;color:var(--ink-dark)}
+  .ok{color:#2E7D32;font-weight:600}
+  ul{margin:6px 0 6px 18px;padding:0}
+  li{margin:3px 0}
+  .formula{background:var(--bluegrey);border-left:4px solid var(--ink);padding:10px 14px;margin:10px 0;font-size:13.5px;color:var(--ink-dark)}
+  .note{background:var(--sage);border:1px solid #C8E6C9;border-radius:4px;padding:10px 14px;font-size:13px;margin:10px 0}
+  .warn{background:var(--bluegrey);border:1px solid var(--line);border-radius:4px;padding:10px 14px;font-size:13px;margin:10px 0}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:760px){.grid2{grid-template-columns:1fr}}
+  .box{background:var(--grey);border:1px solid var(--line);border-radius:4px;padding:12px 14px}
+  .box strong{color:var(--ink-dark)}
+  .src{font-size:12px;color:#78909C;margin-top:6px}
+  /* 연결 구조 다이어그램 */
+  .train{display:flex;align-items:stretch;gap:0;margin:14px 0;overflow-x:auto}
+  .unit{flex:1;min-width:150px;border:1px solid var(--line);border-radius:6px;padding:10px 12px;text-align:center;background:var(--grey)}
+  .unit.head{background:var(--blue)}
+  .unit.dolly{background:var(--sage)}
+  .unit b{display:block;color:var(--ink-dark);font-size:14px;margin-bottom:4px}
+  .unit span{display:block;font-size:12px;line-height:1.5}
+  .link{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:96px;padding:0 6px;font-size:11.5px;text-align:center;color:var(--ink-dark)}
+  .link i{font-style:normal;font-size:20px;line-height:1}
+  footer{text-align:center;font-size:12px;color:#78909C;margin-top:20px}
+  @media print{body{background:#fff}section,header{break-inside:avoid;box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>차량 하중 용어 정의 및 Road Train 타이어 하중 검토</h1>
+  <p>Western Star 6900XD Prime Mover (16 ton) + Trailer 1 + Dolly + Trailer 2 — 14.00R24 TECHKING ETCRANE / 325/95R24 KUMHO KMA03 22PR 162/160K 적용</p>
+  <div class="meta">
+    <span>작성일: 2026-09-12</span>
+    <span>회사: PT ASCENDO INTERNASIONAL</span>
+    <span>데이터 기준: Samtan TMS 등록 사양</span>
+    <span>용도: 영업·기술 상담 참고자료 (사내)</span>
+  </div>
+</header>
+
+<!-- 1. 용어 정의 -->
+<section>
+  <h2>1. 차량 하중 용어 정의 (English / Bahasa Indonesia / 한국어)</h2>
+  <table>
+    <thead><tr><th style="width:24%">영문 용어 (약어)</th><th style="width:20%">Bahasa Indonesia</th><th style="width:14%">한국어</th><th>정의</th></tr></thead>
+    <tbody>
+      <tr><td class="key">Curb Weight / Tare Weight / Unladen Weight</td><td>Berat Kosong (Tara)</td><td>공차중량</td><td>연료·냉각수·표준장비 포함, 적재물·승객 제외한 차량 자체 무게</td></tr>
+      <tr><td class="key">Payload</td><td>Muatan / Daya Angkut</td><td>적재중량 (적재정량)</td><td>차량이 실을 수 있는 화물 무게 = GVWR − Curb Weight</td></tr>
+      <tr><td class="key">Gross Vehicle Weight (GVW)</td><td>Berat Total Kendaraan</td><td>총중량 (실제)</td><td>특정 시점의 실제 총무게 (공차 + 실제 적재물) — 단일 유닛 기준</td></tr>
+      <tr><td class="key">Gross Vehicle Weight Rating (GVWR)</td><td>JBB (Jumlah Berat yang Diperbolehkan)</td><td>최대 총하중 (허용 총중량)</td><td>제조사가 정한 단일 유닛 총중량 상한 — 인니 STNK·KIR의 JBB에 해당</td></tr>
+      <tr><td class="key">Gross Combination Weight (GCW) / Rating (GCWR)</td><td>JBKB (Jumlah Berat Kombinasi yang Diperbolehkan)</td><td>연결 총하중 / 연결 허용 총하중</td><td>견인차 + 트레일러(+돌리) 전체 조합의 실제 총중량 / 그 상한 — Road Train의 기준 지표</td></tr>
+      <tr><td class="key">Prime Mover / Tractor (Head)</td><td>Kepala Truk / Prime Mover</td><td>견인차</td><td>Road Train의 동력 유닛 — 조향축 + 구동축(탠덤), 트레일러 별도</td></tr>
+      <tr><td class="key">Semi-trailer / Full trailer</td><td>Trailer / Gandengan</td><td>세미트레일러 / 풀트레일러</td><td>세미: 전단 하중을 견인차 5th wheel에 얹음 / 풀: 돌리 위에 얹혀 자립</td></tr>
+      <tr><td class="key">Dolly (Converter Dolly)</td><td>Dolly</td><td>돌리</td><td>드로바(drawbar)로 앞 트레일러에 연결되고, 상부 5th wheel로 뒤 트레일러 전단을 받는 전환 대차</td></tr>
+      <tr><td class="key">Fifth Wheel Load / Kingpin Load</td><td>Beban Fifth Wheel / Kingpin</td><td>5th wheel 하중 / 킹핀 하중</td><td>세미트레일러 전단이 견인차 또는 돌리에 수직으로 얹는 하중</td></tr>
+      <tr><td class="key">Drawbar Load</td><td>Beban Drawbar</td><td>드로바 하중</td><td>풀트레일러·돌리를 견인하는 연결봉의 수직 하중 — 통상 소량</td></tr>
+      <tr><td class="key">Axle Load</td><td>Beban Sumbu</td><td>축하중 (실제)</td><td>한 축(또는 축군)이 노면에 전달하는 실제 하중</td></tr>
+      <tr><td class="key">Gross Axle Weight Rating (GAWR)</td><td>MST (Muatan Sumbu Terberat)</td><td>축 허용하중</td><td>축·현가·브레이크가 감당하는 축당 상한 — 인니 도로법 MST 8 / 10 / 12 ton 규제의 기준</td></tr>
+      <tr><td class="key">Load Distribution Ratio</td><td>Rasio Distribusi Beban</td><td>하중 분배율</td><td>그룹 총하중이 조향축·구동축·트레일러 축군에 나뉘는 비율</td></tr>
+      <tr><td class="key">Tire Load Capacity / Maximum Load</td><td>Kapasitas Beban Ban</td><td>타이어 하중 (최대 부하능력)</td><td>표준 공기압에서 타이어 1본이 지지할 수 있는 최대 하중</td></tr>
+      <tr><td class="key">Load Index (LI)</td><td>Indeks Beban</td><td>하중지수</td><td>최대 부하능력을 숫자로 코드화 (예: 162 = 4,750 kg)</td></tr>
+      <tr><td class="key">Single / Dual Load Rating</td><td>Beban Tunggal / Ganda</td><td>단륜 / 복륜 하중</td><td>예: 162/160 → 단륜 4,750 kg, 복륜 시 본당 4,500 kg</td></tr>
+      <tr><td class="key">Speed Symbol</td><td>Simbol Kecepatan</td><td>속도기호</td><td>LI가 유효한 기준 속도 (K = 110 km/h, F = 80 km/h)</td></tr>
+      <tr><td class="key">Ply Rating (PR) / Star Rating (★)</td><td>Lapis / Peringkat Bintang</td><td>강도지수</td><td>카커스 강도 등급 — TBR은 PR, OTR은 ★ (★★★ = 최고)</td></tr>
+      <tr><td class="key">Tire Load Utilization</td><td>Tingkat Pembebanan Ban</td><td>부하율</td><td>타이어당 실제 하중 ÷ 최대 부하능력 × 100 — 100% 초과 시 과하중</td></tr>
+      <tr><td class="key">Allowable Load (per tire / per axle)</td><td>Beban yang Diizinkan</td><td>허용하중</td><td>실무 판단값 = min(GAWR, 타이어 하중 × 본수) — 둘 중 작은 쪽이 실제 상한</td></tr>
+      <tr><td class="key">TKPH (Ton-Km-Per-Hour)</td><td>TKPH</td><td>톤·km/시</td><td>OTR 타이어의 하중 × 속도 열 한계 — 광산 운반차량 필수 지표</td></tr>
+    </tbody>
+  </table>
+
+  <h3>핵심 관계식</h3>
+  <div class="formula">
+    ① GVWR = Curb Weight + Payload (단일 유닛) / GCW = Σ(각 유닛 공차 + 적재)<br>
+    ② 각 축군 하중 ≤ GAWR<br>
+    ③ 각 축군 하중 ≤ 타이어 최대 하중 × 장착 본수<br>
+    ④ 타이어당 하중 = 축군 하중 ÷ 본수 / 부하율 = 타이어당 하중 ÷ 최대 하중<br>
+    ⑤ 실제 상한 = min(②, ③) — Road Train은 대부분 ③(타이어)이 병목
+  </div>
+</section>
+
+<!-- 2. Road Train 구성 -->
+<section>
+  <h2>2. 예시 차량 — Western Star 6900XD Prime Mover Road Train (Samtan TMS 등록 사양)</h2>
+
+  <h3>2-1. 연결 구조</h3>
+  <div class="train">
+    <div class="unit head"><b>Head (6900XD)</b><span>Prime Mover / Tractor</span><span>공차 16,000 kg</span><span>조향축 1 + 구동축 탠덤</span><span>14.00R24 × 10본</span></div>
+    <div class="link"><i>⟶</i>5th wheel<br>(킹핀 하중 → 구동축)</div>
+    <div class="unit"><b>Trailer 1</b><span>Semi-trailer</span><span>공차 23,000 kg</span><span>3축 복륜</span><span>325/95R24 × 12본</span></div>
+    <div class="link"><i>⟶</i>Drawbar<br>(수직하중 소량)</div>
+    <div class="unit dolly"><b>Dolly</b><span>Converter Dolly</span><span>공차 6,000 kg</span><span>3축 복륜</span><span>325/95R24 × 12본</span></div>
+    <div class="link"><i>⟶</i>5th wheel<br>(킹핀 하중 → 돌리)</div>
+    <div class="unit"><b>Trailer 2</b><span>Semi-trailer</span><span>공차 25,000 kg</span><span>3축 복륜</span><span>325/95R24 × 12본</span></div>
+  </div>
+  <ul>
+    <li><strong>그룹 1</strong> = Head + Trailer 1: Trailer 1 전단이 Head의 5th wheel에 얹힘 → 적재 55,000 kg이 조향축·구동축·Trailer 1 축군에 분배</li>
+    <li><strong>그룹 2</strong> = Dolly + Trailer 2: Trailer 2 전단이 Dolly의 5th wheel에 얹힘 → 적재 65,000 kg이 Dolly·Trailer 2 축군에 분배. Dolly는 Trailer 1 후미에 드로바로 연결되어 그룹 1에 수직 하중을 거의 전달하지 않음</li>
+    <li>총 12축 · 46본 · 연결 총하중(GCW) 190,000 kg — 광산 전용 운반로(haul road) 운행 사양</li>
+  </ul>
+
+  <h3>2-2. 유닛별 사양·하중 (TMS 등록값)</h3>
+  <table>
+    <thead>
+      <tr><th>그룹</th><th>유닛</th><th>타이어 규격</th><th>장착</th><th class="num">수량</th><th class="num">공차중량(kg)</th><th class="num">적재중량(kg)</th><th class="num">축하중(kg)</th><th class="num">분배율</th><th class="num">타이어당 하중(kg)</th><th class="num">최대하중(kg)</th><th class="num">부하율</th><th>판정</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="grp" rowspan="3">그룹 1</td><td class="key">Head 조향축</td><td>14.00R24 ETCRANE</td><td>단륜</td><td class="num">2</td><td class="num" rowspan="2">16,000</td><td class="num" rowspan="3">55,000</td><td class="num">9,400</td><td class="num">10%</td><td class="num">4,700</td><td class="num">6,000</td><td class="num ok">78%</td><td class="ok">정상</td></tr>
+      <tr><td class="key">Head 구동축</td><td>14.00R24 ETCRANE</td><td>복륜</td><td class="num">8</td><td class="num">37,600</td><td class="num">40%</td><td class="num">4,700</td><td class="num">5,600</td><td class="num ok">84%</td><td class="ok">정상</td></tr>
+      <tr><td class="key">Trailer 1</td><td>325/95R24 KMA03 22PR</td><td>복륜</td><td class="num">12</td><td class="num">23,000</td><td class="num">47,000</td><td class="num">50%</td><td class="num">3,917</td><td class="num">4,500</td><td class="num ok">87%</td><td class="ok">정상</td></tr>
+      <tr class="sub"><td></td><td>소계</td><td></td><td></td><td class="num">22</td><td class="num">39,000</td><td class="num">55,000</td><td class="num">94,000</td><td class="num">100%</td><td></td><td></td><td></td><td></td></tr>
+      <tr><td class="grp" rowspan="2">그룹 2</td><td class="key">Dolly</td><td>325/95R24 KMA03 22PR</td><td>복륜</td><td class="num">12</td><td class="num">6,000</td><td class="num" rowspan="2">65,000</td><td class="num">48,000</td><td class="num">50%</td><td class="num">4,000</td><td class="num">4,500</td><td class="num ok">89%</td><td class="ok">정상</td></tr>
+      <tr><td class="key">Trailer 2</td><td>325/95R24 KMA03 22PR</td><td>복륜</td><td class="num">12</td><td class="num">25,000</td><td class="num">48,000</td><td class="num">50%</td><td class="num">4,000</td><td class="num">4,500</td><td class="num ok">89%</td><td class="ok">정상</td></tr>
+      <tr class="sub"><td></td><td>소계</td><td></td><td></td><td class="num">24</td><td class="num">31,000</td><td class="num">65,000</td><td class="num">96,000</td><td class="num">100%</td><td></td><td></td><td></td><td></td></tr>
+      <tr class="hl"><td></td><td>합계 (GCW)</td><td></td><td></td><td class="num">46</td><td class="num">70,000</td><td class="num">120,000</td><td class="num">190,000</td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+  <div class="src">출처: Samtan TMS (hungaseo-arch.github.io/samtan) 등록 사양 — 분배율은 TMS 설정값, 실측 계량 시 갱신</div>
+</section>
+
+<!-- 3. 타이어 비교 -->
+<section>
+  <h2>3. 장착 타이어 하중 비교</h2>
+  <table>
+    <thead><tr><th style="width:22%">항목</th><th>14.00R24 TECHKING ETCRANE (Head)</th><th>325/95R24 KUMHO KMA03 22PR 162/160K (Trailer·Dolly)</th></tr></thead>
+    <tbody>
+      <tr><td class="key">카테고리</td><td>OTR 크레인용 (TRA E2, ★★★)</td><td>TBR 트럭용 (Radial, 22PR)</td></tr>
+      <tr><td class="key">단륜 하중 (Single)</td><td>TMS 등록값 <strong>6,000 kg</strong> (LI 170 상당)</td><td>LI 162 = <strong>4,750 kg</strong></td></tr>
+      <tr><td class="key">복륜 하중 (Dual)</td><td>TMS 등록값 <strong>5,600 kg</strong> (LI 168 상당) — 크레인 타이어의 복륜 정격은 제조사 확인 필요</td><td>LI 160 = <strong>4,500 kg</strong></td></tr>
+      <tr><td class="key">속도기호</td><td>F (80 km/h)</td><td>K (110 km/h)</td></tr>
+      <tr><td class="key">외경 (OD) 근사</td><td>≈ 1,345 mm</td><td>≈ 1,227 mm (12.00R24 메트릭 대응 규격)</td></tr>
+      <tr><td class="key">단면폭</td><td>≈ 375 mm</td><td>325 mm</td></tr>
+      <tr><td class="key">카커스 강도</td><td>★★★ = 최대 32PR 상당</td><td>22PR</td></tr>
+      <tr><td class="key">장착 유닛</td><td>Head 조향축 2본 + 구동축 8본 = 10본</td><td>Trailer 1 · Dolly · Trailer 2 각 12본 = 36본</td></tr>
+    </tbody>
+  </table>
+
+  <h3>하중지수(LI) → 최대 하중 환산 (발췌)</h3>
+  <table>
+    <thead><tr><th>LI</th><th class="num">kg</th><th>LI</th><th class="num">kg</th><th>LI</th><th class="num">kg</th></tr></thead>
+    <tbody>
+      <tr><td>152</td><td class="num">3,550</td><td>159</td><td class="num">4,375</td><td>166</td><td class="num">5,300</td></tr>
+      <tr><td>153</td><td class="num">3,650</td><td>160</td><td class="num">4,500</td><td>167</td><td class="num">5,450</td></tr>
+      <tr><td>154</td><td class="num">3,750</td><td>161</td><td class="num">4,625</td><td>168</td><td class="num">5,600</td></tr>
+      <tr><td>155</td><td class="num">3,875</td><td>162</td><td class="num">4,750</td><td>169</td><td class="num">5,800</td></tr>
+      <tr><td>156</td><td class="num">4,000</td><td>163</td><td class="num">4,875</td><td>170</td><td class="num">6,000</td></tr>
+      <tr><td>157</td><td class="num">4,125</td><td>164</td><td class="num">5,000</td><td>171</td><td class="num">6,150</td></tr>
+      <tr><td>158</td><td class="num">4,250</td><td>165</td><td class="num">5,150</td><td>172</td><td class="num">6,300</td></tr>
+    </tbody>
+  </table>
+  <div class="src">출처: Techking Technical Information — Load Index &amp; Maximum Load, Star Rating → Ply Rating 환산표 (Techking OTR Databook V17.0)</div>
+</section>
+
+<!-- 4. 하중 검토 -->
+<section>
+  <h2>4. 축군별 타이어 하중 검토</h2>
+  <div class="grid2">
+    <div class="box">
+      <strong>(A) Head 조향축 — 14.00R24 단륜 2본</strong>
+      <ul>
+        <li>축하중 9,400 kg ÷ 2 = 타이어당 <strong>4,700 kg</strong></li>
+        <li>최대 6,000 kg → 부하율 <strong>78%</strong>, 여유 1,300 kg/본</li>
+      </ul>
+    </div>
+    <div class="box">
+      <strong>(B) Head 구동축 — 14.00R24 복륜 8본</strong>
+      <ul>
+        <li>축군 하중 37,600 kg (Head 후축 자중 + Trailer 1 킹핀 하중) ÷ 8 = <strong>4,700 kg</strong></li>
+        <li>최대 5,600 kg → 부하율 <strong>84%</strong>, 여유 900 kg/본</li>
+      </ul>
+    </div>
+    <div class="box">
+      <strong>(C) Trailer 1 — 325/95R24 복륜 12본</strong>
+      <ul>
+        <li>축군 하중 47,000 kg ÷ 12 = <strong>3,917 kg</strong></li>
+        <li>최대 4,500 kg → 부하율 <strong>87%</strong>, 여유 583 kg/본</li>
+      </ul>
+    </div>
+    <div class="box">
+      <strong>(D) Dolly / Trailer 2 — 325/95R24 복륜 각 12본</strong>
+      <ul>
+        <li>축군 하중 48,000 kg ÷ 12 = <strong>4,000 kg</strong></li>
+        <li>최대 4,500 kg → 부하율 <strong>89%</strong>, 여유 500 kg/본 — 전 축군 중 최소 여유</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>민감도 — 적재 초과·분배 편중 시 부하율</h3>
+  <table>
+    <thead><tr><th>시나리오</th><th class="num">Head 조향축</th><th class="num">Head 구동축</th><th class="num">Trailer 1</th><th class="num">Dolly / Trailer 2</th><th>비고</th></tr></thead>
+    <tbody>
+      <tr><td>기준 (TMS 등록)</td><td class="num">78%</td><td class="num">84%</td><td class="num">87%</td><td class="num">89%</td><td>전 축군 정상</td></tr>
+      <tr><td>적재 +10% (그룹 1: 60,500 / 그룹 2: 71,500)</td><td class="num">83%</td><td class="num">89%</td><td class="num">92%</td><td class="num">95%</td><td>정상이나 여유 300 kg/본 이하</td></tr>
+      <tr><td>적재 +20% (그룹 1: 66,000 / 그룹 2: 78,000)</td><td class="num">88%</td><td class="num">94%</td><td class="num">97%</td><td class="num">101%</td><td>Dolly·Trailer 2 <strong>과하중</strong></td></tr>
+      <tr><td>그룹 2 분배 편중 45% : 55%</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">80% / 98%</td><td>편적재 시 Trailer 2 한계 근접</td></tr>
+    </tbody>
+  </table>
+  <div class="note">
+    계산 기준: 타이어당 하중 = 축군 하중 ÷ 본수, 부하율 = 타이어당 하중 ÷ TMS 등록 최대하중. 정격 공기압(psi) 유지 조건. 분배율 편차·공기압 부족 시 부하율은 추가 상승
+  </div>
+</section>
+
+<!-- 5. 시사점 -->
+<section>
+  <h2>5. 실무 시사점 (영업·기술 상담용)</h2>
+  <table>
+    <thead><tr><th style="width:26%">항목</th><th>내용</th></tr></thead>
+    <tbody>
+      <tr><td class="key">현 사양 판정</td><td>정격 적재(120,000 kg) 기준 46본 전량 부하율 90% 미만 — 규격 자체는 적정. 단, 325/95R24 장착 36본은 여유 500~583 kg/본에 불과하여 <strong>적재 초과 10% 이상 시 즉시 한계 도달</strong></td></tr>
+      <tr><td class="key">병목 축군</td><td>Dolly · Trailer 2 (89%) → 계량 관리 우선 대상. 그룹 2 적재량이 그룹 1보다 10,000 kg 많은 구조 → 편적재 시 Trailer 2가 가장 먼저 과하중</td></tr>
+      <tr><td class="key">Head 14.00R24 ETCRANE</td><td>부하율 78~84%로 여유 충분. 다만 E2 크레인용 설계 → 복륜 정격(5,600 kg)·TKPH는 Techking 공식 확인 필요. 운반 사이클에는 ETOT / ETST(E4) 계열이 정합 → 대체 제안 근거</td></tr>
+      <tr><td class="key">325/95R24 22PR 관리</td><td>트레일러·돌리 36본이 TBR 규격으로 저속·중하중 광산 환경에서 상시 87~89% 부하 → 공기압(psi) 주 1회 점검, 편마모·열 분리(heat separation) 모니터링 필수. 교체 시 LI 상향 규격(예: 12.00R24 20~22PR LI 160/157 이상) 또는 OTR 계열 검토</td></tr>
+      <tr><td class="key">혼용 원칙</td><td>Head(14.00R24)와 트레일러(325/95R24)는 별개 유닛이므로 외경 차이 무방. 단, <strong>동일 축군 내 혼용 금지</strong> — 복륜 짝 외경 차 6 mm 초과 시 편하중 발생</td></tr>
+      <tr><td class="key">규제 연계</td><td>GCW 190,000 kg는 광산 전용 운반로 사양. 공도 진입 시 STNK JBB·JBKB·MST 기준(ODOL 단속) 별도 적용</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>PT ASCENDO INTERNASIONAL — 사내 참고자료</footer>
+</div>
+</body>
+</html>
+`,g={ko:{title:"하중 검토",sub:"차량 하중 용어 정의 및 Road Train 타이어 하중 검토 — 사내 참고자료 (한국어)",frame:"하중 검토 문서"},id:{title:"Tinjauan Beban",sub:"Definisi istilah beban kendaraan & tinjauan beban ban Road Train — referensi internal (bahasa Korea)",frame:"Dokumen tinjauan beban"},en:{title:"Load Review",sub:"Vehicle load terminology & Road Train tire load review — internal reference (Korean)",frame:"Load review document"}};function p(){const{lang:i}=o(),a=g[i],r=s.useRef(null),n=s.useCallback(()=>{var l;const d=r.current,e=(l=d==null?void 0:d.contentDocument)==null?void 0:l.body;d&&e&&(d.style.height=`${e.scrollHeight+8}px`)},[]);return s.useEffect(()=>(window.addEventListener("resize",n),()=>window.removeEventListener("resize",n)),[n]),t.jsxs("div",{className:"space-y-4",children:[t.jsxs("div",{className:"flex items-center gap-2",children:[t.jsx("div",{className:"w-1 h-5 bg-primary rounded-full"}),t.jsxs("div",{children:[t.jsx("div",{className:"text-sm font-bold text-foreground",children:a.title}),t.jsx("div",{className:"text-xs text-muted-foreground",children:a.sub})]})]}),t.jsx("div",{className:"rounded-xl border border-border bg-card overflow-hidden",children:t.jsx("iframe",{ref:r,title:a.frame,srcDoc:c,onLoad:n,className:"w-full block border-0",style:{minHeight:"60vh"}})})]})}export{p as default};
