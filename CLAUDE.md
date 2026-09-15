@@ -21,7 +21,10 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
 2. `SUPABASE_SERVICE_ROLE_KEY`를 클라이언트 코드·저장소·로그에 노출 금지. RLS를 무력화합니다.
 3. `inspections` / `replacements` 레코드 DELETE 금지. 소프트 삭제(`deleted_at`)만 사용.
 4. `DROP TABLE` / `TRUNCATE` / `DROP COLUMN` 을 마이그레이션에 포함 금지. `vehicle_positions.serial2`도 유지.
-5. 원본 Excel 파일 수정 금지 (읽기 전용).
+5. 원본 Excel 파일은 기본 읽기 전용. 사용자가 그 파일을 고치라고 명시적으로 지시했을 때만 수정하며,
+   ① 같은 폴더에 `(수정전 백업 YYYYMMDD)` 사본을 먼저 만들고 ② 스크립트로 셀 값만 고치고(서식·수식 유지)
+   ③ 무엇을 왜 고쳤는지 정합성 점검 문서에 남긴다. 지시 없이 고치는 것은 여전히 금지
+   (사용자 결정 2026-09-15 — `20260914, MONITORING TIRE TECHKING.xlsx` 시리얼 오타 수정 건에서 확정).
 6. 환율·단가·계약 조건 임의 가정 금지. 불명확하면 질문할 것.
 7. 색상값 하드코딩 금지. `src/styles/tokens.css`의 CSS 변수만 사용.
 8. `toLocaleString()` 직접 호출 금지. `src/lib/format.ts` 헬퍼만 사용.
