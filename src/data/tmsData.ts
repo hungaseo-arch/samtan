@@ -19,6 +19,12 @@ const FALLBACK_PSI_DRIVE = 116;
 const FALLBACK_SC_UPPER = 1.15;
 const FALLBACK_SC_LOWER = 0.87;
 const FALLBACK_WEAR_MIN = 0.5;
+// 공기압 판정 비율 — 정본은 tire_config(psi_low_ratio·psi_dev_warn·psi_dev_danger).
+const FALLBACK_PSI_LOW_RATIO = 0.85;
+const FALLBACK_PSI_DEV_WARN = 0.05;
+const FALLBACK_PSI_DEV_DANGER = 0.15;
+const FALLBACK_INSPECTION_INTERVAL = 14;
+const FALLBACK_TARGET_LIFE_KM = 75000;
 
 /** 트레드 4단계 신호등. 녹색 ≥10 / 황색 5~10 / 주황 3~5 / 적색 <3 (기본값 기준) */
 export type TreadLevel = "ok" | "warn" | "order" | "danger";
@@ -52,6 +58,31 @@ export function treadThresholds() {
     order: t.treadOrder ?? FALLBACK_TREAD_ORDER,
     critical: t.treadCritical ?? FALLBACK_TREAD_CRITICAL,
   };
+}
+
+/**
+ * 공기압 판정 경계(비율). tire_config 값을 쓰고 미설정 시 폴백.
+ *  lowRatio   — 실측 < 권장 × lowRatio 이면 위험(저압)
+ *  devWarn    — |편차| 가 이 값을 넘으면 주의
+ *  devDanger  — 과압 편차가 이 값을 넘으면 위험 (사용자 결정 2026-10-16)
+ */
+export function pressureThresholds() {
+  const t = TMS_DATA.tire;
+  return {
+    lowRatio: t.psiLowRatio ?? FALLBACK_PSI_LOW_RATIO,
+    devWarn: t.psiDevWarn ?? FALLBACK_PSI_DEV_WARN,
+    devDanger: t.psiDevDanger ?? FALLBACK_PSI_DEV_DANGER,
+  };
+}
+
+/** 점검 보고 주기(일). 경과일이 이 값의 1.5배를 넘으면 점검 지연. */
+export function inspectionIntervalDays(): number {
+  return TMS_DATA.tire.inspectionIntervalDays ?? FALLBACK_INSPECTION_INTERVAL;
+}
+
+/** 타이어 목표 수명(km) — 경제성 목표 대비 기준. */
+export function targetLifeKm(): number {
+  return TMS_DATA.tire.targetLifeKm ?? FALLBACK_TARGET_LIFE_KM;
 }
 
 /**
@@ -208,6 +239,11 @@ export interface TireConfig {
   scRatioUpper: number | null;
   scRatioLower: number | null;
   wearMinMm: number | null;
+  psiLowRatio: number | null;
+  psiDevWarn: number | null;
+  psiDevDanger: number | null;
+  inspectionIntervalDays: number | null;
+  targetLifeKm: number | null;
 }
 
 /**
@@ -255,6 +291,8 @@ export const TMS_DATA: TmsData = {
     treadCaution: null, treadOrder: null, treadCritical: null,
     recPsiSteer: null, recPsiDrive: null,
     scRatioUpper: null, scRatioLower: null, wearMinMm: null,
+    psiLowRatio: null, psiDevWarn: null, psiDevDanger: null,
+    inspectionIntervalDays: null, targetLifeKm: null,
   },
   units: [],
   tread: {},

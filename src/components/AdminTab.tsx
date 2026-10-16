@@ -1,7 +1,8 @@
 // @section: admin-tab
-// 관리자 페이지 — 두 개의 절로 나뉜다.
+// 관리자 페이지 — 세 개의 절로 나뉜다.
 //   · 사용자 권한관리 (UsersPanel)
 //   · 사용자별 로그기록 (ActivityPanel)
+//   · 판정 기준 (SettingsPanel) — tire_config 임계치·주기 (지시서 2026-10-16 §A-5)
 //
 // 사용자 목록은 여기서 한 번만 읽어 두 절이 함께 쓴다. 로그 화면은 audit_log 의
 // actor(uuid)만 갖고 있어 이름을 붙이려면 같은 목록이 필요하다.
@@ -9,19 +10,21 @@
 // 이 화면이 보이는 것 자체는 admin 에게만 허용되지만(Index 에서 차단), 실제 방어선은
 // 서버다 — Edge Function 의 admin 검사와 audit_log 의 RLS.
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, ScrollText, Users, RefreshCw } from "lucide-react";
+import { ShieldCheck, ScrollText, Users, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import { listUsers, type ManagedUser } from "@/api/adminUsers";
 import { friendlyAuthError } from "@/lib/authErrors";
 import UsersPanel from "@/components/admin/UsersPanel";
 import ActivityPanel from "@/components/admin/ActivityPanel";
+import SettingsPanel from "@/components/admin/SettingsPanel";
 
 const TX = {
   ko: {
     title: "관리자",
     secUsers: "사용자 권한관리",
     secLogs: "사용자별 로그기록",
+    secSettings: "판정 기준",
     desc: "계정·권한을 관리하고, 사용자가 남긴 변경·접속 기록을 확인합니다.",
     loadFail: "목록을 불러오지 못했습니다: ",
     retry: "다시 시도",
@@ -30,6 +33,7 @@ const TX = {
     title: "Administrator",
     secUsers: "Manajemen Izin Pengguna",
     secLogs: "Log Aktivitas Pengguna",
+    secSettings: "Kriteria Penilaian",
     desc: "Kelola akun dan izin, serta periksa riwayat perubahan dan akses pengguna.",
     loadFail: "Gagal memuat daftar: ",
     retry: "Coba lagi",
@@ -38,15 +42,16 @@ const TX = {
     title: "Administration",
     secUsers: "User Permissions",
     secLogs: "User Activity Log",
+    secSettings: "Judgement Criteria",
     desc: "Manage accounts and permissions, and review each user's changes and sign-ins.",
     loadFail: "Failed to load the list: ",
     retry: "Retry",
   },
 } as const;
 
-type Section = "users" | "logs";
+type Section = "users" | "logs" | "settings";
 
-export default function AdminTab() {
+export default function AdminTab({ onConfigSaved }: { onConfigSaved?: () => void | Promise<void> }) {
   const { lang } = useLang();
   const tx = TX[lang];
 
@@ -83,6 +88,7 @@ export default function AdminTab() {
   const SECTIONS: { id: Section; label: string; icon: React.ReactNode }[] = [
     { id: "users", label: tx.secUsers, icon: <Users className="w-3.5 h-3.5" /> },
     { id: "logs", label: tx.secLogs, icon: <ScrollText className="w-3.5 h-3.5" /> },
+    { id: "settings", label: tx.secSettings, icon: <SlidersHorizontal className="w-3.5 h-3.5" /> },
   ];
 
   return (
@@ -113,8 +119,11 @@ export default function AdminTab() {
         ))}
       </div>
 
-      {/* 목록 조회 자체가 실패하면(권한 상실·네트워크) 두 절 모두 쓸 수 없다 */}
-      {failed ? (
+      {/* 판정 기준은 사용자 목록과 무관하다. 목록 조회 자체가 실패하면(권한 상실·네트워크)
+          나머지 두 절은 쓸 수 없다 */}
+      {section === "settings" ? (
+        <SettingsPanel onSaved={onConfigSaved} />
+      ) : failed ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
           <p className="text-sm text-muted-foreground">{tx.loadFail}</p>
           <button

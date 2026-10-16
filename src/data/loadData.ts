@@ -105,6 +105,13 @@ interface Round {
   seen: Set<string>;
 }
 
+/** numeric 은 PostgREST 가 문자열로 줄 수 있다. null·미존재 컬럼은 null 로 둔다. */
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 /** 빈 문자열은 '시리얼 없음'으로 본다. DB 의 null 과 같게 취급. */
 function normSerial(s: string | null | undefined): string | null {
   const v = (s ?? "").trim();
@@ -296,6 +303,11 @@ export async function loadData(): Promise<void> {
       scRatioUpper: cfg.data.sc_ratio_upper ?? null,
       scRatioLower: cfg.data.sc_ratio_lower ?? null,
       wearMinMm: cfg.data.wear_min_mm ?? null,
+      psiLowRatio: numOrNull(cfg.data.psi_low_ratio),
+      psiDevWarn: numOrNull(cfg.data.psi_dev_warn),
+      psiDevDanger: numOrNull(cfg.data.psi_dev_danger),
+      inspectionIntervalDays: numOrNull(cfg.data.inspection_interval_days),
+      targetLifeKm: numOrNull(cfg.data.target_life_km),
     };
   }
 

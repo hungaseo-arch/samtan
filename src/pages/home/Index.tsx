@@ -425,7 +425,7 @@ export default function Index() {
           {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
           {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
           {activeTab === "tco"      && <TcoTab key={dataVersion} />}
-          {activeTab === "admin"    && <AdminTab />}
+          {activeTab === "admin"    && <AdminTab onConfigSaved={reloadData} />}
           </Suspense>
         </div>
       </main>
