@@ -1,7 +1,9 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
-import { EMPTY, fmtTread } from "@/lib/format";
+import { EMPTY, fmtTread, fmtPressure, fmtPercent } from "@/lib/format";
+import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
+import type { Lang } from "@/i18n";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
 export type TireStatus = TreadLevel | "none";
@@ -96,11 +98,7 @@ export function statusOf(d: HeadPosData | null, pos: number): TireStatus {
 
   if (d.latestTread != null) st = worst(st, treadLevel(d.latestTread));
 
-  if (typeof d.latestPress === "number") {
-    const r = recPsi(pos);
-    if (d.latestPress < r * 0.85) st = worst(st, "danger");
-    else if (Math.abs(d.latestPress - r) / r > 0.15) st = worst(st, "warn");
-  }
+  if (typeof d.latestPress === "number") st = worst(st, pressureJudge(d.latestPress, recPsi(pos)));
 
   if (
     d.serial &&
@@ -129,11 +127,7 @@ export function statusFromValues(
 
   if (tread != null) st = worst(st, treadLevel(tread));
 
-  if (typeof press === "number") {
-    const r = recPsi(pos);
-    if (press < r * 0.85) st = worst(st, "danger");
-    else if (Math.abs(press - r) / r > 0.15) st = worst(st, "warn");
-  }
+  if (typeof press === "number") st = worst(st, pressureJudge(press, recPsi(pos)));
 
   return st;
 }
@@ -782,51 +776,71 @@ export function tireHistory(serial: string): TireHistory | null {
   };
 }
 
-export function getUnitAlerts(u: Unit) {
+const ALERT_TX = {
+  ko: {
+    scrap: (code: string, life: string) => `폐기 — ${code} / 수명 ${life}시간`,
+    tread: "트레드",
+    treadDanger: "즉시 교체", treadOrder: "교체 타이어 발주", treadWarn: "마모 진행",
+    press: "공기압", rec: "권장",
+    low: "저압", high: "과압", devLow: "공기압 부족", devHigh: "공기압 과다",
+  },
+  id: {
+    scrap: (code: string, life: string) => `Scrap — ${code} / umur ${life} jam`,
+    tread: "Kedalaman alur",
+    treadDanger: "ganti segera", treadOrder: "pesan ban pengganti", treadWarn: "aus berlanjut",
+    press: "Tekanan angin", rec: "standar",
+    low: "tekanan rendah", high: "tekanan berlebih", devLow: "kurang angin", devHigh: "kelebihan angin",
+  },
+  en: {
+    scrap: (code: string, life: string) => `Scrapped — ${code} / life ${life} h`,
+    tread: "Tread",
+    treadDanger: "replace now", treadOrder: "order replacement tire", treadWarn: "wear progressing",
+    press: "Pressure", rec: "rec.",
+    low: "under-inflated", high: "over-inflated", devLow: "low pressure", devHigh: "high pressure",
+  },
+} as const;
+
+/**
+ * 차량 1대의 경보 목록. 대시보드 카운트(statusOf)와 같은 판정을 쓰므로
+ * 카운트를 눌러 연 목록과 숫자가 맞는다 — 공기압 주의(±편차)도 여기 나온다.
+ */
+export function getUnitAlerts(u: Unit, lang: Lang = "id") {
+  const tx = ALERT_TX[lang];
   const alerts: { lv: "danger" | "order" | "warn"; text: string }[] = [];
   for (let p = 1; p <= 10; p++) {
     const d = headPosData(u, p);
     if (!d) continue;
+    const head = `CH ${u.ch} · ${d.rp} (#${p})`;
 
     const scrap = d.serial
       ? TMS_DATA.life.find((l) => l.serial === d.serial && l.status === "Scrap")
       : null;
 
     if (scrap) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 폐기 — ${codeName(scrap.damage)} / 수명 ${scrap.lifetime}시간`,
-      });
+      alerts.push({ lv: "danger", text: `${head} ${tx.scrap(codeName(scrap.damage), String(scrap.lifetime))}` });
     } else if (d.latestTread != null) {
       // 트레드 경보는 측정값 자체로 판정한다. st 는 공기압 이상까지 섞인 값이라
       // 트레드가 정상인데 트레드 경보가 나가는 것을 막는다.
       const lv = treadLevel(d.latestTread);
-      if (lv === "danger") {
-        alerts.push({
-          lv: "danger",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 즉시 교체`,
-        });
-      } else if (lv === "order") {
-        alerts.push({
-          lv: "order",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 교체 타이어 발주`,
-        });
-      } else if (lv === "warn") {
-        alerts.push({
-          lv: "warn",
-          text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${fmtTread(d.latestTread, false)}mm — 마모 진행`,
-        });
+      const what = lv === "danger" ? tx.treadDanger : lv === "order" ? tx.treadOrder : lv === "warn" ? tx.treadWarn : null;
+      if (lv !== "ok" && what) {
+        alerts.push({ lv, text: `${head} ${tx.tread} ${fmtTread(d.latestTread)} — ${what}` });
       }
     }
 
-    if (
-      typeof d.latestPress === "number" &&
-      d.latestPress < recPsi(p) * 0.85
-    ) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 공기압 ${Math.round(d.latestPress)}psi — 저압 (권장 ${recPsi(p)})`,
-      });
+    if (typeof d.latestPress === "number") {
+      const target = recPsi(p);
+      const j = judgePressure(d.latestPress, target);
+      if (j.level !== "ok") {
+        const what = j.level === "danger"
+          ? (j.cause === "low" ? tx.low : tx.high)
+          : (j.cause === "low" ? tx.devLow : tx.devHigh);
+        const sign = j.devPct > 0 ? "+" : "";
+        alerts.push({
+          lv: j.level,
+          text: `${head} ${tx.press} ${fmtPressure(d.latestPress)} — ${what} (${tx.rec} ${fmtPressure(target)}, ${sign}${fmtPercent(j.devPct)})`,
+        });
+      }
     }
   }
   return alerts;

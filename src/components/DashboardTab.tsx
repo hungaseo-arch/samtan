@@ -195,7 +195,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
   // 주의·교체권장 카운트 클릭 → 해당 차량 알림 모달
   const [alertModal, setAlertModal] = useState<{ ch: string; lv: "warn" | "order" | "danger" } | null>(null);
   const alertItems = alertModal
-    ? getUnitAlerts(TMS_DATA.units.find((u) => u.ch === alertModal.ch)!).filter((a) => a.lv === alertModal.lv)
+    ? getUnitAlerts(TMS_DATA.units.find((u) => u.ch === alertModal.ch)!, lang).filter((a) => a.lv === alertModal.lv)
     : [];
 
   return (

@@ -1,6 +1,6 @@
 // @section: pressure-tab
 import { useState } from "react";
-import { TMS_DATA, recPsi } from "@/data/tmsData";
+import { TMS_DATA, recPsi, pressureThresholds } from "@/data/tmsData";
 import { headPosData } from "@/data/tmsUtils";
 import {
   Gauge, AlertTriangle, CheckCircle2, Wrench, ClipboardCheck,
@@ -8,8 +8,15 @@ import {
 } from "lucide-react";
 import { useLang } from "@/i18n";
 import { fmtInt, fmtPercent, fmtPressure, fmtVehicle } from "@/lib/format";
+import { judgePressure } from "@/lib/pressureJudge";
 
-const buildTX = () => ({
+// 판정 경계는 tire_config 정본(pressureThresholds)에서 읽어 문구에 넣는다 — 관리자가 바꾸면 문구도 바뀐다.
+const buildTX = () => {
+  const th = pressureThresholds();
+  const low = fmtPercent(th.lowRatio * 100);
+  const warn = fmtPercent(th.devWarn * 100);
+  const danger = fmtPercent(th.devDanger * 100);
+  return {
   ko: {
 
     secStdTitle: "권장 공기압 기준",
@@ -19,15 +26,16 @@ const buildTX = () => ({
     kpiMeasured: "측정 본수",
     kpiNormal: "정상",
     kpiWarn: "편차 주의",
-    kpiDanger: "저압 위험",
+    kpiDanger: "위험 (저압·과압)",
     unitCount: "본",
     alertTitle: "공기압 이상 알림",
     alertCount: "건",
     noAlert: "현재 공기압 이상 항목이 없습니다.",
     badgeLow: "저압",
+    badgeHigh: "과압",
     badgeDev: "편차",
     rec: "권장",
-    alertNote: "판정: 저압 = 권장의 85% 미만 · 편차 = 권장 대비 ±15% 초과 (각 차량 최근 회차 실측값 기준)",
+    alertNote: `판정: 위험 = 권장의 ${low} 미만(저압) 또는 +${danger} 초과(과압) · 주의 = 권장 대비 ±${warn} 초과 편차 (각 차량 최근 회차 실측값 기준)`,
 
     secJudgeTitle: "상태 판정 기준",
 
@@ -51,11 +59,11 @@ const buildTX = () => ({
     judgeNormal: "정상",
     judgeWarn: "주의",
     judgeDanger: "위험",
-    judgeNormalRange: "권장 대비 ±5% 이내",
+    judgeNormalRange: `권장 대비 ±${warn} 이내`,
     judgeNormalDesc: "적정 — 조치 불필요",
-    judgeWarnRange: "권장 대비 ±5~15% 편차",
+    judgeWarnRange: `권장 대비 ±${warn} 초과 편차`,
     judgeWarnDesc: "재측정 · 보충 권장",
-    judgeDangerRange: "저압 85% 미만 또는 과압 +15% 초과",
+    judgeDangerRange: `저압 ${low} 미만 또는 과압 +${danger} 초과`,
     judgeDangerDesc: "운행 전 즉시 조치",
     // PROCEDURE
     pc1: "냉간 상태에서 측정 (운행 직후 측정 금지)",
@@ -100,15 +108,16 @@ const buildTX = () => ({
     kpiMeasured: "Jml diukur",
     kpiNormal: "Normal",
     kpiWarn: "Perhatian deviasi",
-    kpiDanger: "Tekanan rendah bahaya",
+    kpiDanger: "Bahaya (rendah·berlebih)",
     unitCount: "unit",
     alertTitle: "Peringatan tekanan",
     alertCount: "kasus",
     noAlert: "Saat ini tidak ada anomali tekanan.",
     badgeLow: "Tekanan rendah",
+    badgeHigh: "Tekanan berlebih",
     badgeDev: "Deviasi",
     rec: "Rekomendasi",
-    alertNote: "Penilaian: Tekanan rendah = di bawah 85% rekomendasi · Deviasi = melebihi ±15% thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)",
+    alertNote: `Penilaian: Bahaya = di bawah ${low} rekomendasi (rendah) atau lebih dari +${danger} (berlebih) · Perhatian = deviasi melebihi ±${warn} thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)`,
 
     secJudgeTitle: "Kriteria penilaian",
 
@@ -132,11 +141,11 @@ const buildTX = () => ({
     judgeNormal: "Normal",
     judgeWarn: "Perhatian",
     judgeDanger: "Bahaya",
-    judgeNormalRange: "Dalam ±5% thd rekomendasi",
+    judgeNormalRange: `Dalam ±${warn} thd rekomendasi`,
     judgeNormalDesc: "Sesuai — tidak perlu tindakan",
-    judgeWarnRange: "Deviasi ±5~15% thd rekomendasi",
+    judgeWarnRange: `Deviasi melebihi ±${warn} thd rekomendasi`,
     judgeWarnDesc: "Ukur ulang · disarankan tambah angin",
-    judgeDangerRange: "Tekanan rendah <85% atau tekanan tinggi >+15%",
+    judgeDangerRange: `Tekanan rendah <${low} atau tekanan berlebih >+${danger}`,
     judgeDangerDesc: "Tindakan segera sebelum jalan",
     // PROCEDURE
     pc1: "Ukur saat ban dingin (dilarang ukur tepat setelah jalan)",
@@ -181,15 +190,16 @@ const buildTX = () => ({
     kpiMeasured: "Tires measured",
     kpiNormal: "Normal",
     kpiWarn: "Deviation caution",
-    kpiDanger: "Low-pressure risk",
+    kpiDanger: "Danger (low/high)",
     unitCount: "pcs",
     alertTitle: "Pressure anomaly alerts",
     alertCount: "cases",
     noAlert: "No pressure anomalies at present.",
     badgeLow: "Low pressure",
+    badgeHigh: "Over-inflated",
     badgeDev: "Deviation",
     rec: "Recommended",
-    alertNote: "Criteria: Low pressure = below 85% of recommended · Deviation = beyond ±15% of recommended (based on each vehicle's latest measured round)",
+    alertNote: `Criteria: Danger = below ${low} of recommended (low) or above +${danger} (high) · Caution = deviation beyond ±${warn} of recommended (based on each vehicle's latest measured round)`,
 
     secJudgeTitle: "Status criteria",
 
@@ -213,11 +223,11 @@ const buildTX = () => ({
     judgeNormal: "Normal",
     judgeWarn: "Caution",
     judgeDanger: "Danger",
-    judgeNormalRange: "Within ±5% of recommended",
+    judgeNormalRange: `Within ±${warn} of recommended`,
     judgeNormalDesc: "In spec — no action needed",
-    judgeWarnRange: "±5~15% deviation from recommended",
+    judgeWarnRange: `Deviation beyond ±${warn} from recommended`,
     judgeWarnDesc: "Re-measure · top-up recommended",
-    judgeDangerRange: "Low pressure below 85% or over-inflation above +15%",
+    judgeDangerRange: `Low pressure below ${low} or over-inflation above +${danger}`,
     judgeDangerDesc: "Act immediately before operation",
     // PROCEDURE
     pc1: "Measure cold (do not measure right after operation)",
@@ -253,7 +263,8 @@ const buildTX = () => ({
     sym4risk: "Steering pull · unstable running",
     sym4action: "Equalize left and right pressure on the same axle",
   },
-} as const);
+} as const;
+};
 
 // ── 권장 공기압 기준 ──────────────────────────────────────────
 const pressureStd = () => [
@@ -304,23 +315,17 @@ export default function PressureTab() {
 
   // ── 실시간 공기압 이상 현황 계산 ──────────────────────────
   let measured = 0, ok = 0, warn = 0, danger = 0;
-  const alerts: { lv: "danger" | "warn"; ch: string; pos: string; psi: number; target: number; dev: number }[] = [];
+  const alerts: { lv: "danger" | "warn"; high: boolean; ch: string; pos: string; psi: number; target: number; dev: number }[] = [];
   TMS_DATA.units.forEach((u) => {
     for (let p = 1; p <= 10; p++) {
       const d = headPosData(u, p);
       if (!d || typeof d.latestPress !== "number") continue;
       measured++;
       const target = recPsi(p);
-      const dev = ((d.latestPress - target) / target) * 100;
-      if (d.latestPress < target * 0.85) {
-        danger++;
-        alerts.push({ lv: "danger", ch: u.ch, pos: d.rp, psi: d.latestPress, target, dev });
-      } else if (Math.abs(dev) > 15) {
-        warn++;
-        alerts.push({ lv: "warn", ch: u.ch, pos: d.rp, psi: d.latestPress, target, dev });
-      } else {
-        ok++;
-      }
+      const j = judgePressure(d.latestPress, target);
+      if (j.level === "ok") { ok++; continue; }
+      if (j.level === "danger") danger++; else warn++;
+      alerts.push({ lv: j.level, high: j.cause === "high", ch: u.ch, pos: d.rp, psi: d.latestPress, target, dev: j.devPct });
     }
   });
   alerts.sort((a, b) => (a.lv === "danger" ? 0 : 1) - (b.lv === "danger" ? 0 : 1));
@@ -383,7 +388,7 @@ export default function PressureTab() {
                     }`}
                   >
                     <span className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold border border-current">
-                      {a.lv === "danger" ? tx.badgeLow : tx.badgeDev}
+                      {a.lv === "danger" ? (a.high ? tx.badgeHigh : tx.badgeLow) : tx.badgeDev}
                     </span>
                     <span className="font-mono">
                       {fmtVehicle(a.ch)} · {a.pos} — {fmtPressure(a.psi, false)}psi
