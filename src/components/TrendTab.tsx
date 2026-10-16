@@ -5,6 +5,7 @@ import type { TreadLevel, TreadSegment, Unit } from "@/data/tmsData";
 import { headPosData, validDates, posSegments, segmentWearRate, vehicleWearRate } from "@/data/tmsUtils";
 import { EMPTY, fmtInt, fmtTread, fmtPressure, fmtWearRate, fmtKmPerMm } from "@/lib/format";
 import { useLang } from "@/i18n";
+import FleetWearView from "@/components/FleetWearView";
 import { HEX, LEVEL_HEX, SERIES } from "@/lib/chartColors";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
@@ -31,6 +32,8 @@ const LEVEL_CELL_CLS: Record<TreadLevel, string> = {
 
 const buildTX = () => ({
   ko: {
+    viewUnit: "차량별",
+    viewFleet: "전체 비교",
     vehicle: "차량(CH):",
     item: "항목:",
     treadOpt: "트레드 (mm)",
@@ -57,6 +60,8 @@ const buildTX = () => ({
     wearNone: "마모율 산출에 쓸 구간이 없습니다 (km 미기록이거나 회차가 부족합니다).",
   },
   id: {
+    viewUnit: "Per Unit",
+    viewFleet: "Perbandingan semua Unit",
     vehicle: "Unit (CH):",
     item: "Item:",
     treadOpt: "Tapak (mm)",
@@ -83,6 +88,8 @@ const buildTX = () => ({
     wearNone: "Tidak ada interval yang dapat dipakai untuk laju aus (km tidak tercatat atau sesi kurang).",
   },
   en: {
+    viewUnit: "By vehicle",
+    viewFleet: "Fleet comparison",
     vehicle: "Vehicle (CH):",
     item: "Item:",
     treadOpt: "Tread (mm)",
@@ -117,6 +124,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
   const tx = buildTX()[lang];
   const [selCh, setSelCh] = useState(TMS_DATA.units[0].ch);
   const [metric, setMetric] = useState<"tread" | "press">("tread");
+  const [view, setView] = useState<"unit" | "fleet">("unit");
 
   const u = TMS_DATA.units.find((x) => x.ch === selCh)!;
   const vd = validDates(u);
@@ -144,6 +152,22 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
 
   return (
     <div className="space-y-4">
+      {/* 차량별 / 전체 비교 (§A-6) */}
+      <div className="flex gap-1">
+        {(["unit", "fleet"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            aria-pressed={view === v}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              view === v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+            }`}
+          >
+            {v === "unit" ? tx.viewUnit : tx.viewFleet}
+          </button>
+        ))}
+      </div>
+      {view === "fleet" ? <FleetWearView /> : (<>
       {/* 컨트롤 */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
@@ -355,6 +379,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
         <p className="mt-2 text-xs text-muted-foreground">{tx.tableFoot}</p>
         {metric === "tread" && <WearFoot u={u} tx={tx} />}
       </div>
+      </>)}
     </div>
   );
 }

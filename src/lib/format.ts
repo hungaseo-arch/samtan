@@ -296,8 +296,9 @@ export function fmtRelative(v: string | Date | null | undefined, lang: "ko" | "i
  * 실차보고서가 3자리로 보고하므로(4대 평균 0.554) 같은 자리수로 맞춘다.
  * 2자리로 줄이면 차량 간 차이(0.487 vs 0.493)가 뭉개진다.
  */
-export function fmtWearRate(v: number | null | undefined): string {
-  return isBlank(v) ? EMPTY : `${fixed(v, 3)} mm/1,000km`;
+export function fmtWearRate(v: number | null | undefined, withUnit = true): string {
+  if (isBlank(v)) return EMPTY;
+  return withUnit ? `${fixed(v, 3)} mm/1,000km` : fixed(v, 3);
 }
 
 /** 1 mm 마모당 주행거리 — 정수 km. `1,805 km/mm` */

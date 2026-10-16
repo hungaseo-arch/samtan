@@ -352,6 +352,29 @@ export function vehicleWearRate(ch: string): WearRate | null {
   return accumulate(all);
 }
 
+/** 포지션 1곳의 마모율 — 그 포지션을 거쳐 간 모든 구간(시리얼)의 채택 구간 가중 합산 (§A-6).
+ *  정렬·토인처럼 차량·자리에 붙은 원인을 보려는 것이라 교체 전 타이어도 함께 넣는다. */
+export function positionWearRate(ch: string, pos: string): WearRate | null {
+  const u = TMS_DATA.units.find((x) => x.ch === ch);
+  if (!u) return null;
+  return accumulate(posSegments(ch, pos).flatMap((seg) => wearIntervals(u, seg)));
+}
+
+/**
+ * 구간 1개의 (주행 km, 트레드) 곡선 — 전 차량 비교 차트용 (§A-6).
+ * x 는 차량 누적 KM 이 아니라 **그 타이어 첫 측정 이후 주행 km** 다. 차량마다 계기값이
+ * 수만 km 씩 달라 누적 KM 으로 두면 선이 서로 겹치지 않아 기울기를 견줄 수 없다.
+ * km·트레드가 없는 회차와 트레드 0(다 닳음/미측정)은 뺀다.
+ */
+export function segmentKmCurve(u: Unit, seg: TreadSegment): { km: number; tread: number }[] {
+  const pts = segmentPoints(u, seg).filter(
+    (p): p is SegPoint & { km: number; tread: number } => p.km != null && p.tread != null && p.tread > 0,
+  );
+  if (!pts.length) return [];
+  const base = pts[0].km;
+  return pts.filter((p) => p.km >= base).map((p) => ({ km: p.km - base, tread: p.tread }));
+}
+
 export interface FleetWearRate {
   mmPer1000Km: number;
   kmPerMm: number;
