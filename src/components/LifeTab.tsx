@@ -474,7 +474,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
         [tx.colTotalCost]: cost?.total ?? "",
         [tx.colCpk]: cost?.cpk != null ? Number(cost.cpk.toFixed(4)) : "",
         [tx.colExpCpk]: cost?.expCpk != null ? Number(cost.expCpk.toFixed(4)) : "",
-        [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(3)) : "",
+        [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(2)) : "",
         [tx.colKmPerMm]: (() => { const k = kmPerMmOf(c?.projection.wearRateKm); return k == null ? "" : Math.round(k); })(),
         [tx.colRemKm]: installed && c?.projection.remainingKm != null ? Math.round(c.projection.remainingKm) : "",
         [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",

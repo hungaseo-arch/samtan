@@ -939,7 +939,7 @@ export default function WearAnalysisTab() {
 
 /** KPI 카드 1장. 4개 축을 가중합하지 않고 값 그대로 나열한다 (설계서 §16). */
 /**
- * 마모속도 카드 보조 줄 — `0.271 mm/1,000km · R² 0.90`. 카드 본값은 km/mm(사용자 결정 2026-10-16)지만
+ * 마모속도 카드 보조 줄 — `0.27 mm/1,000km · R² 0.90`. 카드 본값은 km/mm(사용자 결정 2026-10-16)지만
  * 평균은 mm/1,000 km 로 낸 뒤 뒤집는다 — 역수의 평균은 0 근처에서 발산한다. 마모 없음(≤0)이면 본값은 «—», 이 줄에 원값이 남는다.
  */
 function withWearRate(rate: number | null | undefined, rest?: string): string | undefined {

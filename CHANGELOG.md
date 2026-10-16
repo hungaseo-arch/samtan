@@ -3,6 +3,12 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르고 날짜는 WIB 기준입니다.
 버전 태그는 아직 쓰지 않으므로 배포 단위 대신 **작업 묶음(Phase · Task)** 으로 나눕니다.
 
+## [Unreleased] — 2026-10-16 · 마모율 단위 규칙
+
+### Changed
+- 마모율 표시 소수 3자리 → **2자리** (`fmtWearRate`, 수명 DB·전 차량 비교 엑셀 포함). DB·계산·색 판정·km/mm 환산은 원값 유지.
+- CLAUDE.md §마모율 단위 신설 — 기록·분석 mm/1,000 km, 보고·수명 예측 km/mm, 시간 기준 mm/100 hr (사용자 결정, decisions U-1).
+
 ## [Unreleased] — 2026-10-16 · 마모속도 km/mm 표기
 
 ### Added

@@ -124,22 +124,22 @@ export default function FleetWearView() {
 
   const exportExcel = async () => {
     // 숫자는 숫자 셀로 내린다 — 엑셀에서 다시 계산할 수 있게 소수 3자리로만 반올림
-    const r3 = (v: number | null) => (v == null ? "" : Math.round(v * 1000) / 1000);
+    const r2 = (v: number | null) => (v == null ? "" : Math.round(v * 100) / 100);
     const rows = shown.map((m) => {
       const row: Record<string, string | number> = { [tx.unitCol]: `CH ${m.ch}` };
-      m.cells.forEach((c) => { row[c.pos] = r3(c.rate); });
-      row[tx.vehCol] = r3(m.vehicle);
+      m.cells.forEach((c) => { row[c.pos] = r2(c.rate); });
+      row[tx.vehCol] = r2(m.vehicle);
       return row;
     });
     const avg: Record<string, string | number> = { [tx.unitCol]: tx.meanRow };
-    positions.forEach((p) => { avg[p] = r3(posMean(p)); });
-    avg[tx.vehCol] = r3(mean);
+    positions.forEach((p) => { avg[p] = r2(posMean(p)); });
+    avg[tx.vehCol] = r2(mean);
     rows.push(avg);
     const sideRows = shown.map((m) => {
       const s = sideImbalance(m.cells);
       return {
         [tx.unitCol]: `CH ${m.ch}`,
-        [tx.colLeft]: s ? r3(s.left) : "", [tx.colRight]: s ? r3(s.right) : "",
+        [tx.colLeft]: s ? r2(s.left) : "", [tx.colRight]: s ? r2(s.right) : "",
         [tx.colDiff]: s ? Math.round(s.ratio * 1000) / 10 : "",
       };
     });

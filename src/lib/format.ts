@@ -293,13 +293,12 @@ export function fmtRelative(v: string | Date | null | undefined, lang: "ko" | "i
 // ── 마모율 ───────────────────────────────────────────────────────
 
 /**
- * 마모율 — 소수점 3자리. `0.554 mm/1,000km`
- * 실차보고서가 3자리로 보고하므로(4대 평균 0.554) 같은 자리수로 맞춘다.
- * 2자리로 줄이면 차량 간 차이(0.487 vs 0.493)가 뭉개진다.
+ * 마모율 — 소수점 2자리. `0.55 mm/1,000km` (사용자 결정 2026-10-16, CLAUDE.md §숫자 표기)
+ * 표시만 줄인다. DB·평균·회귀·색 판정·km/mm 환산은 원값으로 한다 — 반올림한 값으로 다시 계산하지 말 것.
  */
 export function fmtWearRate(v: number | null | undefined, withUnit = true): string {
   if (isBlank(v)) return EMPTY;
-  return withUnit ? `${fixed(v, 3)} mm/1,000km` : fixed(v, 3);
+  return withUnit ? `${fixed(v, 2)} mm/1,000km` : fixed(v, 2);
 }
 
 /**
