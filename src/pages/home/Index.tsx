@@ -49,8 +49,8 @@ const TABS: { id: TabId; sub: string; icon: React.ReactNode }[] = [
 const GROUPS: { id: string; tabs: TabId[] }[] = [
   { id: "vehicle",  tabs: ["layout", "load", "review"] },
   { id: "tire",     tabs: ["repl", "life"] },
-  { id: "inspect",  tabs: ["input", "trend", "wear", "pressure"] },
-  { id: "cost",     tabs: ["tco"] },
+  { id: "inspect",  tabs: ["input", "trend", "pressure"] },
+  { id: "cost",     tabs: ["wear", "tco"] },
 ];
 
 // URL 경로 1개 = 탭 1개. '/' 는 대시보드.
