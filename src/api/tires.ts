@@ -91,3 +91,24 @@ export async function listDataQuality(): Promise<DataQualityRow[]> {
   if (error) throw error;
   return (data ?? []) as DataQualityRow[];
 }
+
+/**
+ * 수명 DB 개별 구매가 (§B-1). null = 지움 → cost_params.unit_price 로 폴백.
+ * currency 는 null 이면 원가 설정 통화를 따른다.
+ * ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선
+ */
+export async function updateLifetimePrice(
+  serial: string,
+  price: number | null,
+  currency: string | null,
+): Promise<void> {
+  if (price != null && (!Number.isFinite(price) || price < 0)) throw new Error("invalid price");
+  const { data, error } = await supabase
+    .from("lifetimes")
+    .update({ purchase_price: price, currency: price == null ? null : currency })
+    .eq("serial", serial)
+    .select("serial");
+  if (error) throw error;
+  // RLS 가 막으면 오류 없이 0행이 돌아온다 — 저장된 척하지 않는다.
+  if (!data || data.length === 0) throw new Error("lifetime not updated (no permission or no row)");
+}

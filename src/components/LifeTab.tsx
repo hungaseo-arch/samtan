@@ -4,15 +4,16 @@ import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved } 
 import type { TreadLevel } from "@/data/tmsData";
 import {
   codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
-  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, type LifeCalc,
+  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, tireCostOf, type LifeCalc,
 } from "@/data/tmsUtils";
-import { EMPTY, fmtInt, fmtTread, todayInField } from "@/lib/format";
+import { EMPTY, fmtCpk, fmtInt, fmtTread, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailCard from "./TireDetailCard";
 import IrregularWearBadge from "./IrregularWearBadge";
+import TireCostSection from "./TireCostSection";
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const TREAD_CLS: Record<TreadLevel, string> = {
@@ -38,6 +39,11 @@ const buildTX = () => ({
     colHr: "주행 HR",
     colExpKm: "예상 KM (0mm)",
     colExpHm: "예상 HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "예상 CPK",
+    colTotalCost: "총비용",
+    cpkExpPrefix: "예상 ",
+    colCurrency: "통화",
     colRemKm: "잔여 KM (발주)",
     colProjDate: "예상 교체일",
     colWearRate: "마모율 (mm/1,000km)",
@@ -130,6 +136,11 @@ const buildTX = () => ({
     colHr: "Jam (HR)",
     colExpKm: "Prediksi KM (0mm)",
     colExpHm: "Prediksi HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "CPK prediksi",
+    colTotalCost: "Total biaya",
+    cpkExpPrefix: "pred. ",
+    colCurrency: "Mata uang",
     colRemKm: "Sisa KM (pesan)",
     colProjDate: "Prakiraan tgl ganti",
     colWearRate: "Laju aus (mm/1,000km)",
@@ -222,6 +233,11 @@ const buildTX = () => ({
     colHr: "Operating HR",
     colExpKm: "Est. KM (0mm)",
     colExpHm: "Est. HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "Est. CPK",
+    colTotalCost: "Total cost",
+    cpkExpPrefix: "est. ",
+    colCurrency: "Currency",
     colRemKm: "Remaining KM (order)",
     colProjDate: "Projected repl. date",
     colWearRate: "Wear rate (mm/1,000km)",
@@ -311,7 +327,7 @@ const STATUS_STYLE: Record<LifeRecord["status"], string> = {
   "Not Install": "text-muted-foreground border-border bg-muted/20",
 };
 
-export default function LifeTab({ focusSerial }: { focusSerial?: string | null }) {
+export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: string | null; onDataChanged?: () => void | Promise<void> }) {
   const { lang } = useLang();
   const { canDownload } = useAuth();
   // 문구에 임계치가 들어가므로 DB 로드 후 렌더 시점에 만든다.
@@ -375,7 +391,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
 
   // 표시 행(필터 적용)의 평균값 — 최근 트레드 / 주행 KM·HR / 예상 KM·HM
   const avg = (() => {
-    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0] };
+    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
+    // CPK 평균은 통화가 하나일 때만 낸다 — IDR 과 USD 를 섞어 더하면 의미가 없다.
+    const curs = new Set<string>();
     const add = (slot: number[], v: number | null | undefined) => { if (v != null) { slot[0] += v; slot[1]++; } };
     filtered.forEach((l) => {
       const c = lifeCalc(l.serial);
@@ -386,15 +404,20 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
       if (!noExp) add(acc.ekm, c?.expectedKm);
       if (!noExp) add(acc.ehm, c?.expectedHm);
       if (l.status === "Install") add(acc.rem, c?.projection.remainingKm);
+      const cost = tireCostOf(l.serial);
+      if (cost?.cpk != null) { add(acc.cpk, cost.cpk); curs.add(cost.currency); }
     });
     const m = (s: number[]) => (s[1] > 0 ? s[0] / s[1] : null);
-    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem) };
+    const cpkCur = curs.size === 1 ? [...curs][0] : null;
+    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
+      cpk: cpkCur ? m(acc.cpk) : null, cpkCur: cpkCur ?? "IDR" };
   })();
 
   // 현재 필터에 표시된 행을 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
   const exportExcel = async () => {
     const rows = filtered.map((l) => {
       const c = lifeCalc(l.serial);
+      const cost = tireCostOf(l.serial);
       const noExpected = l.status === "Scrap" || l.status === "Not Install";
       const installed = l.status === "Install";
       const unit = findUnitBySerial(l.serial);
@@ -417,6 +440,11 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         [tx.colHr]: c?.hr ?? "",
         [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
         [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
+        // 엑셀은 계산이 되도록 숫자로 낸다. 통화는 옆 열 — 행마다 다를 수 있다
+        [tx.colCurrency]: cost?.total != null ? cost.currency : "",
+        [tx.colTotalCost]: cost?.total ?? "",
+        [tx.colCpk]: cost?.cpk != null ? Number(cost.cpk.toFixed(4)) : "",
+        [tx.colExpCpk]: cost?.expCpk != null ? Number(cost.expCpk.toFixed(4)) : "",
         [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(3)) : "",
         [tx.colRemKm]: installed && c?.projection.remainingKm != null ? Math.round(c.projection.remainingKm) : "",
         [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",
@@ -426,7 +454,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
     });
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
     const d = new Date();
@@ -479,7 +507,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           <table className="w-full min-w-250 table-fixed text-xs border-collapse font-mono">
             <colgroup>
               {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(12%). 합계 100% */}
-              {["3%", "12%", "8%", "7%", "7%", "7%", "8%", "7%", "8%", "9%", "10%", "14%"].map((w, i) => (
+              {["3%", "11%", "7%", "7%", "7%", "6%", "7%", "7%", "8%", "7%", "9%", "10%", "11%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />
               ))}
             </colgroup>
@@ -494,6 +522,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   { k: "hr", label: tx.colHr, align: "text-right" },
                   { k: "ekm", label: tx.colExpKm, align: "text-right" },
                   { k: "ehm", label: tx.colExpHm, align: "text-right" },
+                  { k: "cpk", label: tx.colCpk, align: "text-right" },
                   { k: "rem", label: tx.colRemKm, align: "text-right" },
                   { k: "pdate", label: tx.colProjDate, align: "text-right" },
                   { k: "status", label: tx.colStatus, align: "text-center" },
@@ -511,6 +540,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             <tbody>
               {filtered.map((l) => {
                 const c = lifeCalc(l.serial);
+                const cost = tireCostOf(l.serial);
                 const noExpected = l.status === "Scrap" || l.status === "Not Install";
                 const unit = findUnitBySerial(l.serial);
                 const hmReset = unit?.hmReset;
@@ -583,6 +613,17 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
+                  {/* CPK (§B-1) — 단가 미입력이면 − (0 이 아님). 예상 CPK 는 아래 줄에 작게 */}
+                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                    {cost?.cpk != null ? (
+                      <span className="text-foreground">{fmtCpk(cost.cpk, cost.currency)}</span>
+                    ) : (
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                    )}
+                    {cost?.expCpk != null && (
+                      <div className="text-[10px] text-muted-foreground/70 leading-tight">{tx.cpkExpPrefix}{fmtCpk(cost.expCpk, cost.currency)}</div>
+                    )}
+                  </td>
                   <td className="px-2 py-1.5 text-right">
                     {proj?.remainingKm != null ? (
                       <span className="text-foreground">{fmtInt(proj.remainingKm)}</span>
@@ -637,6 +678,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ehm)}</td>
+                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtCpk(avg.cpk, avg.cpkCur)}</td>
                 <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>
                 <td colSpan={3} />
               </tr>
@@ -770,6 +812,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   )}
                 </div>
               </div>
+
+              {/* 비용 (§B-1) */}
+              <TireCostSection serial={hist.serial} onSaved={onDataChanged} />
 
               {/* 장착 이력 (위치·차량 변경) */}
               <div className="mb-4">

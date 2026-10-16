@@ -181,7 +181,7 @@ export function fmtCurrencyDoc(
 // ── TCO ──────────────────────────────────────────────────────────
 
 /**
- * 주행거리당 원가(CPK) — 소수점 2자리, 통화 코드 선행. `IDR 118.91/km`
+ * 주행거리당 원가(CPK) — IDR 소수점 2자리 `IDR 118.91/km`, USD 4자리 `USD 0.0152/km`. 통화 코드 선행.
  * 지시서 WO-TMS-2026-09-TCO T-9 표기 규약. 재생 반영 전후 차이가 IDR 0.54/km
  * 수준이라 자리수를 줄이면 시나리오 비교 자체가 무의미해진다.
  *
@@ -192,7 +192,8 @@ export function fmtCpk(
   v: number | null | undefined,
   currency = "IDR",
 ): string {
-  return isBlank(v) ? EMPTY : `${currency} ${fixed(v, 2)}/km`;
+  // USD 는 km 당 값이 0.0152 처럼 작아 2자리로는 0.02 로 뭉개진다 — 4자리 (지시서 2026-10-16 §B-1)
+  return isBlank(v) ? EMPTY : `${currency} ${fixed(v, currency === "USD" ? 4 : 2)}/km`;
 }
 
 // ── §6.4 예외: 콤마를 쓰지 않는 항목 ───────────────────────────────

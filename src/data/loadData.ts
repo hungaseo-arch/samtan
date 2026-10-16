@@ -256,7 +256,7 @@ function buildRounds(rows: InspectionRow[]) {
 
 /** 전체 데이터 로드 → TMS_DATA 갱신. 실패 시 throw. */
 export async function loadData(): Promise<void> {
-  const [cfg, veh, pos, cur, hist, repl, life, codes, insp, ledger] = await Promise.all([
+  const [cfg, veh, pos, cur, hist, repl, life, codes, insp, ledger, costs] = await Promise.all([
     supabase.from("tire_config").select("*").eq("id", 1).maybeSingle(),
     supabase.from("vehicles").select("*").order("seq", { ascending: true }),
     // 시리얼은 더 이상 여기서 읽지 않는다 — v_current_tire 가 단일 진실원.
@@ -287,9 +287,15 @@ export async function loadData(): Promise<void> {
       .from("v_tire_ledger")
       .select("serial,ch,pos,seq_no,mounted_at,removed_at,is_current,segment_km,km_flag")
       .order("seq_no", { ascending: true }),
+    // 원가 이력 (§B-1) — 단가 폴백. select * 로 받아 retread_allowed 미적용 환경도 견딘다
+    supabase
+      .from("cost_params")
+      .select("*")
+      .is("deleted_at", null)
+      .order("effective_from", { ascending: true }),
   ]);
 
-  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes, ledger]) {
+  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes, ledger, costs]) {
     if (r.error) throw r.error;
   }
 
@@ -316,6 +322,12 @@ export async function loadData(): Promise<void> {
       psiDevDanger: numOrNull(cfg.data.psi_dev_danger),
       inspectionIntervalDays: numOrNull(cfg.data.inspection_interval_days),
       targetLifeKm: numOrNull(cfg.data.target_life_km),
+      fxUsdIdr: numOrNull(cfg.data.fx_usd_idr),
+      fuelBaseLPerKm: numOrNull(cfg.data.fuel_base_l_per_km),
+      fuelPrice: numOrNull(cfg.data.fuel_price),
+      fuelCurrency: cfg.data.fuel_currency ?? "IDR",
+      fuelSensPer10Pct: numOrNull(cfg.data.fuel_sens_per_10pct),
+      lifeSensPer10Pct: numOrNull(cfg.data.life_sens_per_10pct),
     };
   }
 
@@ -357,6 +369,18 @@ export async function loadData(): Promise<void> {
     lifetime: r.lifetime ?? "-",
     status: r.status,
     note: r.note ?? null,
+    // 20261016120000 미적용 환경에서는 컬럼이 없다 — undefined 를 null/0 으로
+    purchasePrice: numOrNull(r.purchase_price),
+    currency: r.currency ?? null,
+    retreadCount: numOrNull(r.retread_count) ?? 0,
+    retreadCost: numOrNull(r.retread_cost) ?? 0,
+  }));
+
+  TMS_DATA.costParams = (costs.data ?? []).map((r) => ({
+    effectiveFrom: r.effective_from,
+    unitPrice: numOrNull(r.unit_price),
+    currency: r.currency ?? "IDR",
+    retreadAllowed: r.retread_allowed === true,
   }));
 
   // summary (life 상태별 집계)

@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import { TMS_DATA } from "@/data/tmsData";
 import { todayInField } from "@/lib/format";
+import { costParamAt } from "@/lib/economics";
+import { updateLifetimePrice } from "@/api/tires";
 import {
   listDamageCodes, registerReplacement, ReplacementEntryError,
   type DamageCodeRow, type ReplacementErrorCode,
@@ -33,6 +35,11 @@ const TX = {
     km: "교체 시 KM",
     hm: "교체 시 HM",
     optional: "선택",
+    price: "신 타이어 구매가",
+    priceFromParams: "원가 설정 기본 단가로 채움 — 실제 구매가가 다르면 고치세요",
+    priceFromLife: "수명 DB 에 등록된 구매가",
+    priceNone: "기본 단가 미설정 — 비워 두면 CPK 가 «설정 필요» 로 남습니다",
+    priceFail: "교체는 저장됐지만 구매가 저장 실패",
     save: "교체 등록",
     cancel: "취소",
     ok: "교체를 등록했습니다",
@@ -68,6 +75,11 @@ const TX = {
     km: "KM saat Penggantian",
     hm: "HM saat Penggantian",
     optional: "opsional",
+    price: "Harga beli ban baru",
+    priceFromParams: "Diisi dari harga standar pengaturan biaya — ubah bila harga beli sebenarnya berbeda",
+    priceFromLife: "Harga beli yang tercatat di DB umur ban",
+    priceNone: "Harga standar belum diatur — bila dikosongkan, CPK tetap «perlu diatur»",
+    priceFail: "Penggantian tersimpan, tetapi harga beli gagal disimpan",
     save: "Daftarkan Penggantian",
     cancel: "Batal",
     ok: "Penggantian berhasil didaftarkan",
@@ -103,6 +115,11 @@ const TX = {
     km: "KM at replacement",
     hm: "HM at replacement",
     optional: "optional",
+    price: "New tire purchase price",
+    priceFromParams: "Prefilled from the cost-settings default price — change it if the actual price differs",
+    priceFromLife: "Purchase price already in the lifetime DB",
+    priceNone: "No default price set — if left blank, CPK stays «setup needed»",
+    priceFail: "Replacement saved, but the purchase price could not be saved",
     save: "Register",
     cancel: "Cancel",
     ok: "Replacement registered",
@@ -160,6 +177,8 @@ export default function ReplacementEntryModal({
   const [km, setKm] = useState(defaultKm ?? "");
   const [hm, setHm] = useState(defaultHm ?? "");
   const [busy, setBusy] = useState(false);
+  // 구매가 (§B-1). null = 손대지 않음 → 기본값(수명 DB 기존 구매가 > 교체일 기준 원가 설정 단가)을 쓴다
+  const [priceInput, setPriceInput] = useState<string | null>(null);
 
   useEffect(() => {
     listDamageCodes().then(setCodes).catch(() => setCodes([]));
@@ -172,6 +191,13 @@ export default function ReplacementEntryModal({
   );
   const isRot = reason === "ROT";
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
+
+  const existingLife = TMS_DATA.life.find((l) => l.serial === serial.trim());
+  const param = costParamAt(TMS_DATA.costParams, date);
+  const defaultPrice = existingLife?.purchasePrice ?? param?.unitPrice ?? null;
+  const priceSrc = existingLife?.purchasePrice != null ? "life" : param?.unitPrice != null ? "params" : null;
+  const priceCurrency = existingLife?.currency ?? param?.currency ?? "IDR";
+  const priceShown = priceInput ?? (defaultPrice != null ? String(defaultPrice) : "");
 
   const handleSave = async () => {
     if (!serial.trim()) { toast.error(tx.err.serial_required); return; }
@@ -187,6 +213,15 @@ export default function ReplacementEntryModal({
         oldStatus: isRot ? "Spare" : oldStatus,
       });
       toast.success(tx.ok);
+      // 구매가는 RPC 가 만든 수명 DB 행에 따로 쓴다 — 실패해도 교체는 이미 저장됐다
+      const p = num(priceShown);
+      if (p != null && Number.isFinite(p) && p >= 0 && p !== existingLife?.purchasePrice) {
+        try {
+          await updateLifetimePrice(serial.trim(), p, priceCurrency);
+        } catch (pe) {
+          toast.warning(`${tx.priceFail}: ${pe instanceof Error ? pe.message : String(pe)}`);
+        }
+      }
       await onSaved(serial.trim());
       onClose();
     } catch (e) {
@@ -292,6 +327,23 @@ export default function ReplacementEntryModal({
             </label>
           ))}
         </div>
+
+        <label className="block text-xs space-y-1">
+          <span className="font-bold">{tx.price} <span className="font-mono font-normal text-muted-foreground">({priceCurrency})</span></span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="any"
+            min={0}
+            value={priceShown}
+            onChange={(e) => setPriceInput(e.target.value)}
+            placeholder={tx.optional}
+            className={`${INPUT_CLS} text-right tabular-nums`}
+          />
+          <span className="text-[11px] text-muted-foreground">
+            {priceInput != null ? null : priceSrc === "life" ? tx.priceFromLife : priceSrc === "params" ? tx.priceFromParams : tx.priceNone}
+          </span>
+        </label>
 
         <div className="flex justify-end gap-2 pt-1">
           <button

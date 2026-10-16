@@ -1,5 +1,6 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved } from "./tmsData";
+import { costParamAt, cpk, tireTotalCost } from "@/lib/economics";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
@@ -975,4 +976,42 @@ export function getUnitAlerts(u: Unit, lang: Lang = "id") {
     }
   }
   return alerts;
+}
+
+// ── 원가·CPK (§B-1) ─────────────────────────────────────────────
+
+export interface TireCost {
+  /** 적용 단가 — 구매가가 있으면 그것, 없으면 장착일 기준 cost_params.unit_price */
+  price: number | null;
+  priceSource: "purchase" | "params" | null;
+  currency: string;
+  retreadCount: number;
+  retreadCost: number;
+  total: number | null;
+  /** 실적 CPK = 총비용 ÷ 주행 KM */
+  cpk: number | null;
+  /** 예상 CPK = 총비용 ÷ 예상 KM(0 mm 외삽) */
+  expCpk: number | null;
+}
+
+/** 수명 DB 행의 원가. 단가가 하나도 없으면 total·cpk 가 null — 0 으로 채우지 않는다 */
+export function tireCostOf(serial: string): TireCost | null {
+  const l = TMS_DATA.life.find((x) => x.serial === serial);
+  if (!l) return null;
+  const installDate = l.install && /^\d{4}-\d{2}-\d{2}/.test(l.install) ? l.install.slice(0, 10) : null;
+  const param = costParamAt(TMS_DATA.costParams, installDate);
+  const price = l.purchasePrice ?? param?.unitPrice ?? null;
+  const priceSource = l.purchasePrice != null ? "purchase" : param?.unitPrice != null ? "params" : null;
+  const currency = (l.purchasePrice != null ? l.currency : null) ?? param?.currency ?? "IDR";
+  const total = tireTotalCost({ purchasePrice: l.purchasePrice, unitPrice: param?.unitPrice ?? null, retreadCost: l.retreadCost });
+  const c = lifeCalc(serial);
+  // 폐기·미장착은 예상 KM 을 내지 않는 수명 DB 규칙을 그대로 따른다
+  const noExpected = l.status === "Scrap" || l.status === "Not Install";
+  return {
+    price, priceSource, currency,
+    retreadCount: l.retreadCount, retreadCost: l.retreadCost,
+    total,
+    cpk: cpk(total, c?.km),
+    expCpk: noExpected ? null : cpk(total, c?.expectedKm),
+  };
 }

@@ -423,7 +423,7 @@ export default function Index() {
           {activeTab === "wear"     && <WearAnalysisTab key={dataVersion} />}
           {activeTab === "pressure" && <PressureTab key={dataVersion} />}
           {activeTab === "input"    && <InspectionTab onSaved={reloadData} onSerialClick={goToSerial} />}
-          {activeTab === "life"     && <LifeTab focusSerial={focusSerial} />}
+          {activeTab === "life"     && <LifeTab focusSerial={focusSerial} onDataChanged={reloadData} />}
           {activeTab === "tco"      && <TcoTab key={dataVersion} />}
           {activeTab === "admin"    && <AdminTab onConfigSaved={reloadData} />}
           </Suspense>

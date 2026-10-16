@@ -228,6 +228,22 @@ export interface LifeRecord {
   lifetime: number | string | null;
   status: "Install" | "Scrap" | "Spare" | "Not Install";
   note: string | null;
+  /** 실제 구매가 (§B-1). null = cost_params.unit_price 로 폴백 */
+  purchasePrice: number | null;
+  /** purchasePrice 의 통화. null = cost_params.currency */
+  currency: string | null;
+  /** retreads 트리거 집계 — 재생 계획 미확정이라 지금은 전부 0 */
+  retreadCount: number;
+  retreadCost: number;
+}
+
+/** cost_params 이력 1행 중 화면 산출에 필요한 것만 (§B-1). 장착일 기준으로 적용한다 */
+export interface CostParam {
+  effectiveFrom: string;
+  /** null = 단가 미확정 — CPK 를 0 으로 채우지 않는다 */
+  unitPrice: number | null;
+  currency: string;
+  retreadAllowed: boolean;
 }
 
 export interface TireConfig {
@@ -251,6 +267,13 @@ export interface TireConfig {
   psiDevDanger: number | null;
   inspectionIntervalDays: number | null;
   targetLifeKm: number | null;
+  // 경제성 (§B-1·B-3). 전부 확정 전 NULL — 화면은 «설정 필요» 를 띄운다
+  fxUsdIdr: number | null;
+  fuelBaseLPerKm: number | null;
+  fuelPrice: number | null;
+  fuelCurrency: string;
+  fuelSensPer10Pct: number | null;
+  lifeSensPer10Pct: number | null;
 }
 
 /**
@@ -284,6 +307,8 @@ export interface TmsData {
   /** 시리얼 → 장착 구간(seqNo 순). 수명 계산의 주행거리 근거. */
   ledger: Record<string, LedgerSegment[]>;
   life: LifeRecord[];
+  /** cost_params 이력 — effectiveFrom 오름차순 */
+  costParams: CostParam[];
   codes: Record<string, string>;
   summary: Record<string, number>;
 }
@@ -300,6 +325,8 @@ export const TMS_DATA: TmsData = {
     scRatioUpper: null, scRatioLower: null, wearMinMm: null,
     psiLowRatio: null, psiDevWarn: null, psiDevDanger: null,
     inspectionIntervalDays: null, targetLifeKm: null,
+    fxUsdIdr: null, fuelBaseLPerKm: null, fuelPrice: null, fuelCurrency: "IDR",
+    fuelSensPer10Pct: null, lifeSensPer10Pct: null,
   },
   units: [],
   tread: {},
@@ -307,6 +334,7 @@ export const TMS_DATA: TmsData = {
   repl: [],
   ledger: {},
   life: [],
+  costParams: [],
   codes: {},
   summary: {},
 };
