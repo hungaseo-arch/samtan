@@ -6,6 +6,10 @@ import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/fo
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
 import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
 import { inspectionAge, type InspectionAge } from "@/lib/inspectionAge";
+import {
+  exposureIntervals, exposureSum, meanDeviationPct, pressureComplianceOf,
+  type Compliance, type ExposureInterval, type PressRound,
+} from "@/lib/pressureHistory";
 import type { Lang } from "@/i18n";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
@@ -1014,4 +1018,112 @@ export function tireCostOf(serial: string): TireCost | null {
     cpk: cpk(total, c?.km),
     expCpk: noExpected ? null : cpk(total, c?.expectedKm),
   };
+}
+
+
+// ── 공기압 이력 분석 (§B-2) ─────────────────────────────────────
+
+const POS_NUM: Record<string, number> = Object.fromEntries(
+  Object.entries(HEAD_MAP).map(([n, rp]) => [rp, Number(n)]),
+);
+
+const roundKm = (u: Unit, i: number): number | null => {
+  const v = u.km[i];
+  return typeof v === "number" ? v : null;
+};
+const pressAt = (pd: TirePosition | undefined, i: number): number | null => {
+  const v = pd?.press[i];
+  return typeof v === "number" ? v : null;
+};
+
+/** 차량 한 포지션의 전 회차 (장착 타이어가 바뀌어도 공기압 관리는 포지션 단위로 본다) */
+export function positionPressRounds(u: Unit, rp: string): PressRound[] {
+  const n = POS_NUM[rp];
+  if (!n) return [];
+  const pd = u.positions.find((p) => p.pos === rp);
+  const out: PressRound[] = [];
+  u.dates.forEach((d, i) => {
+    if (!d) return;
+    out.push({ date: d, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
+  });
+  return out;
+}
+
+/** 시리얼의 장착 구간별 회차. 구간을 넘어 노출을 잇지 않도록 구간마다 따로 돌려준다 */
+function serialPressRuns(serial: string): PressRound[][] {
+  return segmentsOfSerial(serial).map(({ unit: u, seg }) => {
+    const n = POS_NUM[seg.pos];
+    const pd = u.positions.find((p) => p.pos === seg.pos);
+    const out: PressRound[] = [];
+    for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
+      if (seg.tread[i] === undefined || !u.dates[i] || !n) continue;
+      out.push({ date: u.dates[i] as string, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
+    }
+    return out;
+  });
+}
+
+/** 타이어 장착 구간 전체 회차 중 정상(기본 ±5%) 회차 비율 */
+export function pressureCompliance(serial: string): Compliance {
+  return pressureComplianceOf(serialPressRuns(serial).flat());
+}
+
+/** 저압 노출 지수(%·km). 측정 회차가 하나도 없으면 null */
+export function underinflationExposure(serial: string): number | null {
+  const runs = serialPressRuns(serial);
+  if (!runs.some((r) => r.some((x) => x.press != null))) return null;
+  return runs.reduce((s, r) => s + exposureSum(exposureIntervals(r)), 0);
+}
+
+export interface VehiclePressureStats {
+  ch: string;
+  compliance: Compliance;
+  /** 포지션별 평균 편차(%, 부호 유지) — HEAD_MAP 순서 키 */
+  posDev: Record<string, number | null>;
+  /** 포지션별 저압 노출 구간 (B-3 연료 손실·B-4 월별 집계 입력) */
+  intervals: Record<string, ExposureInterval[]>;
+  exposure: number;
+}
+
+export function vehiclePressureStats(u: Unit): VehiclePressureStats {
+  const all: PressRound[] = [];
+  const posDev: Record<string, number | null> = {};
+  const intervals: Record<string, ExposureInterval[]> = {};
+  let exposure = 0;
+  for (const rp of Object.values(HEAD_MAP)) {
+    const rs = positionPressRounds(u, rp);
+    all.push(...rs);
+    posDev[rp] = meanDeviationPct(rs);
+    intervals[rp] = exposureIntervals(rs);
+    exposure += exposureSum(intervals[rp]);
+  }
+  return { ch: u.ch, compliance: pressureComplianceOf(all), posDev, intervals, exposure };
+}
+
+export interface ExposureRank {
+  serial: string;
+  exposure: number;
+  compliance: Compliance;
+  /** 현재 장착 위치. 탈착된 타이어면 null */
+  at: { ch: string; pos: string } | null;
+}
+
+/** 저압 노출 상위 n 본 (노출 > 0 인 것만) */
+export function topUnderinflated(n = 5): ExposureRank[] {
+  const serials = new Set<string>();
+  for (const byPos of Object.values(TMS_DATA.segments)) {
+    for (const segs of Object.values(byPos)) for (const seg of segs) if (seg.serial) serials.add(seg.serial);
+  }
+  const out: ExposureRank[] = [];
+  for (const serial of serials) {
+    const exposure = underinflationExposure(serial);
+    if (!exposure || exposure <= 0) continue;
+    let at: ExposureRank["at"] = null;
+    for (const u of TMS_DATA.units) {
+      const pd = u.positions.find((p) => p.serial === serial);
+      if (pd) { at = { ch: u.ch, pos: pd.pos }; break; }
+    }
+    out.push({ serial, exposure, compliance: pressureCompliance(serial), at });
+  }
+  return out.sort((a, b) => b.exposure - a.exposure).slice(0, n);
 }

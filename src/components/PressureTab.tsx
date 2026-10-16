@@ -9,6 +9,7 @@ import {
 import { useLang } from "@/i18n";
 import { fmtInt, fmtPercent, fmtPressure, fmtVehicle } from "@/lib/format";
 import { judgePressure } from "@/lib/pressureJudge";
+import PressureHistorySection from "@/components/PressureHistorySection";
 
 // 판정 경계는 tire_config 정본(pressureThresholds)에서 읽어 문구에 넣는다 — 관리자가 바꾸면 문구도 바뀐다.
 const buildTX = () => {
@@ -437,6 +438,9 @@ export default function PressureTab() {
           </div>
         </div>
       </div>
+
+      {/* ── 공기압 이력 분석 (§B-2) ── */}
+      <PressureHistorySection />
 
       {/* ── 점검 절차 체크리스트 ── */}
       <div>
