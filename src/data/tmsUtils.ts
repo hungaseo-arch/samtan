@@ -1,6 +1,6 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved } from "./tmsData";
-import { costParamAt, cpk, tireTotalCost } from "@/lib/economics";
+import { costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
@@ -8,7 +8,7 @@ import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib
 import { inspectionAge, type InspectionAge } from "@/lib/inspectionAge";
 import {
   exposureIntervals, exposureSum, meanDeviationPct, pressureComplianceOf,
-  type Compliance, type ExposureInterval, type PressRound,
+  type Compliance, type PressRound,
 } from "@/lib/pressureHistory";
 import type { Lang } from "@/i18n";
 
@@ -1036,31 +1036,39 @@ const pressAt = (pd: TirePosition | undefined, i: number): number | null => {
   return typeof v === "number" ? v : null;
 };
 
-/** 차량 한 포지션의 전 회차 (장착 타이어가 바뀌어도 공기압 관리는 포지션 단위로 본다) */
-export function positionPressRounds(u: Unit, rp: string): PressRound[] {
-  const n = POS_NUM[rp];
+/** 한 장착 구간의 회차 (KM 은 계기 리셋 보정이 반영된 값) */
+function segmentPressRounds(u: Unit, seg: TreadSegment): PressRound[] {
+  const n = POS_NUM[seg.pos];
   if (!n) return [];
-  const pd = u.positions.find((p) => p.pos === rp);
+  const pd = u.positions.find((p) => p.pos === seg.pos);
   const out: PressRound[] = [];
-  u.dates.forEach((d, i) => {
-    if (!d) return;
-    out.push({ date: d, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
-  });
+  for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
+    if (seg.tread[i] === undefined || !u.dates[i]) continue;
+    out.push({ date: u.dates[i] as string, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
+  }
   return out;
 }
 
-/** 시리얼의 장착 구간별 회차. 구간을 넘어 노출을 잇지 않도록 구간마다 따로 돌려준다 */
-function serialPressRuns(serial: string): PressRound[][] {
-  return segmentsOfSerial(serial).map(({ unit: u, seg }) => {
-    const n = POS_NUM[seg.pos];
-    const pd = u.positions.find((p) => p.pos === seg.pos);
-    const out: PressRound[] = [];
-    for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
-      if (seg.tread[i] === undefined || !u.dates[i] || !n) continue;
-      out.push({ date: u.dates[i] as string, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
-    }
-    return out;
+/**
+ * 차량 한 포지션의 회차를 장착 구간별로 끊어 돌려준다 — 교체 전후를 한 줄로 이으면
+ * 새 타이어의 공기압이 옛 타이어 구간에 «유지됐다» 고 잘못 가정하게 된다.
+ * 구간 정보가 없는 포지션은 전 회차를 한 덩어리로 본다.
+ */
+export function positionPressRuns(u: Unit, rp: string): { serial: string; rounds: PressRound[] }[] {
+  const segs = posSegments(u.ch, rp);
+  if (segs.length) return segs.map((seg) => ({ serial: seg.serial, rounds: segmentPressRounds(u, seg) }));
+  const n = POS_NUM[rp];
+  if (!n) return [];
+  const pd = u.positions.find((p) => p.pos === rp);
+  const rounds: PressRound[] = [];
+  u.dates.forEach((d, i) => {
+    if (d) rounds.push({ date: d, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
   });
+  return [{ serial: pd?.serial ?? "", rounds }];
+}
+
+function serialPressRuns(serial: string): PressRound[][] {
+  return segmentsOfSerial(serial).map(({ unit, seg }) => segmentPressRounds(unit, seg));
 }
 
 /** 타이어 장착 구간 전체 회차 중 정상(기본 ±5%) 회차 비율 */
@@ -1078,26 +1086,23 @@ export function underinflationExposure(serial: string): number | null {
 export interface VehiclePressureStats {
   ch: string;
   compliance: Compliance;
-  /** 포지션별 평균 편차(%, 부호 유지) — HEAD_MAP 순서 키 */
+  /** 포지션별 평균 편차(%, 부호 유지) — HEAD_MAP 의 포지션 이름 키 */
   posDev: Record<string, number | null>;
-  /** 포지션별 저압 노출 구간 (B-3 연료 손실·B-4 월별 집계 입력) */
-  intervals: Record<string, ExposureInterval[]>;
   exposure: number;
 }
 
 export function vehiclePressureStats(u: Unit): VehiclePressureStats {
   const all: PressRound[] = [];
   const posDev: Record<string, number | null> = {};
-  const intervals: Record<string, ExposureInterval[]> = {};
   let exposure = 0;
   for (const rp of Object.values(HEAD_MAP)) {
-    const rs = positionPressRounds(u, rp);
+    const runs = positionPressRuns(u, rp);
+    const rs = runs.flatMap((r) => r.rounds);
     all.push(...rs);
     posDev[rp] = meanDeviationPct(rs);
-    intervals[rp] = exposureIntervals(rs);
-    exposure += exposureSum(intervals[rp]);
+    for (const r of runs) exposure += exposureSum(exposureIntervals(r.rounds));
   }
-  return { ch: u.ch, compliance: pressureComplianceOf(all), posDev, intervals, exposure };
+  return { ch: u.ch, compliance: pressureComplianceOf(all), posDev, exposure };
 }
 
 export interface ExposureRank {
@@ -1126,4 +1131,95 @@ export function topUnderinflated(n = 5): ExposureRank[] {
     out.push({ serial, exposure, compliance: pressureCompliance(serial), at });
   }
   return out.sort((a, b) => b.exposure - a.exposure).slice(0, n);
+}
+
+// ── 연료·수명 손실 추정 (§B-3) ─────────────────────────────────
+
+export interface EconMonth {
+  /** YYYY-MM — 저압 회차의 점검일 기준 */
+  month: string;
+  exposure: number;
+  /** 추가 연료(L). 계수 미설정이면 null */
+  fuelL: number | null;
+}
+
+export interface VehicleEconomics {
+  ch: string;
+  exposure: number;
+  /** 추가 연료(L) — 연비·연료 계수 중 하나라도 NULL 이면 null */
+  fuelL: number | null;
+  /** 연료 손실액 (fuelCurrency) — 유가까지 있어야 값 */
+  fuelCost: number | null;
+  fuelCurrency: string;
+  /** 수명 손실(km) */
+  lifeKm: number | null;
+  /** 수명 손실액 = Σ 구간별 수명 손실 km × 그 타이어 CPK. 단가 없는 타이어가 섞이면 null */
+  lifeCost: number | null;
+  lifeCurrency: string | null;
+  /** 저압 노출이 있는데 CPK 가 없어 수명 손실액에서 빠진 타이어 수 */
+  lifeCostMissing: number;
+  monthly: EconMonth[];
+}
+
+/** 타이어 1본 단위 CPK — 예상 CPK 우선, 없으면 실적 CPK */
+function cpkForLoss(serial: string): { v: number; cur: string } | null {
+  const c = tireCostOf(serial);
+  if (!c) return null;
+  const v = c.expCpk ?? c.cpk;
+  return v == null ? null : { v, cur: c.currency };
+}
+
+/** 차량 1대의 저압 노출 → 연료·수명 손실 추정. 계수는 tire_config 설정값(가정값) */
+export function economics(u: Unit): VehicleEconomics {
+  const t = TMS_DATA.tire;
+  const fs = t.fuelSensPer10Pct, base = t.fuelBaseLPerKm, ls = t.lifeSensPer10Pct;
+  let exposure = 0;
+  let fuelL: number | null = 0;
+  let lifeKm: number | null = 0;
+  let lifeCost: number | null = 0;
+  let lifeCurrency: string | null = null;
+  let lifeCostMissing = 0;
+  const months = new Map<string, EconMonth>();
+
+  for (const rp of Object.values(HEAD_MAP)) {
+    for (const run of positionPressRuns(u, rp)) {
+      const iv = exposureIntervals(run.rounds);
+      if (!iv.length) continue;
+      const exp = exposureSum(iv);
+      exposure += exp;
+      const f = extraFuelL(iv, fs, base);
+      fuelL = fuelL == null || f == null ? null : fuelL + f;
+      const lk = lifeLossKm(exp, ls);
+      lifeKm = lifeKm == null || lk == null ? null : lifeKm + lk;
+      if (lk != null && lk > 0) {
+        const c = run.serial ? cpkForLoss(run.serial) : null;
+        if (!c) lifeCostMissing++;
+        else if (lifeCurrency != null && lifeCurrency !== c.cur) lifeCost = null;   // 통화가 섞이면 합치지 않는다
+        else { lifeCurrency = c.cur; if (lifeCost != null) lifeCost += lk * c.v; }
+      }
+      for (const x of iv) {
+        const m = x.date.slice(0, 7);
+        const cur = months.get(m) ?? { month: m, exposure: 0, fuelL: 0 };
+        cur.exposure += x.lowPct * x.km;
+        const fx = extraFuelL([x], fs, base);
+        cur.fuelL = cur.fuelL == null || fx == null ? null : cur.fuelL + fx;
+        months.set(m, cur);
+      }
+    }
+  }
+  if (lifeKm == null || lifeCostMissing > 0) lifeCost = null;
+  // 손실이 0 이면 단가 유무와 무관하게 0 — «저압이 없으면 손실 0» (수용 기준)
+  if (lifeKm === 0) lifeCost = 0;
+  return {
+    ch: u.ch,
+    exposure,
+    fuelL,
+    fuelCost: fuelL === 0 ? 0 : mulOrNull(fuelL, t.fuelPrice),
+    fuelCurrency: t.fuelCurrency || "IDR",
+    lifeKm,
+    lifeCost,
+    lifeCurrency,
+    lifeCostMissing,
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+  };
 }

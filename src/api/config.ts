@@ -64,3 +64,48 @@ export async function updateJudgeConfig(c: JudgeConfig): Promise<void> {
   // RLS 가 막으면 오류 없이 0행이 돌아온다 — 저장된 척하지 않는다.
   if (!data || data.length === 0) throw new Error("tire_config not updated (no permission?)");
 }
+
+/**
+ * 경제성 계수 (지시서 2026-10-16 §B-3) — 전부 nullable. NULL = 미확정 → 화면 «설정 필요».
+ * 값은 쎄오님 확정 전 임의로 넣지 않는다 (CLAUDE.md 절대금지 6).
+ */
+export interface EconomicsConfig {
+  fx_usd_idr: number | null;
+  fuel_base_l_per_km: number | null;
+  fuel_price: number | null;
+  fuel_currency: string;
+  fuel_sens_per_10pct: number | null;
+  life_sens_per_10pct: number | null;
+}
+
+export const ECON_NUM_KEYS = [
+  "fx_usd_idr", "fuel_base_l_per_km", "fuel_price", "fuel_sens_per_10pct", "life_sens_per_10pct",
+] as const;
+
+/** 잘못된 항목 키 목록 (DB check 제약 tire_config_economics_check 와 같은 규칙) */
+export function validateEconomicsConfig(c: EconomicsConfig): string[] {
+  const bad: string[] = [];
+  for (const k of ECON_NUM_KEYS) {
+    const v = c[k];
+    if (v == null) continue;
+    if (!Number.isFinite(v) || v < 0 || (k === "fx_usd_idr" && v === 0)) bad.push(k);
+  }
+  if (!["IDR", "USD"].includes(c.fuel_currency)) bad.push("fuel_currency");
+  return bad;
+}
+
+/**
+ * 경제성 계수 저장. 저장 직후 호출부가 loadData() 로 TMS_DATA 를 갱신할 것.
+ * ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선
+ */
+export async function updateEconomicsConfig(c: EconomicsConfig): Promise<void> {
+  const bad = validateEconomicsConfig(c);
+  if (bad.length > 0) throw new Error(`invalid config fields: ${bad.join(", ")}`);
+  const { data, error } = await supabase
+    .from("tire_config")
+    .update(c)
+    .eq("id", 1)
+    .select("id");
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error("tire_config not updated (no permission?)");
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { costParamAt, cpk, tireTotalCost, toIdr } from "./economics";
+import { costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost, toIdr } from "./economics";
 import type { CostParam } from "@/data/tmsData";
 
 const P = (effectiveFrom: string, unitPrice: number | null): CostParam =>
@@ -33,5 +33,29 @@ describe("economics — B-1 원가·CPK", () => {
     expect(toIdr(10, "USD", 16_000)).toBe(160_000);
     expect(toIdr(10, "USD", null)).toBeNull();
     expect(toIdr(10, "IDR", 16_000)).toBeNull();
+  });
+});
+
+describe("economics — B-3 연료·수명 손실", () => {
+  const iv = [{ lowPct: 20, km: 1000 }];
+  it("수용 기준: 저압 구간이 없으면 계수와 무관하게 0", () => {
+    expect(extraFuelL([], null, null)).toBe(0);
+    expect(lifeLossKm(0, null)).toBe(0);
+  });
+  it("수용 기준: 계수 0 이면 손실 0", () => {
+    expect(extraFuelL(iv, 0, 0.5)).toBe(0);
+    expect(lifeLossKm(20_000, 0)).toBe(0);
+  });
+  it("계수 NULL 이면 null (설정 필요)", () => {
+    expect(extraFuelL(iv, null, 0.5)).toBeNull();
+    expect(extraFuelL(iv, 1.2, null)).toBeNull();
+    expect(lifeLossKm(20_000, null)).toBeNull();
+    expect(mulOrNull(null, 3)).toBeNull();
+  });
+  it("20% 저압 1,000 km · 1.2%/10% · 0.5 L/km → 본당 1.2 L (= 12 L ÷ 10본)", () => {
+    expect(extraFuelL(iv, 1.2, 0.5)).toBeCloseTo(1.2);
+    // 노출 20,000 %·km × 8%/10% → 160 km
+    expect(lifeLossKm(20_000, 8)).toBeCloseTo(160);
+    expect(mulOrNull(160, 0.02)).toBeCloseTo(3.2);
   });
 });

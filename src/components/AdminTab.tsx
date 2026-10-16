@@ -4,6 +4,7 @@
 //   · 사용자별 로그기록 (ActivityPanel)
 //   · 판정 기준 (SettingsPanel) — tire_config 임계치·주기 (지시서 2026-10-16 §A-5)
 //     + 계기 리셋 보정 (MeterOffsetPanel) — vehicles 리셋일·offset (§A-9)
+//     + 경제성 계수 (EconomicsSettingsPanel) — tire_config 환율·연비·유가·손실 계수 (§B-3)
 //
 // 사용자 목록은 여기서 한 번만 읽어 두 절이 함께 쓴다. 로그 화면은 audit_log 의
 // actor(uuid)만 갖고 있어 이름을 붙이려면 같은 목록이 필요하다.
@@ -20,6 +21,7 @@ import UsersPanel from "@/components/admin/UsersPanel";
 import ActivityPanel from "@/components/admin/ActivityPanel";
 import SettingsPanel from "@/components/admin/SettingsPanel";
 import MeterOffsetPanel from "@/components/admin/MeterOffsetPanel";
+import EconomicsSettingsPanel from "@/components/admin/EconomicsSettingsPanel";
 
 const TX = {
   ko: {
@@ -127,6 +129,7 @@ export default function AdminTab({ onConfigSaved }: { onConfigSaved?: () => void
         <div className="space-y-4">
           <SettingsPanel onSaved={onConfigSaved} />
           <MeterOffsetPanel onSaved={onConfigSaved} />
+          <EconomicsSettingsPanel onSaved={onConfigSaved} />
         </div>
       ) : failed ? (
         <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
