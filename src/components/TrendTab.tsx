@@ -6,6 +6,7 @@ import { headPosData, validDates, posSegments, segmentWearRate, vehicleWearRate 
 import { EMPTY, fmtInt, fmtTread, fmtPressure, fmtWearRate, fmtKmPerMm } from "@/lib/format";
 import { useLang } from "@/i18n";
 import FleetWearView from "@/components/FleetWearView";
+import { irregularOfWidths } from "@/lib/irregularWear";
 import { HEX, LEVEL_HEX, SERIES } from "@/lib/chartColors";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend,
@@ -56,6 +57,7 @@ const buildTX = () => ({
     replacedOn: "교체",
     noData: "측정 없음",
     tableFoot: "회차별 측정값. 트레드는 4개 그루브 중 최소값 기준. 행은 시리얼 단위로 나뉘며, 빈칸은 그 타이어가 이 포지션에 없던 회차입니다(0 이 아님).",
+    irregularFoot: "▲ = 4점 편마모 (최대−최소 3 mm 이상 노랑, 5 mm 이상 빨강). 칸에 마우스를 올리면 4점 값이 보입니다.",
     wearFoot: (r: string, k: string, n: number) => `CH 마모율 ${r} (${k}) — 시리얼이 같은 인접 회차 ${n}개 구간 기준. 트레드가 오른 구간·km 미증가 구간·트레드 0 회차는 제외합니다.`,
     wearNone: "마모율 산출에 쓸 구간이 없습니다 (km 미기록이거나 회차가 부족합니다).",
   },
@@ -84,6 +86,7 @@ const buildTX = () => ({
     replacedOn: "Ganti",
     noData: "Tidak ada pengukuran",
     tableFoot: "Nilai ukur per sesi. Tapak berdasarkan nilai min dari 4 alur. Baris dipisah per serial; sel kosong berarti ban itu belum/tidak terpasang di posisi ini pada sesi tersebut (bukan 0).",
+    irregularFoot: "▲ = aus tidak rata antar 4 alur (maks−min ≥ 3 mm kuning, ≥ 5 mm merah). Arahkan kursor ke sel untuk melihat 4 nilai.",
     wearFoot: (r: string, k: string, n: number) => `Laju aus unit ${r} (${k}) — dari ${n} interval sesi berurutan dengan serial sama. Interval dengan tapak naik, km tidak bertambah, atau tapak 0 dikecualikan.`,
     wearNone: "Tidak ada interval yang dapat dipakai untuk laju aus (km tidak tercatat atau sesi kurang).",
   },
@@ -112,6 +115,7 @@ const buildTX = () => ({
     replacedOn: "Replaced",
     noData: "No measurement",
     tableFoot: "Measured values by round. Tread is the minimum of the 4 grooves. Rows are split per serial; a blank cell means that tire was not on this position for that round (not a zero).",
+    irregularFoot: "▲ = irregular wear across the 4 grooves (max−min ≥ 3 mm amber, ≥ 5 mm red). Hover the cell for the 4 values.",
     wearFoot: (r: string, k: string, n: number) => `Vehicle wear rate ${r} (${k}) — from ${n} adjacent-round intervals on the same serial. Intervals with rising tread, non-increasing km, or zero tread are excluded.`,
     wearNone: "No usable interval for a wear rate (km not recorded, or too few rounds).",
   },
@@ -342,9 +346,18 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                         if (v === null) return <td key={x.i} className={`px-2 py-1.5 text-center text-muted-foreground/40 ${line}`}>{EMPTY}</td>;
                         if (v === "N/A") return <td key={x.i} className={`px-2 py-1.5 text-center text-[10px] text-muted-foreground/50 ${line}`}>N/A</td>;
                         const cls = metric === "tread" ? LEVEL_CELL_CLS[treadLevel(v)] : "";
+                        // 4점 편마모 (§A-7) — 4점이 있는 회차만. 값은 툴팁, 표시는 ▲ 하나로 칸 폭을 지킨다.
+                        const w = metric === "tread" ? seg.widths[x.i] : null;
+                        const iw = irregularOfWidths(w);
+                        const wTitle = w && iw
+                          ? `${[w.l, w.c1, w.c2, w.r].map((t) => (t != null ? fmtTread(t, false) : EMPTY)).join(" / ")} mm · Δ${fmtTread(iw.range, false)}`
+                          : undefined;
                         return (
-                          <td key={x.i} className={`px-2 py-1.5 text-center ${cls} ${line}`}>
+                          <td key={x.i} title={wTitle} className={`px-2 py-1.5 text-center ${cls} ${line}`}>
                             {metric === "tread" ? fmtTread(v, false) : fmtPressure(v, false)}
+                            {iw && iw.level !== "ok" && (
+                              <span className={`ml-0.5 text-[9px] ${iw.level === "danger" ? "text-level-danger" : "text-level-warn"}`}>▲</span>
+                            )}
                           </td>
                         );
                       })}
@@ -377,6 +390,7 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
           </table>
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{tx.tableFoot}</p>
+        {metric === "tread" && <p className="mt-1 text-xs text-muted-foreground">{tx.irregularFoot}</p>}
         {metric === "tread" && <WearFoot u={u} tx={tx} />}
       </div>
       </>)}

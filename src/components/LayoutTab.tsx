@@ -1,13 +1,14 @@
 // @section: layout-tab
 import { useState } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs, currentSegmentLatestWidths } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
 import { EMPTY, fmtTread } from "@/lib/format";
 import { MousePointerClick, X } from "lucide-react";
 import { useLang } from "@/i18n";
 import SerialChain from "./SerialChain";
 import IntegrityBadge from "./IntegrityBadge";
+import IrregularWearBadge from "./IrregularWearBadge";
 
 const TX = {
   ko: {
@@ -33,6 +34,7 @@ const TX = {
     serialHint: "클릭 → 수명 DB 보기",
     latestPress: "최근 공기압",
     latestTread: "최근 트레드",
+    widths4: "4점 (좌·중1·중2·우)",
     newPrefix: "신품 ",
     remark: "비고",
     scrap: "폐기",
@@ -65,6 +67,7 @@ const TX = {
     serialHint: "Klik → lihat DB umur",
     latestPress: "Tekanan terkini",
     latestTread: "Tapak terkini",
+    widths4: "4 titik (Kiri·Tgh 1·Tgh 2·Kanan)",
     newPrefix: "baru ",
     remark: "Catatan",
     scrap: "Afkir",
@@ -97,6 +100,7 @@ const TX = {
     serialHint: "Click → view lifetime DB",
     latestPress: "Latest pressure",
     latestTread: "Latest tread",
+    widths4: "4 points (L·C1·C2·R)",
     newPrefix: "new ",
     remark: "Remark",
     scrap: "Scrap",
@@ -331,6 +335,20 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   </div>
                   <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : EMPTY} mono />
                   <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread, false)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
+                  {/* 4점 그루브 (§A-7) — 최근 트레드 회차에 4점이 있을 때만. 없으면 기존 화면 그대로. */}
+                  {(() => {
+                    const w = currentSegmentLatestWidths(modalData.d!.segments);
+                    if (!w) return null;
+                    return (
+                      <div className="flex gap-2">
+                        <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{tx.widths4}</span>
+                        <span className="text-xs font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>{[w.l, w.c1, w.c2, w.r].map((v) => (v != null ? fmtTread(v, false) : EMPTY)).join(" / ")} mm</span>
+                          <IrregularWearBadge widths={w} />
+                        </span>
+                      </div>
+                    );
+                  })()}
                   {modalData.d.remark && <Row label={tx.remark} value={modalData.d.remark} danger />}
                   {(() => {
                     const scrap = TMS_DATA.life.find((l) => l.serial === modalData.d!.serial && l.status === "Scrap");

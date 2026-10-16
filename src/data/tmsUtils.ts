@@ -275,6 +275,19 @@ export function currentSegmentPairs(
   return out;
 }
 
+/**
+ * 현재 장착 구간의 **마지막 트레드 회차** 4점 (§A-7). 그 회차에 4점이 없으면 null —
+ * 더 이전 회차의 4점을 끌어와 최신값처럼 보이지 않게 한다.
+ */
+export function currentSegmentLatestWidths(segs: TreadSegment[]): TreadWidths | null {
+  const seg = segs.length ? segs[segs.length - 1] : null;
+  if (!seg) return null;
+  for (let i = seg.idxTo; i >= seg.idxFrom; i--) {
+    if (typeof seg.tread[i] === "number") return seg.widths[i] ?? null;
+  }
+  return null;
+}
+
 export interface WearRate {
   /** 마모율 (mm / 1,000 km) */
   mmPer1000Km: number;

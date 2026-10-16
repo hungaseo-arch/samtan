@@ -12,6 +12,7 @@ import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailCard from "./TireDetailCard";
+import IrregularWearBadge from "./IrregularWearBadge";
 
 // 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const TREAD_CLS: Record<TreadLevel, string> = {
@@ -94,6 +95,7 @@ const buildTX = () => ({
     wL: "좌", wC1: "중1", wC2: "중2", wR: "우",
     hTreadMin: "최소",
     hTreadAvg: "평균",
+    colIrregular: "편마모",
     hWidths: "폭 4점",
     hNoWidths: "4점 측정 이전 회차",
     modalFoot: "굵은 숫자가 그 회차의 최소값이며 교체 판정과 색상은 최소값 기준입니다. 평균은 참고용으로, 중앙이 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 있습니다.",
@@ -185,6 +187,7 @@ const buildTX = () => ({
     wL: "Kiri", wC1: "Tgh 1", wC2: "Tgh 2", wR: "Kanan",
     hTreadMin: "min",
     hTreadAvg: "rerata",
+    colIrregular: "Aus tdk rata",
     hWidths: "4 titik lebar",
     hNoWidths: "Sesi sebelum pengukuran 4 titik",
     modalFoot: "Angka tebal adalah nilai minimum sesi tersebut; penilaian penggantian dan warna memakai nilai minimum. Rata-rata hanya acuan — pada ban yang aus di tengah, bahu masih tersisa meski minimum 0.0 mm.",
@@ -276,6 +279,7 @@ const buildTX = () => ({
     wL: "L", wC1: "C1", wC2: "C2", wR: "R",
     hTreadMin: "min",
     hTreadAvg: "avg",
+    colIrregular: "Irregular",
     hWidths: "4 width points",
     hNoWidths: "Round measured before 4-point recording",
     modalFoot: "Bold figures are that round\u2019s minimum; replacement judgement and colour follow the minimum. The average is reference only — a centre-worn tyre can read 0.0 mm at the minimum while the shoulders still carry rubber.",
@@ -759,6 +763,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                           · {tx.hTreadAvg} {fmtTread(hist.latestTreadAvg, false)} mm
                         </span>
                       )}
+                      <span className="ml-2"><IrregularWearBadge widths={latestW} /></span>
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground/60 mt-0.5">{tx.hNoWidths}</p>
@@ -811,7 +816,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       <thead>
                         <tr className="text-muted-foreground/70">
                           <th />
-                          <th colSpan={6} className="px-2 pt-1 text-center text-[10px] font-semibold border-b border-border/40">{tx.colDepth}</th>
+                          <th colSpan={7} className="px-2 pt-1 text-center text-[10px] font-semibold border-b border-border/40">{tx.colDepth}</th>
                           <th colSpan={2} />
                         </tr>
                         <tr className="border-b border-border text-muted-foreground">
@@ -823,6 +828,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                           ))}
                           <th className="px-2 py-1 text-right font-semibold">{tx.hTreadMin}</th>
                           <th className="px-2 py-1 text-right font-semibold">{tx.hTreadAvg}</th>
+                          <th className="px-2 py-1 text-left font-semibold">{tx.colIrregular}</th>
                           <th className="px-2 py-1 text-right font-semibold">KM</th>
                           <th className="px-2 py-1 text-right font-semibold">HM</th>
                         </tr>
@@ -845,6 +851,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                               {r.tread != null ? fmtTread(r.tread, false) : EMPTY}
                             </td>
                             <td className="px-2 py-1 text-right text-muted-foreground">{r.treadAvg != null ? fmtTread(r.treadAvg, false) : EMPTY}</td>
+                            <td className="px-2 py-1"><IrregularWearBadge widths={r.widths} compact /></td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.km)}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.hm)}</td>
                           </tr>
