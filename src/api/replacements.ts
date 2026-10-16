@@ -116,3 +116,65 @@ export async function updateReplacementRemoval(
   if (error) throw error;
   return data as unknown as ReplacementRow;
 }
+
+// ── 교체 등록 (지시서 2026-10-16 §A-1) ─────────────────────────
+// 위의 "쓰기는 UPDATE 뿐" 원칙의 유일한 예외다. 행 생성은 RPC register_replacement 한 곳에서만 하며,
+// 장착 이력 뷰들이 매달린 트리거(lifetimes 생성·구 타이어 Spare·serial2 동기화)가 같은 트랜잭션에서 돈다.
+
+export interface ReplacementEntry {
+  ch: string;
+  pos: string;
+  /** YYYY-MM-DD (현장 WITA 날짜) */
+  date: string;
+  newSerial: string;
+  /** damage_codes.code. 로테이션은 'ROT'. 미입력 null */
+  reason: string | null;
+  treadAtRemoval: number | null;
+  km: number | null;
+  hm: number | null;
+  /** 탈착한 구 타이어의 처리 — 폐기 또는 예비 */
+  oldStatus: "Scrap" | "Spare";
+}
+
+/** RPC 가 던지는 'code:detail' 의 code. 화면이 문구를 고르는 키다. */
+export type ReplacementErrorCode =
+  | "forbidden" | "serial_required" | "date_required" | "bad_old_status" | "rot_cannot_scrap"
+  | "bad_reason" | "position_not_found" | "same_serial" | "serial_installed"
+  | "serial_scrapped" | "date_before_last";
+
+export class ReplacementEntryError extends Error {
+  constructor(public code: ReplacementErrorCode | "unknown", public detail: string, message: string) {
+    super(message);
+  }
+}
+
+const KNOWN_CODES: ReplacementErrorCode[] = [
+  "forbidden", "serial_required", "date_required", "bad_old_status", "rot_cannot_scrap",
+  "bad_reason", "position_not_found", "same_serial", "serial_installed",
+  "serial_scrapped", "date_before_last",
+];
+
+/**
+ * 교체 1건 등록. 성공 시 새 replacements.id.
+ * 저장 후 호출부는 loadData() 를 다시 돌려야 배치도·교체이력·수명 DB 가 바뀐다.
+ * ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선
+ */
+export async function registerReplacement(e: ReplacementEntry): Promise<string> {
+  const { data, error } = await supabase.rpc("register_replacement", {
+    p_ch: e.ch,
+    p_pos: e.pos,
+    p_date: e.date,
+    p_new_serial: e.newSerial.trim(),
+    p_reason: e.reason,
+    p_tread: e.treadAtRemoval,
+    p_km: e.km,
+    p_hm: e.hm,
+    p_old_status: e.oldStatus,
+  });
+  if (error) {
+    const [head, ...rest] = (error.message ?? "").split(":");
+    const code = (KNOWN_CODES as string[]).includes(head) ? (head as ReplacementErrorCode) : "unknown";
+    throw new ReplacementEntryError(code, rest.join(":").trim(), error.message);
+  }
+  return data as string;
+}

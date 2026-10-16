@@ -19,12 +19,13 @@ import {
 } from "@/lib/treadStats";
 import { listTreadPoints, type TreadPointRow } from "@/api/wear";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, Lock as LockIcon, UserRound } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, Lock as LockIcon, UserRound, Repeat } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailModal from "@/components/TireDetailModal";
+import ReplacementEntryModal from "@/components/ReplacementEntryModal";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -59,6 +60,8 @@ const TX = {
     psiPh: "psi",
     mmPh: "mm",
     serialPh: "시리얼",
+    replace: "교체",
+    replaceTitle: "이 포지션의 타이어 교체 등록",
     colTreadPoints: "트레드 측정 4점 (mm)",
     ptL: "Kiri · 외측",
     ptC1: "Tengah 1",
@@ -147,6 +150,8 @@ const TX = {
     psiPh: "psi",
     mmPh: "mm",
     serialPh: "Serial",
+    replace: "Ganti",
+    replaceTitle: "Daftarkan Penggantian ban di Posisi ini",
     colTreadPoints: "Kedalaman alur — 4 titik (mm)",
     ptL: "Kiri · Luar",
     ptC1: "Tengah 1",
@@ -235,6 +240,8 @@ const TX = {
     psiPh: "psi",
     mmPh: "mm",
     serialPh: "Serial",
+    replace: "Replace",
+    replaceTitle: "Register a tire replacement for this position",
     colTreadPoints: "Tread — 4 points (mm)",
     ptL: "Kiri · Outboard",
     ptC1: "Tengah 1",
@@ -340,7 +347,7 @@ const emptyCell = (serial: string): FormCell => ({
  */
 type ZeroStatus = Exclude<TreadStatus, "measured">;
 
-export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void; onSerialClick?: (serial: string) => void }) {
+export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void | Promise<void>; onSerialClick?: (serial: string) => void }) {
   const { lang, t } = useLang();
   const tx = TX[lang];
   const { canWrite, canDelete, isAdmin } = useAuth();
@@ -357,6 +364,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   const [formOpen, setFormOpen] = useState(false); // 입력 폼 아코디언 (기본 닫힘)
   // 트레드 0 mm 확인 모달(v2 §B-2) — 실측 0 인지 미측정인지는 사람만 안다.
   const [zeroAsk, setZeroAsk] = useState<string[] | null>(null);
+  const [replPos, setReplPos] = useState<string | null>(null); // 교체 등록 모달 (§A-1)
   const [detail, setDetail] = useState<number | null>(null); // 배치도 타이어 상세 모달(포지션 번호)
 
   const [history, setHistory] = useState<InspectionRow[]>([]);
@@ -859,6 +867,16 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                         aria-label={`${pos} · ${tx.colSerial}`}
                         className={`${CELL_CLS} w-full text-left`}
                       />
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => setReplPos(pos)}
+                          title={tx.replaceTitle}
+                          className="mt-1 inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] font-bold hover:bg-muted/40 transition-colors"
+                        >
+                          <Repeat className="w-3 h-3" /> {tx.replace}
+                        </button>
+                      )}
                     </td>
                   </tr>
                   );
@@ -1156,6 +1174,22 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
         {detail != null && (
           <TireDetailModal ch={selCh} pos={detail} onClose={() => setDetail(null)} onSerialClick={onSerialClick} />
         )}
+
+      {/* 교체 등록 모달 (§A-1) — 현재 장착 시리얼은 입력칸이 아니라 DB(v_current_tire) 값 */}
+      {replPos && canWrite && (
+        <ReplacementEntryModal
+          ch={selCh}
+          pos={replPos}
+          currentSerial={unitByCh(selCh).positions.find((x) => x.pos === replPos)?.serial ?? ""}
+          defaultKm={km}
+          defaultHm={hm}
+          onClose={() => setReplPos(null)}
+          onSaved={async (newSerial) => {
+            setCell(replPos, "serial", newSerial);
+            await onSaved?.();
+          }}
+        />
+      )}
     </div>
   );
 }
