@@ -21,6 +21,10 @@ export interface JudgeConfig {
   psi_dev_danger: number;
   inspection_interval_days: number;
   target_life_km: number;
+  /** 주행계 이상치 경계 (WO-TMS-2026-10-LIFE T-3) — 20261016140000 */
+  odo_daily_km_max: number;
+  odo_speed_kmh_max: number;
+  odo_daily_hm_max: number;
 }
 
 export const JUDGE_KEYS: (keyof JudgeConfig)[] = [
@@ -28,6 +32,7 @@ export const JUDGE_KEYS: (keyof JudgeConfig)[] = [
   "rec_psi_steer", "rec_psi_drive",
   "psi_low_ratio", "psi_dev_warn", "psi_dev_danger",
   "inspection_interval_days", "target_life_km",
+  "odo_daily_km_max", "odo_speed_kmh_max", "odo_daily_hm_max",
 ];
 
 /** 잘못된 항목 키 목록. 비어 있으면 저장 가능. */
@@ -45,6 +50,8 @@ export function validateJudgeConfig(c: JudgeConfig): (keyof JudgeConfig)[] {
   if (!Number.isInteger(c.inspection_interval_days) || c.inspection_interval_days > 365) {
     bad.add("inspection_interval_days");
   }
+  // 하루는 24시간 — DB check 제약(tire_config_odo_check)과 같다
+  if (c.odo_daily_hm_max > 24) bad.add("odo_daily_hm_max");
   return JUDGE_KEYS.filter((k) => bad.has(k));
 }
 

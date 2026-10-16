@@ -285,7 +285,8 @@ export async function loadData(): Promise<void> {
     // 개체 단위 장착 구간 — 주행거리의 정본. 차량을 옮겨 다닌 타이어도 구간별로 복원돼 있다.
     supabase
       .from("v_tire_ledger")
-      .select("serial,ch,pos,seq_no,mounted_at,removed_at,is_current,segment_km,km_flag")
+      // select * — km_start·km_method 등 20261016150000 컬럼이 없는 환경도 견딘다
+      .select("*")
       .order("seq_no", { ascending: true }),
     // 원가 이력 (§B-1) — 단가 폴백. select * 로 받아 retread_allowed 미적용 환경도 견딘다
     supabase
@@ -322,6 +323,9 @@ export async function loadData(): Promise<void> {
       psiDevDanger: numOrNull(cfg.data.psi_dev_danger),
       inspectionIntervalDays: numOrNull(cfg.data.inspection_interval_days),
       targetLifeKm: numOrNull(cfg.data.target_life_km),
+      odoDailyKmMax: numOrNull(cfg.data.odo_daily_km_max),
+      odoSpeedKmhMax: numOrNull(cfg.data.odo_speed_kmh_max),
+      odoDailyHmMax: numOrNull(cfg.data.odo_daily_hm_max),
       fxUsdIdr: numOrNull(cfg.data.fx_usd_idr),
       fuelBaseLPerKm: numOrNull(cfg.data.fuel_base_l_per_km),
       fuelPrice: numOrNull(cfg.data.fuel_price),
@@ -355,6 +359,11 @@ export async function loadData(): Promise<void> {
       // numeric 은 PostgREST 가 문자열로 준다. null 과 0 을 섞지 않도록 명시 변환.
       segmentKm: r.segment_km == null ? null : Number(r.segment_km),
       kmFlag: r.km_flag,
+      kmStart: numOrNull(r.km_start),
+      kmEnd: numOrNull(r.km_end),
+      hmStart: numOrNull(r.hm_start),
+      hmEnd: numOrNull(r.hm_end),
+      kmMethod: r.km_method ?? null,
     });
   }
   TMS_DATA.ledger = ledgerBySerial;

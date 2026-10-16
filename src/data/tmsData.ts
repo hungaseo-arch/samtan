@@ -26,6 +26,10 @@ const FALLBACK_PSI_DEV_WARN = 0.05;
 const FALLBACK_PSI_DEV_DANGER = 0.15;
 const FALLBACK_INSPECTION_INTERVAL = 14;
 const FALLBACK_TARGET_LIFE_KM = 75000;
+// 주행계 이상치 (WO-TMS-2026-10-LIFE T-3) — 정본은 tire_config.odo_*
+const FALLBACK_ODO_DAILY_KM_MAX = 800;
+const FALLBACK_ODO_SPEED_KMH_MAX = 60;
+const FALLBACK_ODO_DAILY_HM_MAX = 24;
 
 /** 트레드 4단계 신호등. 녹색 ≥10 / 황색 5~10 / 주황 3~5 / 적색 <3 (기본값 기준) */
 export type TreadLevel = "ok" | "warn" | "order" | "danger";
@@ -84,6 +88,16 @@ export function inspectionIntervalDays(): number {
 /** 타이어 목표 수명(km) — 경제성 목표 대비 기준. */
 export function targetLifeKm(): number {
   return TMS_DATA.tire.targetLifeKm ?? FALLBACK_TARGET_LIFE_KM;
+}
+
+/** 주행계(KM·HM) 회차 간 이상치 판정 경계 — v_odometer_anomaly 와 같은 값 */
+export function odometerLimits() {
+  const t = TMS_DATA.tire;
+  return {
+    dailyKmMax: t.odoDailyKmMax ?? FALLBACK_ODO_DAILY_KM_MAX,
+    speedKmhMax: t.odoSpeedKmhMax ?? FALLBACK_ODO_SPEED_KMH_MAX,
+    dailyHmMax: t.odoDailyHmMax ?? FALLBACK_ODO_DAILY_HM_MAX,
+  };
 }
 
 /**
@@ -271,6 +285,9 @@ export interface TireConfig {
   psiDevDanger: number | null;
   inspectionIntervalDays: number | null;
   targetLifeKm: number | null;
+  odoDailyKmMax: number | null;
+  odoSpeedKmhMax: number | null;
+  odoDailyHmMax: number | null;
   // 경제성 (§B-1·B-3). 전부 확정 전 NULL — 화면은 «설정 필요» 를 띄운다
   fxUsdIdr: number | null;
   fuelBaseLPerKm: number | null;
@@ -292,10 +309,26 @@ export interface LedgerSegment {
   mountedAt: string | null;
   removedAt: string | null;
   isCurrent: boolean;
-  /** 산출 불가(`kmFlag !== "OK"`)는 null 이다. 0 이 아니다. */
+  /** 산출 불가(`kmFlag` 가 NO_KM·KM_DECREASE)는 null 이다. 0 이 아니다. */
   segmentKm: number | null;
-  kmFlag: "OK" | "NO_KM" | "KM_DECREASE";
+  /**
+   * OK · APPROX(한쪽 끝을 보간하지 못해 종전 규칙 = 앞 회차 값을 씀) · NO_KM · KM_DECREASE.
+   * APPROX 도 거리로 쓴다 — WO-TMS-2026-10-LIFE T-1.
+   */
+  kmFlag: KmFlag;
+  /** 구간 경계의 차량 계기값 (교체 km_at → 같은 날 회차 → 앞뒤 회차 날짜 보간). 20261016150000 미적용이면 null */
+  kmStart: number | null;
+  kmEnd: number | null;
+  hmStart: number | null;
+  hmEnd: number | null;
+  /** km_start 산출 방식. 미적용 환경·산출 불가는 null */
+  kmMethod: KmMethod | null;
 }
+
+export type KmFlag = "OK" | "APPROX" | "NO_KM" | "KM_DECREASE";
+export type KmMethod = "REPLACEMENT" | "INSPECTION" | "INTERPOLATED" | "PREV_ROUND";
+/** 주행거리로 합산하는 구간 — 원장 합계(v_tire_ledger_total.cumulative_km)와 같은 기준 */
+export const KM_USABLE: readonly KmFlag[] = ["OK", "APPROX"];
 
 export interface TmsData {
   tire: TireConfig;
@@ -329,6 +362,7 @@ export const TMS_DATA: TmsData = {
     scRatioUpper: null, scRatioLower: null, wearMinMm: null,
     psiLowRatio: null, psiDevWarn: null, psiDevDanger: null,
     inspectionIntervalDays: null, targetLifeKm: null,
+    odoDailyKmMax: null, odoSpeedKmhMax: null, odoDailyHmMax: null,
     fxUsdIdr: null, fuelBaseLPerKm: null, fuelPrice: null, fuelCurrency: "IDR",
     fuelSensPer10Pct: null, lifeSensPer10Pct: null,
   },

@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { TMS_DATA, HEAD_MAP, NEW_TREAD } from "@/data/tmsData";
 import { lifeCalc } from "@/data/tmsUtils";
+import ResultSummaryCard from "./ResultSummaryCard";
 import { useLang } from "@/i18n";
 import {
   EMPTY, fmtTread, fmtTreadAvg, fmtPercent, fmtRatio,
@@ -602,6 +603,18 @@ export default function WearAnalysisTab() {
               </div>
             </>
           ) : (<>
+          {/* ── 결과 요약 (WO-TMS-2026-10-LIFE T-5) — 선택 줄 아래 · KPI 위 */}
+          <ResultSummaryCard
+            ch={selCh}
+            serial={latest?.serial ?? segment?.serial ?? null}
+            from={segRows[0]?.inspection_date ?? null}
+            to={latest?.inspection_date ?? null}
+            r2={segment?.r2 ?? null}
+            cv={latest?.tread_cv ?? null}
+            fleetCvMedian={fleetCvMedian}
+            scRatio={latestPattern?.sc_ratio ?? null}
+            pattern={latestPattern?.wear_pattern ?? null}
+          />
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi label={tx.cTestDist} value={fmtDistanceKm(segment?.test_distance_km)} />
             <Kpi

@@ -4,7 +4,7 @@ import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved } 
 import type { TreadLevel } from "@/data/tmsData";
 import {
   codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
-  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, tireCostOf, type LifeCalc,
+  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, tireCostOf, ledgerOf, type LifeCalc,
 } from "@/data/tmsUtils";
 import { EMPTY, fmtCpk, fmtInt, fmtTread, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
@@ -120,6 +120,13 @@ const buildTX = () => ({
     mMount: "교체 장착",
     mCurrent: "현재",
     excelDownload: "엑셀 다운로드",
+    kmLower: "하한값",
+    kmLowerTip: "장착일 이전 주행 미상 — 첫 점검 이전 주행이 빠져 실제보다 작습니다",
+    avgExclLower: "하한값 제외 {n}본 : {km} km",
+    colKmFlag: "km_flag",
+    colKmMethod: "km_method",
+    foot9a: "주행 KM (하한값)",
+    foot9b: " = 원장 구간 경계 km 는 교체 시 입력 KM → 같은 날 점검 회차 → 앞뒤 회차 날짜 비례 보간 순으로 산출합니다. 장착일이 없는 최초 장착분은 첫 점검 이후 주행만 잡혀 하한값이며, 평균행에 하한값 제외 평균을 함께 표시합니다.",
   },
   id: {
     dbTitle: "DB Umur Ban",
@@ -217,6 +224,13 @@ const buildTX = () => ({
     mMount: "Pasang ganti",
     mCurrent: "Saat ini",
     excelDownload: "Unduh Excel",
+    kmLower: "batas bawah",
+    kmLowerTip: "Jarak sebelum tanggal pasang tidak diketahui — jarak sebelum pemeriksaan pertama tidak terhitung",
+    avgExclLower: "tanpa batas bawah {n} ban : {km} km",
+    colKmFlag: "km_flag",
+    colKmMethod: "km_method",
+    foot9a: "KM tempuh (batas bawah)",
+    foot9b: " = KM batas segmen dihitung berurutan dari KM saat penggantian → Pemeriksaan di hari yang sama → interpolasi proporsional tanggal antara dua Pemeriksaan. Ban pemasangan awal tanpa tanggal pasang hanya terhitung sejak Pemeriksaan pertama sehingga merupakan batas bawah; baris rata-rata juga menampilkan rata-rata tanpa batas bawah.",
   },
   en: {
     dbTitle: "Tire Lifetime DB",
@@ -314,6 +328,13 @@ const buildTX = () => ({
     mMount: "Replacement install",
     mCurrent: "Current",
     excelDownload: "Excel download",
+    kmLower: "lower bound",
+    kmLowerTip: "Distance before the mount date is unknown — running before the first inspection is missing",
+    avgExclLower: "excl. lower bound {n} tyres : {km} km",
+    colKmFlag: "km_flag",
+    colKmMethod: "km_method",
+    foot9a: "Running KM (lower bound)",
+    foot9b: " = Segment boundary km comes from the KM entered at replacement → an inspection on the same day → date-proportional interpolation between the surrounding inspections. Initial fitments without a mount date only count from the first inspection, so they are lower bounds; the average row also shows the average excluding them.",
   },
 } as const);
 
@@ -391,7 +412,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
 
   // 표시 행(필터 적용)의 평균값 — 최근 트레드 / 주행 KM·HR / 예상 KM·HM
   const avg = (() => {
-    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
+    const acc = { tread: [0, 0], km: [0, 0], kmExact: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
     // CPK 평균은 통화가 하나일 때만 낸다 — IDR 과 USD 를 섞어 더하면 의미가 없다.
     const curs = new Set<string>();
     const add = (slot: number[], v: number | null | undefined) => { if (v != null) { slot[0] += v; slot[1]++; } };
@@ -400,6 +421,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
       const noExp = l.status === "Scrap" || l.status === "Not Install";
       add(acc.tread, latestTreadOf(l.serial));
       add(acc.km, c?.km);
+      // 하한값 제외 평균 (T-2) — 장착일 이전 주행이 빠진 개체를 뺀 평균. 대체가 아니라 병기한다
+      if (c && !c.kmIsLowerBound) add(acc.kmExact, c.km);
       add(acc.hr, c?.hr);
       if (!noExp) add(acc.ekm, c?.expectedKm);
       if (!noExp) add(acc.ehm, c?.expectedHm);
@@ -409,7 +432,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     });
     const m = (s: number[]) => (s[1] > 0 ? s[0] / s[1] : null);
     const cpkCur = curs.size === 1 ? [...curs][0] : null;
-    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
+    return { tread: m(acc.tread), km: m(acc.km), kmExact: m(acc.kmExact), kmExactN: acc.kmExact[1], hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
       cpk: cpkCur ? m(acc.cpk) : null, cpkCur: cpkCur ?? "IDR" };
   })();
 
@@ -438,6 +461,9 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
         [tx.colTreadAvg]: treadAvg != null ? Number(treadAvg.toFixed(1)) : "",
         [tx.colKm]: c?.km ?? "",
         [tx.colHr]: c?.hr ?? "",
+        // 원장 구간별 산출 근거 — 구간이 여럿이면 장착 순으로 잇는다 (T-2)
+        [tx.colKmFlag]: ledgerOf(l.serial).map((g) => g.kmFlag).join(" → "),
+        [tx.colKmMethod]: ledgerOf(l.serial).map((g) => g.kmMethod ?? EMPTY).join(" → "),
         [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
         [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
         // 엑셀은 계산이 되도록 숫자로 낸다. 통화는 옆 열 — 행마다 다를 수 있다
@@ -454,7 +480,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     });
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
     const d = new Date();
@@ -587,7 +613,15 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.km != null ? (
-                      <span className="font-bold text-primary">{fmtInt(c.km)}</span>
+                      <>
+                        <span className="font-bold text-primary">{fmtInt(c.km)}</span>
+                        {/* TCO 탭 개체 원장과 같은 표기 — 숫자만 보면 하한값인지 알 수 없다 (T-2) */}
+                        {c.kmIsLowerBound && (
+                          <div className="text-[10px] leading-tight text-level-warn" title={tx.kmLowerTip}>
+                            ({tx.kmLower})
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
@@ -674,7 +708,14 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
               <tr className="border-t-2 border-border bg-muted/30 font-bold">
                 <td className="px-2 py-2 text-muted-foreground" colSpan={3}>{tx.avg}</td>
                 <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : EMPTY}</td>
-                <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.km)}</td>
+                <td className="px-2 py-2 text-right text-primary">
+                  {fmtInt(avg.km)}
+                  {avg.kmExactN > 0 && avg.kmExactN < filtered.length && (
+                    <div className="text-[10px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
+                      ({tx.avgExclLower.replace("{n}", fmtInt(avg.kmExactN)).replace("{km}", fmtInt(avg.kmExact))})
+                    </div>
+                  )}
+                </td>
                 <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ehm)}</td>
@@ -697,6 +738,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
           {tx.foot5}
           <br />
           <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
+          <br />
+          <strong className="text-foreground">{tx.foot9a}</strong>{tx.foot9b}
           <br />
           <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
           <br />

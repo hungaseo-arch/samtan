@@ -4,12 +4,17 @@
 // 점검 입력 탭의 포지션 행 [교체] 버튼에서 열린다. 저장은 RPC register_replacement 한 번 —
 // 검증(다른 차량 장착·폐기 타이어·날짜 역전)도 서버가 하고, 여기서는 오류 코드를 문구로 바꾼다.
 // 호출부가 canWrite 로 버튼 자체를 숨긴다. RLS 가 최종 방어선.
+//
+// WO-TMS-2026-10-LIFE T-4 — 교체 시 KM·HM 을 맨 위로 올리고 직전 회차 값을 placeholder 로 보여 준다.
+// km_at 이 v_tire_ledger 구간 경계의 1순위 근거라서다(비면 점검 회차 보간). 탈착 사유는 필수.
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, Repeat } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import { TMS_DATA } from "@/data/tmsData";
-import { todayInField } from "@/lib/format";
+import { odoReadings } from "@/data/tmsUtils";
+import { previousReading } from "@/lib/odometerCheck";
+import { fmtMeter, todayInField } from "@/lib/format";
 import { brandOfSerial, costParamAt } from "@/lib/economics";
 import { updateLifetimePrice } from "@/api/tires";
 import {
@@ -27,6 +32,10 @@ const TX = {
     spareHint: (n: number) => `예비(Spare) 타이어 ${n}본`,
     reason: "탈착 사유",
     reasonNone: "— 미입력 —",
+    reasonRequired: "탈착 사유를 선택하세요.",
+    prevRound: (d: string, km: string, hm: string) => `직전 회차 ${d} · ${km} · ${hm}`,
+    kmEmptyNote: "KM 미입력 시 주행거리는 점검 회차 보간값으로 산출됩니다",
+    kmEmptyConfirm: "교체 시 KM 이 비어 있습니다.\nKM 미입력 시 주행거리는 점검 회차 보간값으로 산출됩니다.\n이대로 등록하시겠습니까?",
     oldStatus: "구 타이어 처리",
     scrap: "폐기 (Scrap)",
     spare: "예비 보관 (Spare)",
@@ -67,6 +76,10 @@ const TX = {
     spareHint: (n: number) => `${n} ban cadangan (Spare)`,
     reason: "Alasan dilepas",
     reasonNone: "— belum diisi —",
+    reasonRequired: "Pilih alasan dilepas.",
+    prevRound: (d: string, km: string, hm: string) => `Pemeriksaan sebelumnya ${d} · ${km} · ${hm}`,
+    kmEmptyNote: "Jika KM kosong, jarak tempuh dihitung dari interpolasi Pemeriksaan",
+    kmEmptyConfirm: "KM saat Penggantian kosong.\nJika KM kosong, jarak tempuh dihitung dari interpolasi Pemeriksaan.\nTetap daftarkan?",
     oldStatus: "Perlakuan ban lama",
     scrap: "Dibuang (Scrap)",
     spare: "Disimpan cadangan (Spare)",
@@ -107,6 +120,10 @@ const TX = {
     spareHint: (n: number) => `${n} spare tires`,
     reason: "Removal reason",
     reasonNone: "— not set —",
+    reasonRequired: "Select a removal reason.",
+    prevRound: (d: string, km: string, hm: string) => `Previous round ${d} · ${km} · ${hm}`,
+    kmEmptyNote: "If KM is left empty, distance is interpolated from inspection rounds",
+    kmEmptyConfirm: "KM at replacement is empty.\nIf KM is left empty, distance is interpolated from inspection rounds.\nRegister anyway?",
     oldStatus: "Old tire disposition",
     scrap: "Scrap",
     spare: "Keep as spare",
@@ -189,6 +206,11 @@ export default function ReplacementEntryModal({
     () => TMS_DATA.life.filter((l) => l.status === "Spare" && l.serial).map((l) => l.serial).sort(),
     [],
   );
+  // 직전 회차 — 교체일 이전 마지막 KM·HM. placeholder 로만 쓴다 (값을 대신 채우지 않는다)
+  const prev = useMemo(() => {
+    const u = TMS_DATA.units.find((x) => x.ch === ch);
+    return u && date ? previousReading(odoReadings(u), date) : null;
+  }, [ch, date]);
   const isRot = reason === "ROT";
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
@@ -201,6 +223,8 @@ export default function ReplacementEntryModal({
 
   const handleSave = async () => {
     if (!serial.trim()) { toast.error(tx.err.serial_required); return; }
+    if (!reason) { toast.error(tx.reasonRequired); return; }
+    if (km.trim() === "" && !window.confirm(tx.kmEmptyConfirm)) return;
     setBusy(true);
     try {
       await registerReplacement({
@@ -263,6 +287,36 @@ export default function ReplacementEntryModal({
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT_CLS} />
         </label>
 
+        {/* 교체 시 KM·HM — 구간 주행거리의 1순위 근거라 맨 위에 둔다 (T-4) */}
+        <div className="space-y-1">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: tx.km, value: km, set: setKm, step: "1", ph: prev?.km != null ? fmtMeter(prev.km, "KM", false) : tx.optional },
+              { label: tx.hm, value: hm, set: setHm, step: "0.1", ph: prev?.hm != null ? fmtMeter(prev.hm, "HM", false) : tx.optional },
+            ].map((f) => (
+              <label key={f.label} className="block text-xs space-y-1">
+                <span className="font-bold">{f.label}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step={f.step}
+                  min={0}
+                  value={f.value}
+                  onChange={(e) => f.set(e.target.value)}
+                  placeholder={f.ph}
+                  className={`${INPUT_CLS} text-right tabular-nums`}
+                />
+              </label>
+            ))}
+          </div>
+          {prev && (
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              {tx.prevRound(prev.date, fmtMeter(prev.km, "KM"), fmtMeter(prev.hm, "HM"))}
+            </p>
+          )}
+          {km.trim() === "" && <p className="text-[11px] text-level-warn">{tx.kmEmptyNote}</p>}
+        </div>
+
         <label className="block text-xs space-y-1">
           <span className="font-bold">{tx.newSerial}</span>
           <input
@@ -280,9 +334,9 @@ export default function ReplacementEntryModal({
         </label>
 
         <label className="block text-xs space-y-1">
-          <span className="font-bold">{tx.reason}</span>
-          <select value={reason} onChange={(e) => setReason(e.target.value)} className={INPUT_CLS}>
-            <option value="">{tx.reasonNone}</option>
+          <span className="font-bold">{tx.reason} *</span>
+          <select value={reason} onChange={(e) => setReason(e.target.value)} required aria-invalid={!reason} className={INPUT_CLS}>
+            <option value="" disabled>{tx.reasonNone}</option>
             {codes.map((c) => <option key={c.code} value={c.code}>{codeLabel(c)}</option>)}
           </select>
         </label>
@@ -309,8 +363,6 @@ export default function ReplacementEntryModal({
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: tx.tread, value: tread, set: setTread, step: "0.1" },
-            { label: tx.km, value: km, set: setKm, step: "1" },
-            { label: tx.hm, value: hm, set: setHm, step: "0.1" },
           ].map((f) => (
             <label key={f.label} className="block text-xs space-y-1">
               <span className="font-bold">{f.label}</span>
@@ -354,7 +406,7 @@ export default function ReplacementEntryModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={busy || !serial.trim()}
+            disabled={busy || !serial.trim() || !reason}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-colors"
           >
             {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

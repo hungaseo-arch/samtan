@@ -11,7 +11,7 @@ import { Loader2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import {
-  treadThresholds, recPsi, pressureThresholds, inspectionIntervalDays, targetLifeKm,
+  treadThresholds, recPsi, pressureThresholds, inspectionIntervalDays, targetLifeKm, odometerLimits,
 } from "@/data/tmsData";
 import { updateJudgeConfig, validateJudgeConfig, type JudgeConfig } from "@/api/config";
 
@@ -33,6 +33,11 @@ const TX = {
     psi_dev_danger: "과압 위험 — 권장 대비 +% 초과",
     inspection_interval_days: "점검 보고 주기 (일)",
     target_life_km: "목표 수명 (km)",
+    gOdo: "주행계 입력 경고 (KM·HM)",
+    odo_daily_km_max: "일평균 주행 상한 (km/일)",
+    odo_speed_kmh_max: "환산 속도 상한 (km/h)",
+    odo_daily_hm_max: "일평균 가동 상한 (hr/일, 최대 24)",
+    hintOdo: "직전 점검 회차 대비로 판정합니다. 넘으면 입력 폼이 경고하고 결과 요약이 «데이터 확인 필요»로 표시됩니다.",
     hintInterval: "경과일이 주기의 1.5배를 넘으면 점검 지연으로 표시합니다.",
     save: "저장", reset: "되돌리기",
     saved: "판정 기준을 저장했습니다", saveFail: "저장 실패: ",
@@ -56,6 +61,11 @@ const TX = {
     psi_dev_danger: "Bahaya kelebihan angin — lebih dari +% standar",
     inspection_interval_days: "Siklus laporan Pemeriksaan (hari)",
     target_life_km: "Target umur ban (km)",
+    gOdo: "Peringatan input odometer (KM·HM)",
+    odo_daily_km_max: "Batas jarak harian (km/hari)",
+    odo_speed_kmh_max: "Batas kecepatan rata-rata (km/jam)",
+    odo_daily_hm_max: "Batas jam operasi harian (jam/hari, maks 24)",
+    hintOdo: "Dibandingkan dengan Pemeriksaan sebelumnya. Jika terlampaui, formulir memberi peringatan dan ringkasan hasil menampilkan «Perlu cek data».",
     hintInterval: "Jika selang hari melebihi 1,5 kali siklus, ditandai Pemeriksaan terlambat.",
     save: "Simpan", reset: "Kembalikan",
     saved: "Kriteria penilaian disimpan", saveFail: "Gagal menyimpan: ",
@@ -79,6 +89,11 @@ const TX = {
     psi_dev_danger: "Over-inflation danger — above +% of recommended",
     inspection_interval_days: "Inspection report interval (days)",
     target_life_km: "Target tire life (km)",
+    gOdo: "Odometer input warning (KM·HM)",
+    odo_daily_km_max: "Max daily distance (km/day)",
+    odo_speed_kmh_max: "Max average speed (km/h)",
+    odo_daily_hm_max: "Max daily hours (hr/day, up to 24)",
+    hintOdo: "Judged against the previous inspection round. When exceeded, the form warns and the result summary shows «Check data».",
     hintInterval: "Marked as overdue when days since the last inspection exceed 1.5× the interval.",
     save: "Save", reset: "Revert",
     saved: "Criteria saved", saveFail: "Save failed: ",
@@ -90,11 +105,12 @@ const TX = {
 /** 화면에서 % 로 받는 비율 키 */
 const PCT_KEYS = new Set<keyof JudgeConfig>(["psi_low_ratio", "psi_dev_warn", "psi_dev_danger"]);
 
-const GROUPS: { title: "gTread" | "gPsi" | "gPsiJudge" | "gOps"; keys: (keyof JudgeConfig)[] }[] = [
+const GROUPS: { title: "gTread" | "gPsi" | "gPsiJudge" | "gOps" | "gOdo"; keys: (keyof JudgeConfig)[] }[] = [
   { title: "gTread", keys: ["tread_critical", "tread_order", "tread_caution"] },
   { title: "gPsi", keys: ["rec_psi_steer", "rec_psi_drive"] },
   { title: "gPsiJudge", keys: ["psi_low_ratio", "psi_dev_warn", "psi_dev_danger"] },
   { title: "gOps", keys: ["inspection_interval_days", "target_life_km"] },
+  { title: "gOdo", keys: ["odo_daily_km_max", "odo_speed_kmh_max", "odo_daily_hm_max"] },
 ];
 
 type Draft = Record<keyof JudgeConfig, string>;
@@ -103,6 +119,7 @@ type Draft = Record<keyof JudgeConfig, string>;
 function currentDraft(): Draft {
   const t = treadThresholds();
   const p = pressureThresholds();
+  const o = odometerLimits();
   const pct = (r: number) => String(Math.round(r * 1000) / 10);
   return {
     tread_critical: String(t.critical),
@@ -115,6 +132,9 @@ function currentDraft(): Draft {
     psi_dev_danger: pct(p.devDanger),
     inspection_interval_days: String(inspectionIntervalDays()),
     target_life_km: String(targetLifeKm()),
+    odo_daily_km_max: String(o.dailyKmMax),
+    odo_speed_kmh_max: String(o.speedKmhMax),
+    odo_daily_hm_max: String(o.dailyHmMax),
   };
 }
 
@@ -173,7 +193,7 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
                 <input
                   type="number"
                   inputMode="decimal"
-                  step={k === "inspection_interval_days" || k === "target_life_km" ? 1 : 0.1}
+                  step={k === "inspection_interval_days" || k === "target_life_km" || k === "odo_daily_km_max" ? 1 : 0.1}
                   value={draft[k]}
                   onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
                   aria-invalid={bad.has(k)}
@@ -185,6 +205,9 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
             ))}
             {g.title === "gOps" && (
               <p className="text-[11px] text-muted-foreground">{tx.hintInterval}</p>
+            )}
+            {g.title === "gOdo" && (
+              <p className="text-[11px] text-muted-foreground">{tx.hintOdo}</p>
             )}
           </fieldset>
         ))}

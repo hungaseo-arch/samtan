@@ -1,8 +1,9 @@
 // @section: inspection-tab
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { TMS_DATA, HEAD_MAP, recPsi } from "@/data/tmsData";
+import { TMS_DATA, HEAD_MAP, recPsi, odometerLimits } from "@/data/tmsData";
 import { unitByCh } from "@/data/tmsUtils";
-import { EMPTY, fmtMeter, fmtTread, fmtTreadAvg, fmtPercent, todayInField } from "@/lib/format";
+import { EMPTY, fmtMeter, fmtTread, fmtTreadAvg, fmtPercent, fmtInt, todayInField } from "@/lib/format";
+import { checkOdometer, tagRemark, type OdoFlag } from "@/lib/odometerCheck";
 import {
   listInspections,
   saveInspectionRoundWithPoints,
@@ -80,6 +81,14 @@ const TX = {
     previewPartial: "4칸 전부 입력 필요",
     errPartial: "트레드는 4칸 전부 입력하거나 전부 비워 주세요 — ",
     errOutlierNote: "이상값으로 지정한 포지션은 사유를 적어야 합니다 — ",
+    odoHead: "주행계 값 확인 — 직전 회차",
+    odoFlag: { KM_DECREASE: "KM 이 직전보다 작습니다", KM_DAILY: "일평균 주행이 상한을 넘습니다", SPEED: "환산 속도(Δkm/Δhm)가 상한을 넘습니다", HM_DAILY: "일평균 가동이 상한을 넘습니다" } as Record<OdoFlag, string>,
+    odoReason: "계기 리셋·교체 사유 (필수)",
+    odoReasonPh: "예: 2026-10-10 계기판 교체",
+    odoConfirm: "원본 점검표와 대조해 값이 맞음을 확인했습니다",
+    odoNote: "저장하면 비고에 [ODO-WARN] 표지가 붙습니다.",
+    errOdoReason: "KM 감소 사유를 입력하세요.",
+    errOdoConfirm: "주행계 값 확인란을 체크하세요.",
     checkHint: "측정값 확인이 필요합니다(저장은 가능):",
     checkMedian: "중앙값에서 3.0 mm 이상 벗어난 값",
     checkRange: "폭 방향 편차가 평균의 40% 초과",
@@ -171,6 +180,14 @@ const TX = {
     previewPartial: "Isi keempat kolom",
     errPartial: "Isi keempat kolom tapak atau kosongkan semuanya — ",
     errOutlierNote: "Posisi bertanda OUTLIER wajib diberi alasan — ",
+    odoHead: "Cek nilai odometer — Pemeriksaan sebelumnya",
+    odoFlag: { KM_DECREASE: "KM lebih kecil dari sebelumnya", KM_DAILY: "Jarak rata-rata harian melebihi batas", SPEED: "Kecepatan rata-rata (Δkm/Δhm) melebihi batas", HM_DAILY: "Jam operasi rata-rata harian melebihi batas" } as Record<OdoFlag, string>,
+    odoReason: "Alasan reset/ganti meter (wajib)",
+    odoReasonPh: "Contoh: ganti panel meter 2026-10-10",
+    odoConfirm: "Sudah dicocokkan dengan lembar Pemeriksaan asli dan nilainya benar",
+    odoNote: "Saat disimpan, keterangan diberi tanda [ODO-WARN].",
+    errOdoReason: "Isi alasan KM turun.",
+    errOdoConfirm: "Centang konfirmasi nilai odometer.",
     checkHint: "Nilai perlu diperiksa (tetap bisa disimpan):",
     checkMedian: "Nilai menyimpang ≥ 3.0 mm dari median",
     checkRange: "Rentang lebar melebihi 40% dari rata-rata",
@@ -262,6 +279,14 @@ const TX = {
     previewPartial: "All four points required",
     errPartial: "Fill all four tread cells or leave them all empty — ",
     errOutlierNote: "Positions marked OUTLIER need a reason — ",
+    odoHead: "Check odometer values — previous round",
+    odoFlag: { KM_DECREASE: "KM is lower than the previous round", KM_DAILY: "Daily average distance is over the limit", SPEED: "Average speed (Δkm/Δhm) is over the limit", HM_DAILY: "Daily average hours are over the limit" } as Record<OdoFlag, string>,
+    odoReason: "Meter reset/replacement reason (required)",
+    odoReasonPh: "e.g. meter panel replaced 2026-10-10",
+    odoConfirm: "I checked these values against the original inspection sheet",
+    odoNote: "Saving adds an [ODO-WARN] tag to the remark.",
+    errOdoReason: "Enter the reason for the KM decrease.",
+    errOdoConfirm: "Tick the odometer confirmation box.",
     checkHint: "These readings need a check (saving is still allowed):",
     checkMedian: "A value more than 3.0 mm from the median",
     checkRange: "Width-direction range exceeds 40% of the average",
@@ -379,6 +404,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   const [formOpen, setFormOpen] = useState(false); // 입력 폼 아코디언 (기본 닫힘)
   // 트레드 0 mm 확인 모달(v2 §B-2) — 실측 0 인지 미측정인지는 사람만 안다.
   const [zeroAsk, setZeroAsk] = useState<string[] | null>(null);
+  // 주행계 이상 (WO-TMS-2026-10-LIFE T-3) — KM 감소는 사유 필수, 그 외는 확인 체크
+  const [odoReason, setOdoReason] = useState("");
+  const [odoConfirmed, setOdoConfirmed] = useState(false);
   const [replPos, setReplPos] = useState<string | null>(null); // 교체 등록 모달 (§A-1)
   const [replSerial, setReplSerial] = useState<string | undefined>(undefined); // 교체 미등록 경고에서 연 경우 입력 시리얼
   const [bulkOpen, setBulkOpen] = useState(false); // 엑셀 일괄 업로드 (§A-8)
@@ -552,6 +580,24 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   }, [date, hm, km, cells, previews, history, selCh]);
 
   /**
+   * 직전 회차 대비 주행계 판정 — v_odometer_anomaly 와 같은 규칙·같은 임계값(tire_config.odo_*).
+   * 계기 리셋 보정이 없는 차량은 validateRound 와 같이 건너뛴다 (역행이 정상이라 판정이 무의미).
+   */
+  const odo = useMemo(() => {
+    if (!date) return null;
+    const ctx = validateContextFor(history, selCh, date);
+    if (ctx.meterReset || !ctx.prev?.meterDate) return null;
+    const prev = { date: ctx.prev.meterDate, km: ctx.prev.km, hm: ctx.prev.hm };
+    const r = checkOdometer(prev, { date, km: numOrNull(km), hm: numOrNull(hm) }, odometerLimits());
+    return r.flags.length ? { ...r, prev } : null;
+  }, [date, hm, km, history, selCh]);
+  const odoFlagsKey = odo?.flags.join(",") ?? "";
+  // 값이 바뀌어 판정이 달라지면 확인을 다시 받는다
+  useEffect(() => { setOdoConfirmed(false); }, [odoFlagsKey, km, hm, date]);
+  const odoNeedsReason = !!odo?.flags.includes("KM_DECREASE");
+  const odoNeedsConfirm = !!odo && odo.flags.some((f) => f !== "KM_DECREASE");
+
+  /**
    * 트레드 0 을 설명할 수 있는 상태. "measured" 가 빠져 있는 것이 요점이다 —
    * 0 을 measured 로 저장하는 경로는 타입 차원에서 만들 수 없다 (T-8).
    * 0 인 포지션이 없으면 null 을 넘긴다.
@@ -579,7 +625,8 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
         tread_status: status,
         flag: cell?.flag ?? "OK",
         flag_note: cell?.flagNote?.trim() || null,
-        remark: null,
+        // 주행계 경고를 무릅쓰고 저장하면 표지를 남긴다 — 나중에 v_odometer_anomaly 와 대조할 근거
+        remark: odo ? tagRemark(null, odo.flags, odoNeedsReason ? odoReason : null) : null,
         points: dropPoints
           ? []
           : POINT_FIELDS.map((f) => ({ circ: "P1" as const, width: f.width, depth: pts[f.width]! })),
@@ -606,6 +653,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       toast.success(`${tx.saveOkPrefix} ${selCh} · ${date} ${tx.saveOkMid} ${n}${tx.saveOkSuffix}`);
       await loadHistory();
       onSaved?.();
+      setOdoReason("");
       // 입력값만 비우고 시리얼은 유지
       setCells((c) => {
         const next = { ...c };
@@ -641,7 +689,10 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       toast.error(issues.filter((x) => x.level === "error").map((x) => issueText(x, lang)).join(" / "));
       return;
     }
-    const warns = issues.filter((x) => x.level === "warn");
+    if (odoNeedsReason && !odoReason.trim()) { toast.error(tx.errOdoReason); return; }
+    if (odoNeedsConfirm && !odoConfirmed) { toast.error(tx.errOdoConfirm); return; }
+    // KM 역행은 위 사유 입력으로 이미 확인받았다 — 같은 내용을 confirm 창으로 다시 묻지 않는다
+    const warns = issues.filter((x) => x.level === "warn" && !(odo && x.code === "km_back"));
     if (warns.length > 0 && !window.confirm(issueConfirmText(warns, lang))) return;
     if (zeroPositions.length > 0) {
       setZeroAsk(zeroPositions);
@@ -801,6 +852,39 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
               <input type="text" value={driver} onChange={(e) => setDriver(e.target.value)} placeholder={tx.driverPh} className={INPUT_CLS} />
             </Field>
           </div>
+
+          {/* 주행계 이상 경고 (WO-TMS-2026-10-LIFE T-3) — 저장은 막지 않되 사유·확인을 받는다 */}
+          {odo && (
+            <div className="mb-4 rounded-lg border border-level-warn/40 bg-level-warn/10 p-3 space-y-2" role="alert">
+              <p className="flex items-center gap-1.5 text-sm font-bold text-level-warn">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                {tx.odoHead} {odo.prev.date} · {fmtMeter(odo.prev.km, "KM")} · {fmtMeter(odo.prev.hm, "HM")}
+              </p>
+              <ul className="list-disc pl-5 text-xs text-foreground space-y-0.5">
+                {odo.flags.map((f) => (
+                  <li key={f}>
+                    {tx.odoFlag[f]}
+                    {f === "KM_DECREASE" && odo.kmDelta != null && ` (${fmtMeter(odo.kmDelta, "KM")})`}
+                    {f === "KM_DAILY" && odo.kmPerDay != null && ` (${fmtInt(odo.kmPerDay)} km / ${fmtInt(odometerLimits().dailyKmMax)} km)`}
+                    {f === "SPEED" && odo.kmPerHm != null && ` (${fmtInt(odo.kmPerHm)} km/h / ${fmtInt(odometerLimits().speedKmhMax)} km/h)`}
+                    {f === "HM_DAILY" && odo.hmPerDay != null && ` (${fmtMeter(odo.hmPerDay, "HM")} / ${fmtInt(odometerLimits().dailyHmMax)} HM)`}
+                  </li>
+                ))}
+              </ul>
+              {odoNeedsReason && (
+                <Field label={tx.odoReason}>
+                  <input type="text" value={odoReason} onChange={(e) => setOdoReason(e.target.value)} placeholder={tx.odoReasonPh} className={INPUT_CLS} />
+                </Field>
+              )}
+              {odoNeedsConfirm && (
+                <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <input type="checkbox" checked={odoConfirmed} onChange={(e) => setOdoConfirmed(e.target.checked)} />
+                  {tx.odoConfirm}
+                </label>
+              )}
+              <p className="text-[11px] text-muted-foreground">{tx.odoNote}</p>
+            </div>
+          )}
 
           {/* 포지션별 입력 — 트레드는 폭 4점(Kiri/Tengah 1/Tengah 2/Kanan) 원시값을 그대로 받는다.
               최소값만 남기던 예전 입력칸은 나머지 3점을 버려 마모 균일성·편마모를 계산할 수 없었다. */}
