@@ -304,7 +304,7 @@ export function fmtWearRate(v: number | null | undefined, withUnit = true): stri
 
 /**
  * 마모율(mm/1,000 km) → 1 mm 마모당 주행거리(km/mm). 0 이하·없음은 null.
- * 기준 단위는 mm/1,000 km 이고 km/mm 는 보조 표기다 — 평균·색 판정은 mm/1,000 km 로 한다
+ * 평균·색 판정은 mm/1,000 km 로 하고 km/mm 는 표시용으로만 뒤집는다
  * (역수의 평균 ≠ 평균의 역수, 0 근처에서 발산).
  */
 export function kmPerMmOf(mmPer1000Km: number | null | undefined): number | null {

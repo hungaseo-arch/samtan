@@ -3,10 +3,10 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르고 날짜는 WIB 기준입니다.
 버전 태그는 아직 쓰지 않으므로 배포 단위 대신 **작업 묶음(Phase · Task)** 으로 나눕니다.
 
-## [Unreleased] — 2026-10-16 · 마모속도 km/mm 보조 표기
+## [Unreleased] — 2026-10-16 · 마모속도 km/mm 표기
 
 ### Added
-- 마모 분석 마모속도 KPI(단일·평균)에 `≈ N km/mm` 보조 줄. 기준 단위·판정은 mm/1,000 km 유지 (`kmPerMmOf()` in `src/lib/format.ts`).
+- 마모 분석 마모속도 KPI(단일·평균) 본값을 km/mm 로 표시, mm/1,000 km 는 보조 줄 (사용자 결정). 평균은 mm/1,000 km 평균의 역수, 차트·표·색 판정은 mm/1,000 km 유지 (`kmPerMmOf()` in `src/lib/format.ts`).
 - 수명 DB 엑셀에 `km/mm` 열 (마모율 옆, 정수).
 
 ## [Unreleased] — 2026-10-16 · WO-TMS-2026-10-LIFE 수명·주행거리 보정
