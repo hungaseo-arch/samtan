@@ -11,7 +11,7 @@ import { Loader2, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import {
-  treadThresholds, recPsi, pressureThresholds, inspectionIntervalDays, targetLifeKm, odometerLimits,
+  treadThresholds, recPsi, pressureThresholds, inspectionIntervalDays, targetLifeKm, odometerLimits, staleDays,
 } from "@/data/tmsData";
 import { updateJudgeConfig, validateJudgeConfig, type JudgeConfig } from "@/api/config";
 
@@ -33,6 +33,8 @@ const TX = {
     psi_dev_danger: "과압 위험 — 권장 대비 +% 초과",
     inspection_interval_days: "점검 보고 주기 (일)",
     target_life_km: "목표 수명 (km)",
+    stale_days: "오래된 값 기준 (일)",
+    hintStale: "측정일이 이 일수를 넘은 공기압은 판정·알림에서 빠지고, 교체 준비 목록에서는 «측정 필요»로 분리됩니다.",
     gOdo: "주행계 입력 경고 (KM·HM)",
     odo_daily_km_max: "일평균 주행 상한 (km/일)",
     odo_speed_kmh_max: "환산 속도 상한 (km/h)",
@@ -61,6 +63,8 @@ const TX = {
     psi_dev_danger: "Bahaya kelebihan angin — lebih dari +% standar",
     inspection_interval_days: "Siklus laporan Pemeriksaan (hari)",
     target_life_km: "Target umur ban (km)",
+    stale_days: "Batas data lama (hari)",
+    hintStale: "Tekanan angin yang diukur lebih lama dari batas ini tidak dinilai dan tidak memicu peringatan; di daftar persiapan penggantian dipisah sebagai «Perlu diukur».",
     gOdo: "Peringatan input odometer (KM·HM)",
     odo_daily_km_max: "Batas jarak harian (km/hari)",
     odo_speed_kmh_max: "Batas kecepatan rata-rata (km/jam)",
@@ -89,6 +93,8 @@ const TX = {
     psi_dev_danger: "Over-inflation danger — above +% of recommended",
     inspection_interval_days: "Inspection report interval (days)",
     target_life_km: "Target tire life (km)",
+    stale_days: "Stale value threshold (days)",
+    hintStale: "Pressure measured longer ago than this is left out of judgement and alerts; in the replacement prep list such tires are split out as «Needs measuring».",
     gOdo: "Odometer input warning (KM·HM)",
     odo_daily_km_max: "Max daily distance (km/day)",
     odo_speed_kmh_max: "Max average speed (km/h)",
@@ -109,7 +115,7 @@ const GROUPS: { title: "gTread" | "gPsi" | "gPsiJudge" | "gOps" | "gOdo"; keys: 
   { title: "gTread", keys: ["tread_critical", "tread_order", "tread_caution"] },
   { title: "gPsi", keys: ["rec_psi_steer", "rec_psi_drive"] },
   { title: "gPsiJudge", keys: ["psi_low_ratio", "psi_dev_warn", "psi_dev_danger"] },
-  { title: "gOps", keys: ["inspection_interval_days", "target_life_km"] },
+  { title: "gOps", keys: ["inspection_interval_days", "target_life_km", "stale_days"] },
   { title: "gOdo", keys: ["odo_daily_km_max", "odo_speed_kmh_max", "odo_daily_hm_max"] },
 ];
 
@@ -135,6 +141,7 @@ function currentDraft(): Draft {
     odo_daily_km_max: String(o.dailyKmMax),
     odo_speed_kmh_max: String(o.speedKmhMax),
     odo_daily_hm_max: String(o.dailyHmMax),
+    stale_days: String(staleDays()),
   };
 }
 
@@ -193,7 +200,7 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
                 <input
                   type="number"
                   inputMode="decimal"
-                  step={k === "inspection_interval_days" || k === "target_life_km" || k === "odo_daily_km_max" ? 1 : 0.1}
+                  step={k === "inspection_interval_days" || k === "target_life_km" || k === "stale_days" || k === "odo_daily_km_max" ? 1 : 0.1}
                   value={draft[k]}
                   onChange={(e) => setDraft((d) => ({ ...d, [k]: e.target.value }))}
                   aria-invalid={bad.has(k)}
@@ -204,7 +211,10 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
               </label>
             ))}
             {g.title === "gOps" && (
-              <p className="text-[11px] text-muted-foreground">{tx.hintInterval}</p>
+              <>
+                <p className="text-[11px] text-muted-foreground">{tx.hintInterval}</p>
+                <p className="text-[11px] text-muted-foreground">{tx.hintStale}</p>
+              </>
             )}
             {g.title === "gOdo" && (
               <p className="text-[11px] text-muted-foreground">{tx.hintOdo}</p>

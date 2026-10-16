@@ -25,6 +25,8 @@ export interface JudgeConfig {
   odo_daily_km_max: number;
   odo_speed_kmh_max: number;
   odo_daily_hm_max: number;
+  /** «오래된 값» 기준일 (CHK-TMS-2026-10-16-WEB R-2) — 20261016170000 */
+  stale_days: number;
 }
 
 export const JUDGE_KEYS: (keyof JudgeConfig)[] = [
@@ -33,6 +35,7 @@ export const JUDGE_KEYS: (keyof JudgeConfig)[] = [
   "psi_low_ratio", "psi_dev_warn", "psi_dev_danger",
   "inspection_interval_days", "target_life_km",
   "odo_daily_km_max", "odo_speed_kmh_max", "odo_daily_hm_max",
+  "stale_days",
 ];
 
 /** 잘못된 항목 키 목록. 비어 있으면 저장 가능. */
@@ -50,6 +53,8 @@ export function validateJudgeConfig(c: JudgeConfig): (keyof JudgeConfig)[] {
   if (!Number.isInteger(c.inspection_interval_days) || c.inspection_interval_days > 365) {
     bad.add("inspection_interval_days");
   }
+  // DB check 제약(tire_config_stale_days_check)과 같다
+  if (!Number.isInteger(c.stale_days) || c.stale_days > 365) bad.add("stale_days");
   // 하루는 24시간 — DB check 제약(tire_config_odo_check)과 같다
   if (c.odo_daily_hm_max > 24) bad.add("odo_daily_hm_max");
   return JUDGE_KEYS.filter((k) => bad.has(k));

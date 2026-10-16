@@ -3,7 +3,7 @@
 //
 // 차량별 준수율 · 포지션별 평균 편차 · 저압 노출 상위 5본. 준수율 80% 미만 차량은 노랑.
 import { TMS_DATA, HEAD_MAP, pressureThresholds } from "@/data/tmsData";
-import { topUnderinflated, vehiclePressureStats } from "@/data/tmsUtils";
+import { topUnderinflated, unitKmMissing, vehiclePressureStats } from "@/data/tmsUtils";
 import { judgePressure } from "@/lib/pressureJudge";
 import { EMPTY, fmtInt, fmtPercent, fmtVehicle } from "@/lib/format";
 import { useLang } from "@/i18n";
@@ -19,6 +19,7 @@ const TX = {
     colCompliance: "준수율",
     colRounds: "정상/측정",
     colExposure: "저압 노출",
+    kmMissing: "주행거리 미입력",
     topTitle: "저압 노출 상위 5본",
     colRank: "순위",
     colSerial: "시리얼",
@@ -38,6 +39,7 @@ const TX = {
     colCompliance: "Kepatuhan",
     colRounds: "Normal/diukur",
     colExposure: "Paparan tekanan rendah",
+    kmMissing: "KM belum diisi",
     topTitle: "5 ban dengan paparan tekanan rendah tertinggi",
     colRank: "No",
     colSerial: "Serial",
@@ -57,6 +59,7 @@ const TX = {
     colCompliance: "Compliance",
     colRounds: "Normal/measured",
     colExposure: "Under-inflation exposure",
+    kmMissing: "Distance not entered",
     topTitle: "Top 5 tires by under-inflation exposure",
     colRank: "#",
     colSerial: "Serial",
@@ -82,7 +85,8 @@ export default function PressureHistorySection() {
   const { lang } = useLang();
   const tx = TX[lang];
   const positions = Object.values(HEAD_MAP);
-  const stats = TMS_DATA.units.map(vehiclePressureStats);
+  // KM 이 없는 차량은 노출이 0 이 아니라 «주행거리 미입력» 이다 (TCO-04)
+  const stats = TMS_DATA.units.map((u) => ({ ...vehiclePressureStats(u), kmMissing: unitKmMissing(u) }));
   const top = topUnderinflated(5);
   const fleetOk = stats.reduce((s, x) => s + x.compliance.ok, 0);
   const fleetTotal = stats.reduce((s, x) => s + x.compliance.total, 0);
@@ -120,7 +124,11 @@ export default function PressureHistorySection() {
                   <td className="px-2 py-1.5 font-mono font-semibold whitespace-nowrap">{fmtVehicle(s.ch)}</td>
                   <td className={`${num} ${lowCls(s.compliance.pct)}`}>{s.compliance.pct == null ? EMPTY : fmtPercent(s.compliance.pct)}</td>
                   <td className={`${num} text-muted-foreground`}>{fmtInt(s.compliance.ok)}/{fmtInt(s.compliance.total)}</td>
-                  <td className={num}>{s.compliance.total ? fmtInt(s.exposure) : EMPTY}</td>
+                  <td className={num}>
+                    {s.kmMissing ? (
+                      <>{EMPTY} <span className="text-[10px] font-sans text-muted-foreground">{tx.kmMissing}</span></>
+                    ) : s.compliance.total ? fmtInt(s.exposure) : EMPTY}
+                  </td>
                   {positions.map((p) => (
                     <td key={p} className={`${num} ${devCls(s.posDev[p])}`}>{fmtDev(s.posDev[p])}</td>
                   ))}

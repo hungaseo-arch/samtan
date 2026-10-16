@@ -2,6 +2,7 @@
 // validateRound() 에 넘길 비교 기준을 TMS_DATA·점검 이력에서 뽑는다 (§A-8).
 import { TMS_DATA, HEAD_MAP, meterUnresolved } from "./tmsData";
 import { unitByCh } from "./tmsUtils";
+import { todayInField } from "@/lib/format";
 import type { InspectionRow } from "@/api/inspections";
 import type { PrevRound, ValidateContext } from "@/lib/roundValidate";
 
@@ -49,5 +50,8 @@ export function validateContextFor(history: InspectionRow[], ch: string, date: s
     if (prev.hm != null && off.hm != null) prev.hm -= off.hm;
     if (prev.km != null && off.km != null) prev.km -= off.km;
   }
-  return { prev, expectedSerial, meterReset: meterUnresolved(unit) };
+  // 새 회차일 때만 «최근 회차보다 앞» 을 본다 — 이미 있는 회차를 고치는 것은 정상이다 (INP-03)
+  const dates = history.filter((r) => r.ch === ch && !r.deleted_at).map((r) => r.inspection_date);
+  const latestDate = dates.includes(date) ? undefined : dates.sort().at(-1);
+  return { prev, expectedSerial, meterReset: meterUnresolved(unit), today: todayInField(), latestDate };
 }

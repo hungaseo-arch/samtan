@@ -8,8 +8,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, Download, Upload, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { useLang } from "@/i18n";
-import { TMS_DATA, HEAD_MAP } from "@/data/tmsData";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
+import { TMS_DATA, HEAD_MAP, recPsi } from "@/data/tmsData";
 import { unitByCh } from "@/data/tmsUtils";
 import { validateContextFor } from "@/data/roundContext";
 import { listInspections, saveInspectionRoundWithPoints, type InspectionRow } from "@/api/inspections";
@@ -18,12 +19,17 @@ import { fmtInt, fmtMeter, todayInField } from "@/lib/format";
 import { validateRound, hasError, type RoundIssue } from "@/lib/roundValidate";
 import {
   BULK_COLUMNS, ZERO_STATUSES, parseBulkSheet, toPointsRows, minTread,
-  type BulkRound, type BulkError, type BulkErrorCode,
+  type BulkRound, type BulkRow, type BulkError, type BulkErrorCode,
 } from "@/lib/bulkInspection";
 import RoundIssueList from "@/components/RoundIssueList";
 import ReplacementEntryModal from "@/components/ReplacementEntryModal";
 
 const POSITIONS = Object.values(HEAD_MAP);
+const pointsOf = (r: BulkRow) => (r.points ? [r.points.L, r.points.C1, r.points.C2, r.points.R] : []);
+const recPsiOf = (pos: string) => {
+  const n = Object.entries(HEAD_MAP).find(([, p]) => p === pos)?.[0];
+  return n ? recPsi(Number(n)) : null;
+};
 
 const TX = {
   ko: {
@@ -216,10 +222,15 @@ export default function InspectionBulkUpload({
     return parsed.rounds.map((round) => {
       const issues = validateRound(
         {
-          hm: round.hm, km: round.km,
-          rows: round.rows.map((r) => ({ pos: r.pos, serial: r.serial, pressure: r.pressure, tread: minTread(r) })),
+          date: round.date, hm: round.hm, km: round.km,
+          rows: round.rows.map((r) => ({
+            pos: r.pos, serial: r.serial, pressure: r.pressure, tread: minTread(r),
+            points: pointsOf(r), recPsi: recPsiOf(r.pos),
+          })),
         },
-        validateContextFor(history, round.ch, round.date),
+        // 현장 기록지는 소수 2자리로 적어 왔다 — 일괄 업로드는 자리수를 경고로만 (W-4)
+        // 일괄 업로드는 지난 기록지를 올리는 용도라 «최근 회차보다 앞» 경고를 끈다 (INP-03)
+        { ...validateContextFor(history, round.ch, round.date), precisionLevel: "warn", latestDate: undefined },
       );
       const exists = history.some((h) => h.ch === round.ch && h.inspection_date === round.date);
       const blocked = round.errors.length > 0 || hasError(issues);
@@ -312,12 +323,18 @@ export default function InspectionBulkUpload({
   const errText = (e: BulkError) =>
     (e.line ? tx.line.replace("{n}", String(e.line)) + " · " : "") + tx.err[e.code].replace("{d}", e.detail ?? "");
 
+  // Esc · 포커스 (COM-03)
+  // 처리 중에는 Esc 로도 닫지 않는다 — 닫기 버튼과 같은 규칙
+  const dialogRef = useDialog(true, () => { if (!busy) onClose(); });
+  const closeLabel = DICT[lang]["common.close"];
+
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-      <div className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={tx.title} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <span className="text-base font-bold">{tx.title}</span>
-          <button onClick={onClose} disabled={!!busy} className="p-1 rounded hover:bg-muted/50 transition-colors disabled:opacity-50">
+          <button type="button" aria-label={closeLabel} onClick={onClose} disabled={!!busy} className="p-1 rounded hover:bg-muted/50 transition-colors disabled:opacity-50">
             <X className="w-4 h-4" />
           </button>
         </div>

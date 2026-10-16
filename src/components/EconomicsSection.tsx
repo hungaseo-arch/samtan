@@ -42,6 +42,8 @@ const TX = {
     cExp: "예상 CPK",
     cComp: "준수율",
     cExpo: "저압 노출 (%·km)",
+    kmMissing: "주행거리 미입력",
+    kmMissingHint: "KM 이 2회차 이상 기록되지 않아 저압 노출·손실을 계산할 수 없습니다. 0 이 아니라 미입력이며 합계에서 뺍니다.",
     cFuelL: "연료 손실",
     cFuel: "연료 손실액",
     cLife: "수명 손실",
@@ -99,6 +101,8 @@ const TX = {
     cExp: "CPK prediksi",
     cComp: "Kepatuhan",
     cExpo: "Paparan tekanan rendah (%·km)",
+    kmMissing: "KM belum diisi",
+    kmMissingHint: "KM belum tercatat di 2 sesi atau lebih, jadi paparan tekanan rendah dan kerugian tidak dapat dihitung. Ini belum diisi, bukan 0, dan tidak dihitung dalam total.",
     cFuelL: "Kerugian BBM",
     cFuel: "Nilai kerugian BBM",
     cLife: "Kerugian umur",
@@ -156,6 +160,8 @@ const TX = {
     cExp: "Projected CPK",
     cComp: "Compliance",
     cExpo: "Under-inflation exposure (%·km)",
+    kmMissing: "Distance not entered",
+    kmMissingHint: "KM is not recorded in 2 or more rounds, so under-inflation exposure and losses cannot be calculated. This is missing, not 0, and is left out of the totals.",
     cFuelL: "Fuel loss",
     cFuel: "Fuel loss cost",
     cLife: "Life loss",
@@ -230,7 +236,7 @@ export default function EconomicsSection() {
     const wb = XLSX.utils.book_new();
     const vehicle = f.rows.map((r) => ({
       [tx.cCh]: r.ch,
-      [tx.cKm]: r.km != null ? Math.round(r.km) : null,
+      [tx.cKm]: r.km != null ? Math.round(r.km) : r.econ.kmMissing ? tx.kmMissing : null,
       [tx.cTires]: `${r.priced}/${r.mounted}`,
       [tx.cTotal]: money(r.totalCost, r.currency),
       [tx.cCpk]: fmtCpk(r.cpk, r.currency ?? undefined),
@@ -238,7 +244,7 @@ export default function EconomicsSection() {
       [tx.cTarget]: fmtCpk(r.targetCpk, r.currency ?? undefined),
       [tx.cAchieved]: `${r.achieved}/${r.evaluated}`,
       [tx.cComp]: fmtPercent(r.compliance.pct),
-      [tx.cExpo]: Math.round(r.econ.exposure),
+      [tx.cExpo]: r.econ.kmMissing ? null : Math.round(r.econ.exposure),
       [tx.cFuelL]: fmtLitre(r.econ.fuelL),
       [tx.cFuel]: money(r.econ.fuelCost, r.econ.fuelCurrency),
       [tx.cLife]: fmtDistanceKm(r.econ.lifeKm),
@@ -310,7 +316,7 @@ export default function EconomicsSection() {
             </tr>
           </thead>
           <tbody>
-            {f.rows.map((r) => <VehicleRow key={r.ch} r={r} />)}
+            {f.rows.map((r) => <VehicleRow key={r.ch} r={r} tx={tx} />)}
           </tbody>
         </table>
       </div>
@@ -390,18 +396,24 @@ export default function EconomicsSection() {
 const HEAD = "px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap";
 const NUM = "px-3 py-1.5 text-right font-mono whitespace-nowrap";
 
-function VehicleRow({ r }: { r: EconomicsRow }) {
+function VehicleRow({ r, tx }: { r: EconomicsRow; tx: Tx }) {
   const cur = r.currency ?? undefined;
   return (
     <tr className="border-t border-border/60">
       <td className="px-3 py-1.5 font-mono font-semibold whitespace-nowrap">{r.ch}</td>
-      <td className={NUM}>{fmtDistanceKm(r.km)}</td>
+      <td className={NUM}>
+        {r.km == null && r.econ.kmMissing ? (
+          <span title={tx.kmMissingHint}>
+            {EMPTY} <span className="text-[10px] font-sans text-muted-foreground">{tx.kmMissing}</span>
+          </span>
+        ) : fmtDistanceKm(r.km)}
+      </td>
       <td className={NUM}>{fmtInt(r.priced)}/{fmtInt(r.mounted)}</td>
       <td className={NUM}>{money(r.totalCost, r.currency)}</td>
       <td className={NUM}>{fmtCpk(r.cpk, cur)}</td>
       <td className={NUM}>{fmtCpk(r.expCpk, cur)}</td>
       <td className={NUM}>{fmtPercent(r.compliance.pct)}</td>
-      <td className={NUM}>{r.compliance.total ? fmtInt(r.econ.exposure) : EMPTY}</td>
+      <td className={NUM}>{r.compliance.total && !r.econ.kmMissing ? fmtInt(r.econ.exposure) : EMPTY}</td>
       <td className={NUM}>{fmtLitre(r.econ.fuelL)}</td>
       <td className={NUM}>{money(r.econ.fuelCost, r.econ.fuelCurrency)}</td>
       <td className={NUM}>{fmtDistanceKm(r.econ.lifeKm)}</td>

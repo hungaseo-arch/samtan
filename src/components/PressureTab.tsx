@@ -7,7 +7,8 @@ import {
   Activity, Wind, Circle, CheckSquare, Square,
 } from "lucide-react";
 import { useLang } from "@/i18n";
-import { fmtInt, fmtPercent, fmtPressure, fmtVehicle } from "@/lib/format";
+import { fmtInt, fmtPercent, fmtPressure, fmtVehicle, todayInField } from "@/lib/format";
+import { daysBetween } from "@/lib/lifeProjection";
 import { judgePressure } from "@/lib/pressureJudge";
 import PressureHistorySection from "@/components/PressureHistorySection";
 
@@ -31,6 +32,8 @@ const buildTX = () => {
     unitCount: "본",
     alertTitle: "공기압 이상 알림",
     alertCount: "건",
+    daysAgo: "{n}일 전",
+    measuredOf: "전체 {n}본 중 최근 값 기준",
     noAlert: "현재 공기압 이상 항목이 없습니다.",
     badgeLow: "저압",
     badgeHigh: "과압",
@@ -113,6 +116,8 @@ const buildTX = () => {
     unitCount: "unit",
     alertTitle: "Peringatan tekanan",
     alertCount: "kasus",
+    daysAgo: "{n} hari lalu",
+    measuredOf: "dari {n} ban, nilai terbaru",
     noAlert: "Saat ini tidak ada anomali tekanan.",
     badgeLow: "Tekanan rendah",
     badgeHigh: "Tekanan berlebih",
@@ -195,6 +200,8 @@ const buildTX = () => {
     unitCount: "pcs",
     alertTitle: "Pressure anomaly alerts",
     alertCount: "cases",
+    daysAgo: "{n} days ago",
+    measuredOf: "of {n} tires, latest values",
     noAlert: "No pressure anomalies at present.",
     badgeLow: "Low pressure",
     badgeHigh: "Over-inflated",
@@ -315,18 +322,23 @@ export default function PressureTab() {
   const doneCount = PROCEDURE.filter((p) => checked[p.id]).length;
 
   // ── 실시간 공기압 이상 현황 계산 ──────────────────────────
-  let measured = 0, ok = 0, warn = 0, danger = 0;
-  const alerts: { lv: "danger" | "warn"; high: boolean; ch: string; pos: string; psi: number; target: number; dev: number }[] = [];
+  // 측정 본수는 실제로 판정에 들어간 타이어 수다 — 7대×10 고정값이 아니다 (PRS-02)
+  let measured = 0, ok = 0, warn = 0, danger = 0, positions = 0;
+  const today = todayInField();
+  const alerts: { lv: "danger" | "warn"; high: boolean; ch: string; pos: string; psi: number; target: number; dev: number; date: string; days: number }[] = [];
   TMS_DATA.units.forEach((u) => {
     for (let p = 1; p <= 10; p++) {
+      positions++;
       const d = headPosData(u, p);
-      if (!d || typeof d.latestPress !== "number") continue;
+      // 오래된 값(stale_days 초과)은 알림에서 뺀다 (R-2 · PRS-01)
+      if (!d || typeof d.latestPress !== "number" || d.pressStale) continue;
       measured++;
       const target = recPsi(p);
       const j = judgePressure(d.latestPress, target);
       if (j.level === "ok") { ok++; continue; }
       if (j.level === "danger") danger++; else warn++;
-      alerts.push({ lv: j.level, high: j.cause === "high", ch: u.ch, pos: d.rp, psi: d.latestPress, target, dev: j.devPct });
+      const date = d.latestPressDate ?? "";
+      alerts.push({ lv: j.level, high: j.cause === "high", ch: u.ch, pos: d.rp, psi: d.latestPress, target, dev: j.devPct, date, days: date ? daysBetween(date, today) : 0 });
     }
   });
   alerts.sort((a, b) => (a.lv === "danger" ? 0 : 1) - (b.lv === "danger" ? 0 : 1));
@@ -395,6 +407,11 @@ export default function PressureTab() {
                       {fmtVehicle(a.ch)} · {a.pos} — {fmtPressure(a.psi, false)}psi
                       <span className="text-muted-foreground"> ({tx.rec} {fmtPressure(a.target, false)} / {a.dev > 0 ? "+" : ""}{fmtPercent(a.dev)})</span>
                     </span>
+                    {a.date && (
+                      <span className="ml-auto shrink-0 font-mono text-xs text-muted-foreground">
+                        {a.date} · {tx.daysAgo.replace("{n}", fmtInt(a.days))}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -417,6 +434,9 @@ export default function PressureTab() {
                 <div className="font-mono text-2xl font-bold leading-none">
                   {k.value}<span className="text-xs font-normal ml-1 opacity-70">{tx.unitCount}</span>
                 </div>
+                {k.label === tx.kpiMeasured && (
+                  <div className="mt-1 text-[11px] opacity-70">{tx.measuredOf.replace("{n}", fmtInt(positions))}</div>
+                )}
               </div>
             ))}
           </div>

@@ -10,7 +10,7 @@ import { createContext, useContext } from "react";
 export type Lang = "id" | "ko" | "en";
 
 export const LANGS: { code: Lang; label: string; flag: string }[] = [
-  { code: "id", label: "Bahasa", flag: "🇮🇩" },
+  { code: "id", label: "Bahasa Indonesia", flag: "🇮🇩" },
   { code: "ko", label: "한국어", flag: "🇰🇷" },
   { code: "en", label: "English", flag: "🇬🇧" },
 ];
@@ -71,6 +71,7 @@ const KO: Dict = {
   "role.inspector": "점검",
   "role.viewer": "조회",
   "role.badge.aria": "현재 권한 등급",
+  "common.close": "닫기",
   // ── 트레드 통계·편마모 (작업지시서 v3 §E-2) ──────────────
   "tread.avg": "평균 트레드",
   "tread.min": "최소 트레드",
@@ -153,6 +154,7 @@ const ID: Dict = {
   "role.inspector": "Inspektur",
   "role.viewer": "Pelihat",
   "role.badge.aria": "Tingkat izin saat ini",
+  "common.close": "Tutup",
   // ── Statistik tapak · keausan tidak merata (v3 §E-2) ─────
   "tread.avg": "Tapak rata-rata",
   "tread.min": "Tapak minimum",
@@ -233,6 +235,7 @@ const EN: Dict = {
   "role.inspector": "Inspector",
   "role.viewer": "Viewer",
   "role.badge.aria": "Current permission level",
+  "common.close": "Close",
   // ── Tread statistics · uneven wear (work order v3 §E-2) ──
   "tread.avg": "Average tread",
   "tread.min": "Minimum tread",

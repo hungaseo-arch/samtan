@@ -17,6 +17,7 @@ const LoadTab = lazy(() => import("@/components/LoadTab"));
 const LoadReviewTab = lazy(() => import("@/components/LoadReviewTab"));
 const TcoTab = lazy(() => import("@/components/TcoTab"));
 import { useLang, LANGS } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import { useAuth, type Role } from "@/auth/AuthProvider";
 import LoginCard from "@/auth/LoginCard";
 import SetPasswordCard from "@/auth/SetPasswordCard";
@@ -138,6 +139,18 @@ export default function Index() {
   // 차량 번호 클릭 → 차량 배치도로 이동 + 해당 차량 선택
   const goToVehicle = useCallback((ch: string) => goToTab("layout", { ch }), [goToTab]);
 
+
+  // Esc 로 메뉴·모달 닫기 (COM-03). 메뉴는 포커스를 가두지 않는다
+  useDialog(openMenu != null, () => setOpenMenu(null), { trap: false });
+  useDialog(userMenu, () => setUserMenu(false), { trap: false });
+  useDialog(mobileMenu, () => setMobileMenu(false), { trap: false });
+  const pwRef = useDialog(showPwChange, () => setShowPwChange(false));
+
+  // 탭마다 브라우저 제목을 바꾼다 — 탭·기록·북마크에서 화면을 구분하게 (COM-08)
+  const tabTitle = t(`tab.${activeTab}.label`);
+  useEffect(() => {
+    document.title = `${tabTitle} · SAMTAN TMS`;
+  }, [tabTitle]);
 
   // 없는 탭 이름(`/foo`)으로 들어오면 대시보드로 되돌린다. 히스토리에는 남기지 않는다.
   if (unknownTab) return <Navigate to="/" replace />;
@@ -293,11 +306,14 @@ export default function Index() {
               {LANGS.map((l) => (
                 <button
                   key={l.code}
+                  type="button"
                   onClick={() => setLang(l.code)}
                   aria-pressed={lang === l.code}
+                  aria-label={l.label}
+                  title={l.label}
+                  lang={l.code}
                   className={`flex items-center gap-1 px-2 sm:px-2.5 py-1 text-xs font-bold transition-colors ${lang === l.code ? "bg-primary text-primary-foreground" : "bg-white text-muted-foreground hover:text-foreground"}`}
                 >
-                  <span className="text-sm leading-none">{l.flag}</span>
                   {l.code.toUpperCase()}
                 </button>
               ))}
@@ -449,10 +465,14 @@ export default function Index() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
           onClick={() => setShowPwChange(false)}
         >
-          <div className="relative w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div
+            ref={pwRef} role="dialog" aria-modal="true" aria-label={t("pw.changeTitle")} tabIndex={-1}
+            className="relative w-full max-w-sm outline-none" onClick={(e) => e.stopPropagation()}
+          >
             <button
+              type="button"
               onClick={() => setShowPwChange(false)}
-              aria-label="close"
+              aria-label={t("common.close")}
               className="absolute -top-3 -right-3 z-10 p-1.5 rounded-full bg-card border border-border shadow hover:bg-muted/50 transition-colors"
             >
               <X className="w-4 h-4" />

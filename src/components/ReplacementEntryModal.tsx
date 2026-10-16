@@ -10,7 +10,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, Repeat } from "lucide-react";
 import { toast } from "sonner";
-import { useLang } from "@/i18n";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import { TMS_DATA } from "@/data/tmsData";
 import { odoReadings } from "@/data/tmsUtils";
 import { previousReading } from "@/lib/odometerCheck";
@@ -260,13 +261,16 @@ export default function ReplacementEntryModal({
     return d ? `${c.code} — ${d}` : c.code;
   };
 
+  // Esc · 포커스 (COM-03)
+  const dialogRef = useDialog(true, onClose);
+  const closeLabel = DICT[lang]["common.close"];
+
   return (
     <div className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={onClose}>
       <div
-        className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl space-y-4"
+        ref={dialogRef} role="dialog" aria-modal="true" aria-label={tx.title} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl space-y-4"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
       >
         <div className="flex items-start justify-between">
           <div>
@@ -277,7 +281,7 @@ export default function ReplacementEntryModal({
               CH {ch} · {pos} — {tx.current}: {currentSerial || "—"}
             </p>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-muted/50 transition-colors" aria-label={tx.cancel}>
+          <button type="button" aria-label={closeLabel} onClick={onClose} className="p-1 rounded hover:bg-muted/50 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
