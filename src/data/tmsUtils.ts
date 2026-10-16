@@ -1,9 +1,10 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays } from "./tmsData";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
 import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
+import { inspectionAge, type InspectionAge } from "@/lib/inspectionAge";
 import type { Lang } from "@/i18n";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
@@ -701,6 +702,33 @@ export function replacementPrepList(withinDays = PREP_WINDOW_DAYS, today = today
     });
   }
   return out.sort((a, b) => a.projectedDate.localeCompare(b.projectedDate) || a.ch.localeCompare(b.ch));
+}
+
+// ── 점검 지연 (§A-3) ────────────────────────────────────────
+
+/** 차량의 점검 경과 — 주기는 tire_config.inspection_interval_days, 오늘은 현장 WITA */
+export function unitInspectionAge(u: Unit, today = todayInField()): InspectionAge {
+  return inspectionAge(u.dates, today, inspectionIntervalDays());
+}
+
+/** 대시보드 집계 버킷. stale = 점검 지연 차량의 정상 판정 타이어 (마지막 값이 오래돼 정상이라 단정 못 함) */
+export type DashBucket = "ok" | "warn" | "order" | "danger" | "stale";
+
+/**
+ * 차량 1대의 대시보드 상태 집계. statusOf() 판정은 그대로 두고,
+ * 점검 지연(overdue) 차량에서 「정상」으로 나온 타이어만 stale 로 옮긴다.
+ * 주의·발주·위험은 오래된 값이어도 그대로 센다 — 지연이 경고를 지우면 안 된다.
+ */
+export function unitStatusCounts(u: Unit, today = todayInField()): Record<DashBucket, number> {
+  const overdue = unitInspectionAge(u, today).level === "overdue";
+  const c: Record<DashBucket, number> = { ok: 0, warn: 0, order: 0, danger: 0, stale: 0 };
+  for (let p = 1; p <= 10; p++) {
+    const st = statusOf(headPosData(u, p), p);
+    if (st === "none") continue;
+    if (st === "ok" && overdue) c.stale++;
+    else c[st]++;
+  }
+  return c;
 }
 
 /** 시리얼 기준 최근 트레드(mm) — 그 시리얼이 달려 있던 구간의 마지막 측정값. */

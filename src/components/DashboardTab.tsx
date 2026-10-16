@@ -1,11 +1,12 @@
 // @section: dashboard-tab
 import { Fragment, useState } from "react";
-import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds } from "@/data/tmsData";
+import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds, inspectionIntervalDays } from "@/data/tmsData";
 import {
-  headPosData, statusOf, getUnitAlerts, validDates,
+  getUnitAlerts, validDates, unitInspectionAge, unitStatusCounts,
   replacementPrepList, PREP_WINDOW_DAYS, PREP_URGENT_DAYS,
 } from "@/data/tmsUtils";
 import { EMPTY, fmtInt, fmtTread, todayInField } from "@/lib/format";
+import { OVERDUE_FACTOR } from "@/lib/inspectionAge";
 import { Truck, Circle, ChevronRight, X, CalendarClock } from "lucide-react";
 import { useLang } from "@/i18n";
 
@@ -59,6 +60,12 @@ const buildTX = () => ({
     pSummary: "30일 내 {a}본 · 60일 내 {b}본",
     pNone: "30일 이내 교체 예정 타이어가 없습니다.",
     pFoot: "마모 추세로 산출한 추정일입니다. 예측할 수 없는 타이어(회차 3개 미만·HM Reset 등)는 빠집니다 — 수명 DB 탭의 「30일 이내 교체」 필터와 같은 목록입니다.",
+    overdueUnits: "점검 지연 차량",
+    staleSub: "정상 미확인 {n}본",
+    ageBadge: "+{n}일",
+    ageTitle: "마지막 점검 후 {n}일 경과 (주기 {i}일 · 지연 기준 {o}일 초과)",
+    staleTitle: "점검 지연 — 마지막 값은 정상이지만 확인되지 않은 타이어 {n}본",
+    footerAge: `최근 점검일 옆 +N일 = 마지막 점검 후 경과일. 주기(${inspectionIntervalDays()}일) 초과 노랑, ${OVERDUE_FACTOR}배 초과 빨강(점검 지연). 지연 차량의 정상 타이어는 「정상」 대신 회색 ?N(미확인)으로 셉니다.`,
   },
   id: {
     monitoringUnits: "Unit dipantau",
@@ -109,6 +116,12 @@ const buildTX = () => ({
     pSummary: "≤ 30 hari {a} ban · ≤ 60 hari {b} ban",
     pNone: "Tidak ada ban yang dijadwalkan ganti dalam 30 hari.",
     pFoot: "Tanggal perkiraan dari tren Aus. Ban yang tidak dapat diprediksi (kurang dari 3 Pemeriksaan, HM Reset, dll.) tidak termasuk — sama dengan filter «Ganti ≤ 30 hari» di tab DB umur ban.",
+    overdueUnits: "Unit terlambat Pemeriksaan",
+    staleSub: "{n} ban normal belum dicek",
+    ageBadge: "+{n} hr",
+    ageTitle: "{n} hari sejak Pemeriksaan terakhir (siklus {i} hari · terlambat jika > {o} hari)",
+    staleTitle: "Pemeriksaan terlambat — {n} ban dengan nilai terakhir normal tetapi belum dicek",
+    footerAge: `+N hr di samping tgl inspeksi terakhir = hari sejak Pemeriksaan terakhir. Lewat siklus (${inspectionIntervalDays()} hari) kuning, lewat ${OVERDUE_FACTOR}× merah (terlambat). Ban normal pada unit terlambat dihitung sebagai ?N abu-abu (belum dicek), bukan «Normal».`,
   },
   en: {
     monitoringUnits: "Monitored vehicles",
@@ -159,6 +172,12 @@ const buildTX = () => ({
     pSummary: "{a} tires within 30 days · {b} within 60 days",
     pNone: "No tires are projected for replacement within 30 days.",
     pFoot: "Estimated from the wear trend. Tires that cannot be projected (fewer than 3 inspections, HM Reset, etc.) are left out — same list as the “Replace ≤ 30 days” filter in the Lifetime DB tab.",
+    overdueUnits: "Overdue inspection",
+    staleSub: "{n} normal tires unverified",
+    ageBadge: "+{n} d",
+    ageTitle: "{n} days since last inspection (interval {i} d · overdue after {o} d)",
+    staleTitle: "Inspection overdue — {n} tires whose last reading was normal but are unverified",
+    footerAge: `+N d next to the last inspection date = days since the last inspection. Yellow past the interval (${inspectionIntervalDays()} d), red past ${OVERDUE_FACTOR}× (overdue). Normal tires on overdue vehicles are counted as grey ?N (unverified) instead of “Normal”.`,
   },
 } as const);
 
@@ -173,15 +192,14 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
   // 문구에 임계치·권장 공기압이 들어가므로 DB 로드 후 렌더 시점에 만든다.
   const tx = buildTX()[lang];
   // ── KPI 계산 ──────────────────────────────────────────────
-  let okCount = 0, warnCount = 0, orderCount = 0, dangerCount = 0;
-  TMS_DATA.units.forEach((u) => {
-    for (let p = 1; p <= 10; p++) {
-      const st = statusOf(headPosData(u, p), p);
-      if (st === "ok") okCount++;
-      else if (st === "warn") warnCount++;
-      else if (st === "order") orderCount++;
-      else if (st === "danger") dangerCount++;
-    }
+  // 점검 지연(§A-3) 차량의 정상 타이어는 stale 로 빠진다 — unitStatusCounts 참고.
+  const today = todayInField();
+  const counts = new Map(TMS_DATA.units.map((u) => [u.ch, unitStatusCounts(u, today)]));
+  const ages = new Map(TMS_DATA.units.map((u) => [u.ch, unitInspectionAge(u, today)]));
+  const overdueUnits = [...ages.values()].filter((a) => a.level === "overdue").length;
+  let okCount = 0, warnCount = 0, orderCount = 0, dangerCount = 0, staleCount = 0;
+  counts.forEach((c) => {
+    okCount += c.ok; warnCount += c.warn; orderCount += c.order; dangerCount += c.danger; staleCount += c.stale;
   });
 
   const kpis = [
@@ -191,6 +209,11 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
     { label: tx.caution, value: warnCount, unit: tx.pcs, cls: "border-level-warn/40 bg-level-warn/10 text-level-warn" },
     { label: tx.orderTire, value: orderCount, unit: tx.pcs, cls: "border-level-order/40 bg-level-order/10 text-level-order" },
     { label: tx.replaceScrap, value: dangerCount, unit: tx.pcs, cls: "border-level-danger/40 bg-level-danger/10 text-level-danger" },
+    {
+      label: tx.overdueUnits, value: overdueUnits, unit: tx.unitDae,
+      sub: staleCount > 0 ? tx.staleSub.replace("{n}", fmtInt(staleCount)) : undefined,
+      cls: overdueUnits > 0 ? "border-level-danger/40 bg-level-danger/10 text-level-danger" : "border-border bg-muted/30",
+    },
     { label: tx.cumulativeScrap, value: TMS_DATA.summary["Scrap"] ?? 0, unit: tx.pcs, cls: "border-level-danger/40 bg-level-danger/10 text-level-danger" },
     { label: tx.installed, value: TMS_DATA.summary["Install"] ?? 0, unit: tx.pcs, cls: "border-border bg-muted/30" },
     { label: tx.spareTires, value: TMS_DATA.summary["Spare"] ?? 0, unit: tx.pcs, cls: "border-border bg-muted/30" },
@@ -206,7 +229,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
 
   // 차량별 현황 합계 (주행 HM·KM / 정상·주의·교체권장·교체이력)
   const dashTotal = (() => {
-    const acc = { hm: [0, 0], km: [0, 0], ok: 0, warn: 0, order: 0, danger: 0, rc: 0 };
+    const acc = { hm: [0, 0], km: [0, 0], ok: 0, warn: 0, order: 0, danger: 0, stale: 0, rc: 0 };
     TMS_DATA.units.forEach((u) => {
       const vd = validDates(u);
       const hms = vd.map((x) => u.hm[x.i]).filter((v): v is number => typeof v === "number");
@@ -215,24 +238,18 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
       const dk = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
       if (dh != null) { acc.hm[0] += dh; acc.hm[1]++; }
       if (dk != null) { acc.km[0] += dk; acc.km[1]++; }
-      for (let p = 1; p <= 10; p++) {
-        const st = statusOf(headPosData(u, p), p);
-        if (st === "ok") acc.ok++;
-        else if (st === "warn") acc.warn++;
-        else if (st === "order") acc.order++;
-        else if (st === "danger") acc.danger++;
-      }
+      const c = counts.get(u.ch)!;
+      acc.ok += c.ok; acc.warn += c.warn; acc.order += c.order; acc.danger += c.danger; acc.stale += c.stale;
       acc.rc += TMS_DATA.repl.filter((r) => r.ch === u.ch).length;
     });
     return {
       hm: acc.hm[1] ? acc.hm[0] / acc.hm[1] : null,  // 주행 HM 평균
       km: acc.km[1] ? acc.km[0] / acc.km[1] : null,  // 주행 KM 평균
-      ok: acc.ok, warn: acc.warn, order: acc.order, danger: acc.danger, rc: acc.rc, // 상태·교체이력 합계
+      ok: acc.ok, warn: acc.warn, order: acc.order, danger: acc.danger, stale: acc.stale, rc: acc.rc, // 상태·교체이력 합계
     };
   })();
 
   // 교체 준비 목록 (§A-2) — 60일 창으로 한 번 뽑고 30일분을 표에, 두 건수를 요약에 쓴다.
-  const today = todayInField();
   const prep60 = replacementPrepList(PREP_WINDOW_DAYS * 2, today);
   const prep30 = prep60.filter((x) => x.daysLeft <= PREP_WINDOW_DAYS);
 
@@ -258,6 +275,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                 {k.value}
                 <span className="text-xs font-normal ml-1 opacity-70">{k.unit}</span>
               </div>
+              {"sub" in k && k.sub && <div className="mt-1 text-[11px] opacity-80">{k.sub}</div>}
             </div>
           ))}
         </div>
@@ -274,7 +292,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
           <div className="overflow-x-auto">
             <table className="w-full min-w-180 table-fixed text-sm border-collapse">
               <colgroup>
-                {["9%","12%","12%","12%","12%","7%","7%","8%","10%","11%"].map((w, i) => (
+                {["9%","11%","15%","11%","11%","7%","7%","8%","10%","11%"].map((w, i) => (
                   <col key={i} style={{ width: w }} />
                 ))}
               </colgroup>
@@ -306,14 +324,8 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                   const kms = vd.map((x) => u.km[x.i]).filter((v): v is number => typeof v === "number");
                   const drivenHm = hms.length >= 2 ? hms[hms.length - 1] - hms[0] : null;
                   const drivenKm = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
-                  let ok = 0, warn = 0, order = 0, danger = 0;
-                  for (let p = 1; p <= 10; p++) {
-                    const st = statusOf(headPosData(u, p), p);
-                    if (st === "ok") ok++;
-                    else if (st === "warn") warn++;
-                    else if (st === "order") order++;
-                    else if (st === "danger") danger++;
-                  }
+                  const { ok, warn, order, danger, stale } = counts.get(u.ch)!;
+                  const age = ages.get(u.ch)!;
                   const rc = TMS_DATA.repl.filter((r) => r.ch === u.ch).length;
                   return (
                     <tr key={u.ch} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
@@ -321,11 +333,22 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                         <button className="hover:underline" title={tx.layoutTitle.replace("{ch}", u.ch)} onClick={() => onVehicleClick?.(u.ch)}>CH {u.ch}</button>
                       </td>
                       <td className="px-3 py-2 font-mono text-xs">{fd}</td>
-                      <td className="px-3 py-2 font-mono text-xs">{ld}</td>
+                      <td className="px-3 py-2 font-mono text-xs whitespace-nowrap">
+                        {ld}
+                        {age.days != null && (
+                          <span
+                            className={`ml-1.5 text-[11px] ${age.level === "overdue" ? "font-bold text-level-danger" : age.level === "due" ? "font-bold text-level-warn" : "text-muted-foreground"}`}
+                            title={tx.ageTitle.replace("{n}", fmtInt(age.days)).replace("{i}", fmtInt(inspectionIntervalDays())).replace("{o}", fmtInt(inspectionIntervalDays() * OVERDUE_FACTOR))}
+                          >
+                            {tx.ageBadge.replace("{n}", fmtInt(age.days))}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-3 py-2 font-mono text-xs text-center">{fmtInt(drivenHm)}</td>
                       <td className="px-3 py-2 font-mono text-xs text-center">{fmtInt(drivenKm)}</td>
                       <td className="px-3 py-2 text-center">
                         {ok > 0 && <span className="font-mono text-xs text-level-ok font-bold">{ok}</span>}
+                        {stale > 0 && <span className="ml-1 font-mono text-xs text-muted-foreground" title={tx.staleTitle.replace("{n}", fmtInt(stale))}>?{stale}</span>}
                       </td>
                       <td className="px-3 py-2 text-center">
                         {warn > 0 && <button className="font-mono text-xs text-level-warn font-bold hover:underline" title={tx.cautionAlertTitle.replace("{ch}", u.ch)} onClick={() => setAlertModal({ ch: u.ch, lv: "warn" })}>{warn}</button>}
@@ -348,7 +371,10 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
                   <td className="px-3 py-2 text-muted-foreground" colSpan={3}>{tx.totalAvg}<span className="font-normal opacity-70">{tx.totalAvgNote}</span></td>
                   <td className="px-3 py-2 text-center font-mono">{fmtInt(dashTotal.hm)}</td>
                   <td className="px-3 py-2 text-center font-mono">{fmtInt(dashTotal.km)}</td>
-                  <td className="px-3 py-2 text-center font-mono text-level-ok">{dashTotal.ok}</td>
+                  <td className="px-3 py-2 text-center font-mono text-level-ok">
+                    {dashTotal.ok}
+                    {dashTotal.stale > 0 && <span className="ml-1 font-normal text-muted-foreground" title={tx.staleTitle.replace("{n}", fmtInt(dashTotal.stale))}>?{dashTotal.stale}</span>}
+                  </td>
                   <td className="px-3 py-2 text-center font-mono text-level-warn">{dashTotal.warn}</td>
                   <td className="px-3 py-2 text-center font-mono text-level-order">{dashTotal.order}</td>
                   <td className="px-3 py-2 text-center font-mono text-level-danger">{dashTotal.danger}</td>
@@ -361,6 +387,8 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             <strong className="text-foreground">{tx.footerLead}</strong>{tx.footerRest}
             <br />
             {tx.footerSpec}
+            <br />
+            {tx.footerAge}
           </p>
         </div>
       </div>
