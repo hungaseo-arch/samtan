@@ -122,11 +122,11 @@ const buildTX = () => ({
     excelDownload: "엑셀 다운로드",
     kmLower: "하한값",
     kmLowerTip: "장착일 이전 주행 미상 — 첫 점검 이전 주행이 빠져 실제보다 작습니다",
-    avgExclLower: "하한값 제외 {n}본 : {km} km",
+    avgExclLower: "하한값 제외 {n}본 평균",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "주행 KM (하한값)",
-    foot9b: " = 원장 구간 경계 km 는 교체 시 입력 KM → 같은 날 점검 회차 → 앞뒤 회차 날짜 비례 보간 순으로 산출합니다. 장착일이 없는 최초 장착분은 첫 점검 이후 주행만 잡혀 하한값이며, 평균행에 하한값 제외 평균을 함께 표시합니다.",
+    foot9b: " = 원장 구간 경계 km 는 교체 시 입력 KM → 같은 날 점검 회차 → 앞뒤 회차 날짜 비례 보간 순으로 산출합니다. 장착일이 없는 최초 장착분은 첫 점검 이후 주행만 잡혀 하한값이며, 평균행의 주행 KM 은 하한값을 뺀 평균입니다.",
   },
   id: {
     dbTitle: "DB Umur Ban",
@@ -226,11 +226,11 @@ const buildTX = () => ({
     excelDownload: "Unduh Excel",
     kmLower: "batas bawah",
     kmLowerTip: "Jarak sebelum tanggal pasang tidak diketahui — jarak sebelum pemeriksaan pertama tidak terhitung",
-    avgExclLower: "tanpa batas bawah {n} ban : {km} km",
+    avgExclLower: "rata-rata {n} ban tanpa batas bawah",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "KM tempuh (batas bawah)",
-    foot9b: " = KM batas segmen dihitung berurutan dari KM saat penggantian → Pemeriksaan di hari yang sama → interpolasi proporsional tanggal antara dua Pemeriksaan. Ban pemasangan awal tanpa tanggal pasang hanya terhitung sejak Pemeriksaan pertama sehingga merupakan batas bawah; baris rata-rata juga menampilkan rata-rata tanpa batas bawah.",
+    foot9b: " = KM batas segmen dihitung berurutan dari KM saat penggantian → Pemeriksaan di hari yang sama → interpolasi proporsional tanggal antara dua Pemeriksaan. Ban pemasangan awal tanpa tanggal pasang hanya terhitung sejak Pemeriksaan pertama sehingga merupakan batas bawah; KM tempuh di baris rata-rata adalah rata-rata tanpa batas bawah.",
   },
   en: {
     dbTitle: "Tire Lifetime DB",
@@ -330,11 +330,11 @@ const buildTX = () => ({
     excelDownload: "Excel download",
     kmLower: "lower bound",
     kmLowerTip: "Distance before the mount date is unknown — running before the first inspection is missing",
-    avgExclLower: "excl. lower bound {n} tyres : {km} km",
+    avgExclLower: "average of {n} tyres excl. lower bound",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "Running KM (lower bound)",
-    foot9b: " = Segment boundary km comes from the KM entered at replacement → an inspection on the same day → date-proportional interpolation between the surrounding inspections. Initial fitments without a mount date only count from the first inspection, so they are lower bounds; the average row also shows the average excluding them.",
+    foot9b: " = Segment boundary km comes from the KM entered at replacement → an inspection on the same day → date-proportional interpolation between the surrounding inspections. Initial fitments without a mount date only count from the first inspection, so they are lower bounds; the average row's running KM excludes them.",
   },
 } as const);
 
@@ -412,7 +412,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
 
   // 표시 행(필터 적용)의 평균값 — 최근 트레드 / 주행 KM·HR / 예상 KM·HM
   const avg = (() => {
-    const acc = { tread: [0, 0], km: [0, 0], kmExact: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
+    const acc = { tread: [0, 0], kmExact: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
     // CPK 평균은 통화가 하나일 때만 낸다 — IDR 과 USD 를 섞어 더하면 의미가 없다.
     const curs = new Set<string>();
     const add = (slot: number[], v: number | null | undefined) => { if (v != null) { slot[0] += v; slot[1]++; } };
@@ -420,8 +420,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
       const c = lifeCalc(l.serial);
       const noExp = l.status === "Scrap" || l.status === "Not Install";
       add(acc.tread, latestTreadOf(l.serial));
-      add(acc.km, c?.km);
-      // 하한값 제외 평균 (T-2) — 장착일 이전 주행이 빠진 개체를 뺀 평균. 대체가 아니라 병기한다
+            // 평균행 주행 KM = 하한값 제외 평균 (T-2) — 장착일 이전 주행이 빠진 개체는 실제보다 작아 평균을 끌어내린다.
+      // 전체 평균을 대체한다 (사용자 결정 2026-10-16, decisions M-4)
       if (c && !c.kmIsLowerBound) add(acc.kmExact, c.km);
       add(acc.hr, c?.hr);
       if (!noExp) add(acc.ekm, c?.expectedKm);
@@ -432,7 +432,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     });
     const m = (s: number[]) => (s[1] > 0 ? s[0] / s[1] : null);
     const cpkCur = curs.size === 1 ? [...curs][0] : null;
-    return { tread: m(acc.tread), km: m(acc.km), kmExact: m(acc.kmExact), kmExactN: acc.kmExact[1], hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
+    return { tread: m(acc.tread), kmExact: m(acc.kmExact), kmExactN: acc.kmExact[1], hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
       cpk: cpkCur ? m(acc.cpk) : null, cpkCur: cpkCur ?? "IDR" };
   })();
 
@@ -709,10 +709,10 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 <td className="px-2 py-2 text-muted-foreground" colSpan={3}>{tx.avg}</td>
                 <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : EMPTY}</td>
                 <td className="px-2 py-2 text-right text-primary">
-                  {fmtInt(avg.km)}
-                  {avg.kmExactN > 0 && avg.kmExactN < filtered.length && (
+                  {fmtInt(avg.kmExact)}
+                  {avg.kmExactN > 0 && (
                     <div className="text-[10px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
-                      ({tx.avgExclLower.replace("{n}", fmtInt(avg.kmExactN)).replace("{km}", fmtInt(avg.kmExact))})
+                      ({tx.avgExclLower.replace("{n}", fmtInt(avg.kmExactN))})
                     </div>
                   )}
                 </td>

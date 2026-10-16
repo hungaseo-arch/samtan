@@ -16,7 +16,7 @@
   `odo_speed_kmh_max`(60) · `odo_daily_hm_max`(24), 관리자 › 판정 기준 «주행계 이상» 에서 조정 (`20261016140000_v_odometer_anomaly.sql`).
 - 점검 입력 주행계 경고 — KM 감소는 리셋 사유 필수, 그 외는 확인 체크 필수. 저장 시 비고에 `[ODO-WARN]` 접두어 (`src/lib/odometerCheck.ts`).
 - 마모 분석 «결과 요약» 카드 — 정상 / 주의 / 데이터 확인 필요 배지와 수명·예측·패턴·데이터 4줄 (`ResultSummaryCard.tsx`, `src/lib/resultSummary.ts`).
-- 수명 DB 주행 KM `(하한값)` 표시(툴팁 «장착일 이전 주행 미상»), 평균 행 하한값 제외 평균, Excel `km_flag` · `km_method` 열.
+- 수명 DB 주행 KM `(하한값)` 표시(툴팁 «장착일 이전 주행 미상»), 평균 행 주행 KM 을 하한값 제외 평균으로 대체(사용자 결정), Excel `km_flag` · `km_method` 열.
 - `docs/backfill_removal_code_20261016.sql` — removal_code 백필 초안 (ROLLBACK 으로 끝남, **미실행**).
 
 ### Changed

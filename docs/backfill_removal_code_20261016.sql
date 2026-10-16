@@ -1,7 +1,7 @@
 -- ============================================================
 -- replacements.removal_code 백필 — WO-TMS-2026-10-LIFE T-4
 --
--- ⚠ 실행하지 않았다. 실행 여부는 사용자 결정 대기 (지시서 §4-2).
+-- → 승인됨 (2026-10-16). 적용본은 supabase/migrations/20261016160000_backfill_removal_code.sql — 이 파일은 미리보기용으로 남긴다.
 --   실행하더라도 마이그레이션이 아니라 데이터 정정이므로, 승인 후 이 파일을
 --   supabase/migrations/ 로 옮겨 `supabase db push` 로 적용한다 (CLAUDE.md — 대시보드 SQL 편집기 금지).
 --   기본은 마지막 줄이 ROLLBACK 이라 그대로 돌려도 미리보기만 하고 아무것도 바꾸지 않는다.
