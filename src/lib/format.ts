@@ -302,6 +302,15 @@ export function fmtWearRate(v: number | null | undefined, withUnit = true): stri
   return withUnit ? `${fixed(v, 3)} mm/1,000km` : fixed(v, 3);
 }
 
+/**
+ * 마모율(mm/1,000 km) → 1 mm 마모당 주행거리(km/mm). 0 이하·없음은 null.
+ * 평균·색 판정은 mm/1,000 km 로 하고 km/mm 는 표시용으로만 뒤집는다
+ * (역수의 평균 ≠ 평균의 역수, 0 근처에서 발산).
+ */
+export function kmPerMmOf(mmPer1000Km: number | null | undefined): number | null {
+  return mmPer1000Km != null && Number.isFinite(mmPer1000Km) && mmPer1000Km > 0 ? 1000 / mmPer1000Km : null;
+}
+
 /** 1 mm 마모당 주행거리 — 정수 km. `1,805 km/mm` */
 export function fmtKmPerMm(v: number | null | undefined): string {
   return isBlank(v) ? EMPTY : `${fixed(Math.round(v), 0)} km/mm`;

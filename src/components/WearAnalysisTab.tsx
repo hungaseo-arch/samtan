@@ -17,7 +17,7 @@ import ResultSummaryCard from "./ResultSummaryCard";
 import { useLang } from "@/i18n";
 import {
   EMPTY, fmtTread, fmtTreadAvg, fmtPercent, fmtRatio,
-  fmtWearRate, fmtR2, fmtDistanceKm, fmtInt,
+  fmtWearRate, fmtKmPerMm, kmPerMmOf, fmtR2, fmtDistanceKm, fmtInt,
 } from "@/lib/format";
 import {
   listTreadSeries, listWearRateSegments, listWearPattern,
@@ -588,7 +588,7 @@ export default function WearAnalysisTab() {
                   note={`${t("tread.min")} ${fmtTread(avg.min?.mean)} · ${nOf(avg.current) ?? ""}`}
                 />
                 <Kpi label={tx.cTotalWear} value={fmtTreadAvg(avg.totalWear?.mean)} note={nOf(avg.totalWear)} />
-                <Kpi label={tx.cWearRate} value={fmtWearRate(avg.rate?.mean)} note={nOf(avg.rate)} />
+                <Kpi label={tx.cWearRate} value={fmtKmPerMm(kmPerMmOf(avg.rate?.mean))} note={withWearRate(avg.rate?.mean, nOf(avg.rate))} />
                 <Kpi label={tx.cExpKm} value={fmtDistanceKm(avg.expKm?.mean)} note={nOf(avg.expKm) ?? tx.expKmNone} />
                 <Kpi label={tx.cCv} value={fmtPercent(avg.cv?.mean)} note={nOf(avg.cv)} />
                 <Kpi label={tx.cSc} value={fmtRatio(avg.sc?.mean)} note={nOf(avg.sc)} />
@@ -629,8 +629,8 @@ export default function WearAnalysisTab() {
             <Kpi label={tx.cTotalWear} value={fmtTreadAvg(totalWear)} />
             <Kpi
               label={tx.cWearRate}
-              value={fmtWearRate(segment?.wear_rate_km_ols)}
-              note={segment?.r2 == null ? undefined : `R² ${fmtR2(segment.r2)}`}
+              value={fmtKmPerMm(kmPerMmOf(segment?.wear_rate_km_ols))}
+              note={withWearRate(segment?.wear_rate_km_ols, segment?.r2 == null ? undefined : `R² ${fmtR2(segment.r2)}`)}
               // R² < 0.80 은 대표값으로 쓰기 어렵다 — 값을 숨기지 않고 신뢰도만 알린다.
               warn={segment?.r2 != null && segment.r2 < 0.8 ? tx.r2Low : undefined}
             />
@@ -938,6 +938,14 @@ export default function WearAnalysisTab() {
 }
 
 /** KPI 카드 1장. 4개 축을 가중합하지 않고 값 그대로 나열한다 (설계서 §16). */
+/**
+ * 마모속도 카드 보조 줄 — `0.271 mm/1,000km · R² 0.90`. 카드 본값은 km/mm(사용자 결정 2026-10-16)지만
+ * 평균은 mm/1,000 km 로 낸 뒤 뒤집는다 — 역수의 평균은 0 근처에서 발산한다. 마모 없음(≤0)이면 본값은 «—», 이 줄에 원값이 남는다.
+ */
+function withWearRate(rate: number | null | undefined, rest?: string): string | undefined {
+  return [rate == null ? null : fmtWearRate(rate), rest].filter(Boolean).join(" · ") || undefined;
+}
+
 function Kpi({
   label, value, note, badge, warn,
 }: {

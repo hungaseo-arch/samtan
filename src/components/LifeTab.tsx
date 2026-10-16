@@ -6,7 +6,7 @@ import {
   codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
   prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, tireCostOf, ledgerOf, type LifeCalc,
 } from "@/data/tmsUtils";
-import { EMPTY, fmtCpk, fmtInt, fmtTread, todayInField } from "@/lib/format";
+import { EMPTY, fmtCpk, fmtInt, fmtTread, kmPerMmOf, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
@@ -47,6 +47,7 @@ const buildTX = () => ({
     colRemKm: "잔여 KM (발주)",
     colProjDate: "예상 교체일",
     colWearRate: "마모율 (mm/1,000km)",
+    colKmPerMm: "km/mm",
     due30: "30일 이내 교체",
     projDays: "{n}일",
     projOver: "{n}일 경과",
@@ -151,6 +152,7 @@ const buildTX = () => ({
     colRemKm: "Sisa KM (pesan)",
     colProjDate: "Prakiraan tgl ganti",
     colWearRate: "Laju aus (mm/1,000km)",
+    colKmPerMm: "km/mm",
     due30: "Ganti ≤ 30 hari",
     projDays: "{n} hari",
     projOver: "lewat {n} hari",
@@ -255,6 +257,7 @@ const buildTX = () => ({
     colRemKm: "Remaining KM (order)",
     colProjDate: "Projected repl. date",
     colWearRate: "Wear rate (mm/1,000km)",
+    colKmPerMm: "km/mm",
     due30: "Replace ≤ 30 days",
     projDays: "{n} d",
     projOver: "{n} d overdue",
@@ -472,6 +475,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
         [tx.colCpk]: cost?.cpk != null ? Number(cost.cpk.toFixed(4)) : "",
         [tx.colExpCpk]: cost?.expCpk != null ? Number(cost.expCpk.toFixed(4)) : "",
         [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(3)) : "",
+        [tx.colKmPerMm]: (() => { const k = kmPerMmOf(c?.projection.wearRateKm); return k == null ? "" : Math.round(k); })(),
         [tx.colRemKm]: installed && c?.projection.remainingKm != null ? Math.round(c.projection.remainingKm) : "",
         [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",
         [tx.colStatus]: l.status,
