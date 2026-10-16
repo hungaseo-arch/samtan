@@ -25,7 +25,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { AlertTriangle, Info, Loader2, Layers } from "lucide-react";
+import { AlertTriangle, ChevronDown, Info, Loader2, Layers } from "lucide-react";
 import { HEX } from "@/lib/chartColors";
 import EconomicsSection from "./EconomicsSection";
 
@@ -81,6 +81,8 @@ const TX = {
 
     ledgerTitle: "개체 원장",
     ledgerSub: "시리얼 단위 누적 주행거리. 여러 차량을 돈 타이어는 굵게 표시됩니다.",
+    ledgerShow: (n: string) => `원장 표 펼치기 · ${n}본`,
+    ledgerHide: "원장 표 접기",
     colSerial: "시리얼",
     colMounts: "장착",
     colVehicles: "차량",
@@ -146,6 +148,8 @@ const TX = {
 
     ledgerTitle: "Buku besar ban",
     ledgerSub: "Jarak kumulatif per nomor seri. Ban yang berpindah unit dicetak tebal.",
+    ledgerShow: (n: string) => `Buka tabel buku besar · ${n} ban`,
+    ledgerHide: "Tutup tabel buku besar",
     colSerial: "Nomor seri",
     colMounts: "Pasang",
     colVehicles: "Unit",
@@ -211,6 +215,8 @@ const TX = {
 
     ledgerTitle: "Tire ledger",
     ledgerSub: "Cumulative distance per serial. Tires that moved between vehicles are bold.",
+    ledgerShow: (n: string) => `Show ledger table · ${n} tires`,
+    ledgerHide: "Hide ledger table",
     colSerial: "Serial",
     colMounts: "Mounts",
     colVehicles: "Vehicles",
@@ -263,6 +269,8 @@ export default function TcoTab() {
   const [category, setCategory] = useState<TcoCategory | "UNLOGGED">(DEFAULT_CATEGORY);
   const [threshold, setThreshold] = useState<number>(5.0);
   const [withRetread, setWithRetread] = useState(true);
+  /** 개체 원장 표는 길어서 기본 접힘 — 사용자 요청 2026-10-16 */
+  const [ledgerOpen, setLedgerOpen] = useState(false);
 
   const units = useQuery<TcoUnitRow[]>({ queryKey: ["v_tco_unit"], queryFn: listTcoUnits });
   const fleet = useQuery<TcoFleetRow[]>({ queryKey: ["v_tco_fleet"], queryFn: listTcoFleet });
@@ -496,7 +504,18 @@ export default function TcoTab() {
       {/* ── 4. 개체 원장 ─────────────────────────────────────── */}
       <section>
         <SectionHead title={tx.ledgerTitle} sub={tx.ledgerSub} />
-        <div className="rounded-xl border border-border bg-card overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setLedgerOpen((o) => !o)}
+          aria-expanded={ledgerOpen}
+          aria-controls="tco-ledger-table"
+          className="w-full flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-left text-xs font-semibold text-foreground hover:bg-muted/30 cursor-pointer"
+        >
+          <span>{ledgerOpen ? tx.ledgerHide : tx.ledgerShow(fmtInt(ledgerRows.length))}</span>
+          <ChevronDown className={`ml-auto w-4 h-4 transition-transform ${ledgerOpen ? "" : "-rotate-90"}`} />
+        </button>
+        {ledgerOpen && (
+        <div id="tco-ledger-table" className="mt-2 rounded-xl border border-border bg-card overflow-x-auto">
           <table className="w-full min-w-200 text-sm border-collapse">
             <thead>
               <tr className="border-b border-border bg-muted/30">
@@ -541,6 +560,7 @@ export default function TcoTab() {
             </tbody>
           </table>
         </div>
+        )}
       </section>
 
       {/* ── 5. 재생 시나리오 ─────────────────────────────────── */}
