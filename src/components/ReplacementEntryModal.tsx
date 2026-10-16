@@ -136,21 +136,24 @@ function errText(tx: Tx, e: unknown): string {
 const INPUT_CLS = "w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm";
 
 export default function ReplacementEntryModal({
-  ch, pos, currentSerial, defaultKm, defaultHm, onClose, onSaved,
+  ch, pos, currentSerial, defaultKm, defaultHm, defaultDate, defaultSerial, onClose, onSaved,
 }: {
   ch: string;
   pos: string;
   currentSerial: string;
   defaultKm?: string;
   defaultHm?: string;
+  /** 교체 미등록 경고(§A-8)에서 열 때 — 점검일·입력된 시리얼을 미리 채운다 */
+  defaultDate?: string;
+  defaultSerial?: string;
   onClose: () => void;
   onSaved: (newSerial: string) => void | Promise<void>;
 }) {
   const { lang } = useLang();
   const tx = TX[lang];
   const [codes, setCodes] = useState<DamageCodeRow[]>([]);
-  const [date, setDate] = useState(todayInField());
-  const [serial, setSerial] = useState("");
+  const [date, setDate] = useState(defaultDate || todayInField());
+  const [serial, setSerial] = useState(defaultSerial ?? "");
   const [reason, setReason] = useState("");
   const [oldStatus, setOldStatus] = useState<"Scrap" | "Spare">("Spare");
   const [tread, setTread] = useState("");

@@ -19,13 +19,18 @@ import {
 } from "@/lib/treadStats";
 import { listTreadPoints, type TreadPointRow } from "@/api/wear";
 import { createVehicle, DuplicateVehicleError } from "@/api/vehicles";
-import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, Lock as LockIcon, UserRound, Repeat } from "lucide-react";
+import { Save, Trash2, RefreshCw, AlertTriangle, CheckCircle2, Plus, Loader2, LayoutGrid, Table as TableIcon, ChevronDown, Lock as LockIcon, UserRound, Repeat, FileSpreadsheet } from "lucide-react";
 import TireSchematic, { type SchematicCell } from "@/components/TireSchematic";
 import { friendlyAuthError } from "@/lib/authErrors";
 import { toast } from "sonner";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailModal from "@/components/TireDetailModal";
 import ReplacementEntryModal from "@/components/ReplacementEntryModal";
+import RoundIssueList from "@/components/RoundIssueList";
+import { issueConfirmText, issueText } from "@/lib/roundIssueText";
+import InspectionBulkUpload from "@/components/InspectionBulkUpload";
+import { validateRound, hasError } from "@/lib/roundValidate";
+import { validateContextFor } from "@/data/roundContext";
 import { useLang } from "@/i18n";
 
 const TX = {
@@ -61,6 +66,7 @@ const TX = {
     mmPh: "mm",
     serialPh: "시리얼",
     replace: "교체",
+    bulkUpload: "엑셀 일괄 업로드",
     replaceTitle: "이 포지션의 타이어 교체 등록",
     colTreadPoints: "트레드 측정 4점 (mm)",
     ptL: "Kiri · 외측",
@@ -151,6 +157,7 @@ const TX = {
     mmPh: "mm",
     serialPh: "Serial",
     replace: "Ganti",
+    bulkUpload: "Unggah Excel massal",
     replaceTitle: "Daftarkan Penggantian ban di Posisi ini",
     colTreadPoints: "Kedalaman alur — 4 titik (mm)",
     ptL: "Kiri · Luar",
@@ -241,6 +248,7 @@ const TX = {
     mmPh: "mm",
     serialPh: "Serial",
     replace: "Replace",
+    bulkUpload: "Bulk Excel upload",
     replaceTitle: "Register a tire replacement for this position",
     colTreadPoints: "Tread — 4 points (mm)",
     ptL: "Kiri · Outboard",
@@ -338,6 +346,13 @@ const emptyCell = (serial: string): FormCell => ({
   serial, pressure: "", tL: "", tC1: "", tC2: "", tR: "", flag: "OK", flagNote: "",
 });
 
+function numOrNull(v: string): number | null {
+  const t = v.trim();
+  if (t === "") return null;
+  const n = parseFloat(t);
+  return Number.isNaN(n) ? null : n;
+}
+
 // 점검일 기본값은 현장(WITA) 날짜다. UTC·단말 로컬로 잡으면 발릭빠빤 오전 입력분이
 // 하루 전으로 저장된다 — 근거는 format.ts 의 todayInField() 주석.
 
@@ -365,6 +380,8 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   // 트레드 0 mm 확인 모달(v2 §B-2) — 실측 0 인지 미측정인지는 사람만 안다.
   const [zeroAsk, setZeroAsk] = useState<string[] | null>(null);
   const [replPos, setReplPos] = useState<string | null>(null); // 교체 등록 모달 (§A-1)
+  const [replSerial, setReplSerial] = useState<string | undefined>(undefined); // 교체 미등록 경고에서 연 경우 입력 시리얼
+  const [bulkOpen, setBulkOpen] = useState(false); // 엑셀 일괄 업로드 (§A-8)
   const [detail, setDetail] = useState<number | null>(null); // 배치도 타이어 상세 모달(포지션 번호)
 
   const [history, setHistory] = useState<InspectionRow[]>([]);
@@ -425,12 +442,6 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   const setCell = <K extends keyof FormCell>(pos: string, field: K, value: FormCell[K]) =>
     setCells((c) => ({ ...c, [pos]: { ...c[pos], [field]: value } }));
 
-  const numOrNull = (v: string): number | null => {
-    const t = v.trim();
-    if (t === "") return null;
-    const n = parseFloat(t);
-    return Number.isNaN(n) ? null : n;
-  };
 
   /** 한 포지션의 4칸을 읽어 폭 위치별 숫자로. 빈 칸은 키 자체가 빠진다. */
   const readPoints = useCallback((cell: FormCell | undefined) => {
@@ -522,6 +533,24 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     return pv?.filled === POINT_FIELDS.length && pv.stats?.min === 0;
   });
 
+  /** 입력 검증 (§A-8) — 일괄 업로드와 같은 validateRound(). error 는 저장 차단, warn 은 확인 후 저장 */
+  const issues = useMemo(() => {
+    if (!date) return [];
+    return validateRound(
+      {
+        hm: numOrNull(hm),
+        km: numOrNull(km),
+        rows: POS_ORDER.map((pos) => ({
+          pos,
+          serial: cells[pos]?.serial ?? null,
+          pressure: numOrNull(cells[pos]?.pressure ?? ""),
+          tread: previews[pos]?.filled === POINT_FIELDS.length ? (previews[pos]?.stats?.min ?? null) : null,
+        })),
+      },
+      validateContextFor(history, selCh, date),
+    );
+  }, [date, hm, km, cells, previews, history, selCh]);
+
   /**
    * 트레드 0 을 설명할 수 있는 상태. "measured" 가 빠져 있는 것이 요점이다 —
    * 0 을 measured 로 저장하는 경로는 타입 차원에서 만들 수 없다 (T-8).
@@ -608,6 +637,12 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
       toast.error(tx.errOutlierNote + noReason.join(", "));
       return;
     }
+    if (hasError(issues)) {
+      toast.error(issues.filter((x) => x.level === "error").map((x) => issueText(x, lang)).join(" / "));
+      return;
+    }
+    const warns = issues.filter((x) => x.level === "warn");
+    if (warns.length > 0 && !window.confirm(issueConfirmText(warns, lang))) return;
     if (zeroPositions.length > 0) {
       setZeroAsk(zeroPositions);
       return;
@@ -703,6 +738,14 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
               <Plus className="w-3.5 h-3.5" /> {tx.addVehicle}
             </button>
           ))}
+          {canWrite && (
+            <button
+              onClick={() => setBulkOpen(true)}
+              className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" /> {tx.bulkUpload}
+            </button>
+          )}
         </div>
       </div>
 
@@ -897,10 +940,19 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             </div>
           )}
 
+          {issues.length > 0 && (
+            <div className="mt-3">
+              <RoundIssueList
+                issues={issues}
+                onReplace={canWrite ? (pos, serial) => { setReplSerial(serial ?? undefined); setReplPos(pos); } : undefined}
+              />
+            </div>
+          )}
+
           <div className="flex items-center gap-3 mt-4">
             <button
               onClick={handleSave}
-              disabled={saving || partialPositions.length > 0}
+              disabled={saving || partialPositions.length > 0 || hasError(issues)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -1176,6 +1228,12 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
         )}
 
       {/* 교체 등록 모달 (§A-1) — 현재 장착 시리얼은 입력칸이 아니라 DB(v_current_tire) 값 */}
+      {bulkOpen && canWrite && (
+        <InspectionBulkUpload
+          onClose={() => setBulkOpen(false)}
+          onSaved={async () => { await loadHistory(); await onSaved?.(); }}
+        />
+      )}
       {replPos && canWrite && (
         <ReplacementEntryModal
           ch={selCh}
@@ -1183,7 +1241,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
           currentSerial={unitByCh(selCh).positions.find((x) => x.pos === replPos)?.serial ?? ""}
           defaultKm={km}
           defaultHm={hm}
-          onClose={() => setReplPos(null)}
+          defaultDate={replSerial ? date : undefined}
+          defaultSerial={replSerial}
+          onClose={() => { setReplPos(null); setReplSerial(undefined); }}
           onSaved={async (newSerial) => {
             setCell(replPos, "serial", newSerial);
             await onSaved?.();
