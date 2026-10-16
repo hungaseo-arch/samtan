@@ -1,5 +1,5 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm } from "./tmsData";
 import { costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
@@ -1220,6 +1220,132 @@ export function economics(u: Unit): VehicleEconomics {
     lifeCost,
     lifeCurrency,
     lifeCostMissing,
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+  };
+}
+
+// ── 경제성 요약 (§B-4) ─────────────────────────────────────────
+
+/** 같은 통화끼리만 더한다. 하나라도 null 이거나 통화가 섞이면 null */
+function sumSameCurrency(xs: { v: number | null; cur: string }[]): { v: number | null; cur: string | null } {
+  if (!xs.length) return { v: null, cur: null };
+  const cur = xs[0].cur;
+  let v = 0;
+  for (const x of xs) {
+    if (x.v == null || x.cur !== cur) return { v: null, cur };
+    v += x.v;
+  }
+  return { v, cur };
+}
+
+export interface EconomicsRow {
+  ch: string;
+  /** 차량 주행 KM (첫 → 마지막 측정, 계기 리셋 보정 반영) */
+  km: number | null;
+  /** 장착 타이어 본수 · 단가가 잡힌 본수 */
+  mounted: number;
+  priced: number;
+  /** 장착 타이어 총비용 합 — 한 본이라도 단가가 없으면 null */
+  totalCost: number | null;
+  currency: string | null;
+  /** 차량 CPK = 장착 본별 CPK 의 합 (10본이 같은 km 를 함께 달리므로 «차량 1 km 당 타이어 원가») */
+  cpk: number | null;
+  expCpk: number | null;
+  /** 목표 수명(target_life_km) 달성 시 CPK = Σ 총비용 ÷ 목표 KM */
+  targetCpk: number | null;
+  /** 예상 KM ≥ 목표 수명인 본수 / 예상 KM 이 나온 본수 */
+  achieved: number;
+  evaluated: number;
+  compliance: Compliance;
+  econ: VehicleEconomics;
+}
+
+export function economicsRow(u: Unit): EconomicsRow {
+  const kms = u.km.filter((v): v is number => typeof v === "number");
+  const km = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
+  const target = targetLifeKm();
+  const tires = u.positions.map((p) => p.serial).filter(Boolean);
+  const costs = tires.map((sr) => ({ sr, c: tireCostOf(sr), l: lifeCalc(sr) }));
+  const cur = (x: (typeof costs)[number]) => x.c?.currency ?? "";
+  const total = sumSameCurrency(costs.map((x) => ({ v: x.c?.total ?? null, cur: cur(x) })));
+  const cpkSum = sumSameCurrency(costs.map((x) => ({ v: x.c?.cpk ?? null, cur: cur(x) })));
+  const expSum = sumSameCurrency(costs.map((x) => ({ v: x.c?.expCpk ?? null, cur: cur(x) })));
+  let achieved = 0, evaluated = 0;
+  for (const x of costs) {
+    if (x.l?.expectedKm == null) continue;
+    evaluated++;
+    if (x.l.expectedKm >= target) achieved++;
+  }
+  return {
+    ch: u.ch,
+    km,
+    mounted: tires.length,
+    priced: costs.filter((x) => x.c?.total != null).length,
+    totalCost: total.v,
+    currency: total.cur,
+    cpk: cpkSum.v,
+    expCpk: expSum.v,
+    targetCpk: total.v != null && target > 0 ? total.v / target : null,
+    achieved, evaluated,
+    compliance: vehiclePressureStats(u).compliance,
+    econ: economics(u),
+  };
+}
+
+export interface FleetEconomics {
+  rows: EconomicsRow[];
+  /** 장착 타이어 본당 실적 CPK 평균 — 통화가 하나일 때만 */
+  avgCpk: number | null;
+  avgCpkCurrency: string | null;
+  compliance: Compliance;
+  fuelCost: number | null;
+  fuelCurrency: string;
+  lifeCost: number | null;
+  lifeCurrency: string | null;
+  monthly: { month: string; exposure: number; fuelL: number | null; fuelCost: number | null }[];
+}
+
+export function fleetEconomics(units: Unit[] = TMS_DATA.units): FleetEconomics {
+  const rows = units.map(economicsRow);
+  const tireCpk: { v: number; cur: string }[] = [];
+  for (const u of units) {
+    for (const p of u.positions) {
+      const c = p.serial ? tireCostOf(p.serial) : null;
+      if (c?.cpk != null) tireCpk.push({ v: c.cpk, cur: c.currency });
+    }
+  }
+  const one = new Set(tireCpk.map((x) => x.cur)).size === 1;
+  const ok = rows.reduce((a, r) => a + r.compliance.ok, 0);
+  const total = rows.reduce((a, r) => a + r.compliance.total, 0);
+  const fuel = rows.map((r) => r.econ.fuelCost);
+  const life = sumSameCurrency(
+    rows.filter((r) => r.econ.lifeCost !== 0).map((r) => ({ v: r.econ.lifeCost, cur: r.econ.lifeCurrency ?? "" })),
+  );
+  const allLifeZero = rows.every((r) => r.econ.lifeCost === 0);
+  const t = TMS_DATA.tire;
+  const price = t.fuelPrice;
+  // 노출이 0 이면 구간 계산은 0 을 돌려주지만, 계수가 비어 있으면 KPI 는 «설정 필요» 여야 한다
+  const fuelSet = rows.length > 0 && t.fuelBaseLPerKm != null && t.fuelSensPer10Pct != null && price != null;
+  const lifeSet = rows.length > 0 && t.lifeSensPer10Pct != null;
+  const months = new Map<string, { month: string; exposure: number; fuelL: number | null; fuelCost: number | null }>();
+  for (const r of rows) {
+    for (const m of r.econ.monthly) {
+      const cur = months.get(m.month) ?? { month: m.month, exposure: 0, fuelL: 0, fuelCost: null };
+      cur.exposure += m.exposure;
+      cur.fuelL = cur.fuelL == null || m.fuelL == null ? null : cur.fuelL + m.fuelL;
+      cur.fuelCost = mulOrNull(cur.fuelL, price);
+      months.set(m.month, cur);
+    }
+  }
+  return {
+    rows,
+    avgCpk: tireCpk.length && one ? tireCpk.reduce((a, x) => a + x.v, 0) / tireCpk.length : null,
+    avgCpkCurrency: tireCpk.length && one ? tireCpk[0].cur : null,
+    compliance: { ok, total, pct: total ? (ok / total) * 100 : null },
+    fuelCost: !fuelSet || fuel.some((v) => v == null) ? null : fuel.reduce<number>((a, v) => a + (v ?? 0), 0),
+    fuelCurrency: t.fuelCurrency || "IDR",
+    lifeCost: !lifeSet ? null : allLifeZero ? 0 : life.v,
+    lifeCurrency: life.cur,
     monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
   };
 }

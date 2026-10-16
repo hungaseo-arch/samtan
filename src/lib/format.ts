@@ -316,3 +316,17 @@ export function fmtDistanceKm(v: number | null | undefined): string {
 export function fmtR2(v: number | null | undefined): string {
   return isBlank(v) ? EMPTY : fixed(v, 2);
 }
+
+/**
+ * 보고서용 금액 (지시서 2026-10-16 §B-4) — 축약 없이 전체 자리수.
+ * USD 는 소수 2자리 `USD 1,250.00`, IDR 은 정수 `IDR 18,500,000`.
+ */
+export function fmtMoneyReport(v: number | null | undefined, currency = "IDR"): string {
+  if (isBlank(v)) return EMPTY;
+  return currency === "IDR" ? `IDR ${fixed(Math.round(v), 0)}` : `${currency} ${fixed(v, 2)}`;
+}
+
+/** 연료량 — 소수점 1자리 리터. `1,234.5 L` */
+export function fmtLitre(v: number | null | undefined): string {
+  return isBlank(v) ? EMPTY : `${fixed(v, 1)} L`;
+}

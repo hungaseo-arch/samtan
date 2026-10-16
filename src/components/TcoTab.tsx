@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { AlertTriangle, Info, Loader2, Layers } from "lucide-react";
 import { HEX } from "@/lib/chartColors";
+import EconomicsSection from "./EconomicsSection";
 
 /** 사유별 분포의 기본 필터. 제품 책임분이 이 화면의 첫 질문이다 (지시서 T-9 3번). */
 const DEFAULT_CATEGORY: TcoCategory = "PRODUCT";
@@ -616,6 +617,9 @@ export default function TcoTab() {
           </div>
         )}
       </section>
+
+      {/* ── 6. 경제성 요약 (지시서 2026-10-16 §B-4) ─────────── */}
+      <EconomicsSection />
     </div>
   );
 }
