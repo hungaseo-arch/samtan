@@ -106,7 +106,8 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
 - 신품 트레드 22 mm (`NEW_TREAD`).
 
 권장 공기압: 조향축(L1·R1) 100 psi (`rec_psi_steer`) / 구동축(그 외 8본) 116 psi (`rec_psi_drive`).
-공기압 정상 범위: 60 ~ 200 psi (하한값 사용자 확인 필요)
+공기압 입력 범위: **50 ~ 150 psi** 밖은 저장 차단, 권장값 ±15% 밖은 확인 후 저장 (사용자 결정 2026-10-16).
+트레드 측정점 입력: **0 ~ 23 mm, 소수 1자리**. 검증은 `src/lib/roundValidate.ts` 한 곳 — 화면·일괄 업로드 공용
 
 ## 용어 (UI 문구)
 
