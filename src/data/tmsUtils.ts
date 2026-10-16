@@ -1,8 +1,9 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds } from "./tmsData";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
-import { EMPTY, fmtTread, fmtPressure, fmtPercent } from "@/lib/format";
+import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
+import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
 import type { Lang } from "@/i18n";
 
 /** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
@@ -378,6 +379,8 @@ export interface LifeCalc {
   hr: number | null;         // 주행 HR = 최신 HM − 최초 HM
   expectedKm: number | null; // 예상 KM = 주행 KM + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 KM)
   expectedHm: number | null; // 예상 HM = 주행 HR + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 HR)
+  /** 예상 교체 시점 — tread_order(발주) 기준 (§A-2). 0 mm 외삽인 expectedKm 과 다르다 */
+  projection: Projection;
 }
 
 /**
@@ -634,7 +637,70 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     ? projectExpected(hmPairs, hr, limit)
     : null;
 
-  return { ch, pos, km, hr, expectedKm, expectedHm };
+  // ⑦ 예상 교체 시점 (§A-2) — 발주 기준선(tread_order)까지. 신품 기준 회차는 요구하지 않는다:
+  //    마모율은 최근 추세만으로 충분하고, 교체 준비는 중고 장착 타이어에도 필요하다.
+  const unit = TMS_DATA.units.find((x) => x.ch === ch);
+  const rounds = unit
+    ? unit.dates.flatMap((d, i) => {
+        const k = unit.km[i];
+        return d && typeof k === "number" && k > 0 ? [{ date: d, km: k }] : [];
+      })
+    : [];
+  const latest = latestTreadOf(serial);
+  const projection = projectReplacement(
+    wear,
+    latest != null && latest > 0 ? latest : wear[wear.length - 1].tread,
+    dailyKm(rounds),
+    treadThresholds().order,
+  );
+  // 계기 리셋 차량은 실패 사유를 리셋으로 돌린다 — 회차 부족보다 그쪽이 원인이다.
+  if (projection.reason && unit?.hmReset) projection.reason = "hm_reset";
+
+  return { ch, pos, km, hr, expectedKm, expectedHm, projection };
+}
+
+/** 교체 준비 목록 기본 창 (일). 대시보드 카드와 수명 DB 필터가 같은 값을 쓴다 */
+export const PREP_WINDOW_DAYS = 30;
+/** 예상 교체일 배지 — 이 일수 이내면 적색 (§A-2) */
+export const PREP_URGENT_DAYS = 14;
+
+export interface PrepItem {
+  serial: string;
+  ch: string;
+  pos: string;
+  projectedDate: string;
+  /** 오늘(현장 WITA)부터 예상 교체일까지. 이미 지났으면 음수 */
+  daysLeft: number;
+  latestTread: number | null;
+  remainingKm: number | null;
+}
+
+/** 장착 중 타이어의 예상 교체일까지 남은 일수. 예측 불가·미장착이면 null */
+export function prepDaysLeft(serial: string, status: string, today = todayInField()): number | null {
+  if (status !== "Install") return null;
+  const d = lifeCalc(serial)?.projection.projectedDate;
+  return d ? daysBetween(today, d) : null;
+}
+
+/**
+ * 교체 준비 목록 — 예상 교체일이 오늘부터 withinDays 이내(이미 지난 것 포함)인 장착 타이어.
+ * 예상 교체일 오름차순. 대시보드 카드와 수명 DB 의 「30일 이내」 필터가 이 함수 하나를 쓴다.
+ */
+export function replacementPrepList(withinDays = PREP_WINDOW_DAYS, today = todayInField()): PrepItem[] {
+  const out: PrepItem[] = [];
+  for (const l of TMS_DATA.life) {
+    if (l.status !== "Install" || !l.serial) continue;
+    const c = lifeCalc(l.serial);
+    const d = c?.projection.projectedDate;
+    if (!c || !d) continue;
+    const daysLeft = daysBetween(today, d);
+    if (daysLeft > withinDays) continue;
+    out.push({
+      serial: l.serial, ch: c.ch, pos: c.pos, projectedDate: d, daysLeft,
+      latestTread: latestTreadOf(l.serial), remainingKm: c.projection.remainingKm,
+    });
+  }
+  return out.sort((a, b) => a.projectedDate.localeCompare(b.projectedDate) || a.ch.localeCompare(b.ch));
 }
 
 /** 시리얼 기준 최근 트레드(mm) — 그 시리얼이 달려 있던 구간의 마지막 측정값. */

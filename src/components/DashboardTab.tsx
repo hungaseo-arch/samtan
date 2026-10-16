@@ -1,9 +1,12 @@
 // @section: dashboard-tab
 import { Fragment, useState } from "react";
 import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds } from "@/data/tmsData";
-import { headPosData, statusOf, getUnitAlerts, validDates } from "@/data/tmsUtils";
-import { EMPTY, fmtInt } from "@/lib/format";
-import { Truck, Circle, ChevronRight, X } from "lucide-react";
+import {
+  headPosData, statusOf, getUnitAlerts, validDates,
+  replacementPrepList, PREP_WINDOW_DAYS, PREP_URGENT_DAYS,
+} from "@/data/tmsUtils";
+import { EMPTY, fmtInt, fmtTread, todayInField } from "@/lib/format";
+import { Truck, Circle, ChevronRight, X, CalendarClock } from "lucide-react";
 import { useLang } from "@/i18n";
 
 const buildTX = () => ({
@@ -44,6 +47,18 @@ const buildTX = () => ({
     cases: "건",
     noItems: "해당 항목이 없습니다.",
     danger: "위험",
+    prepTitle: "교체 준비 목록",
+    prepSub: `예상 교체일 30일 이내 (발주 기준 ${treadThresholds().order}mm 도달)`,
+    pDate: "예상 교체일",
+    pPos: "포지션",
+    pSerial: "시리얼",
+    pTread: "최근 트레드",
+    pRem: "잔여 KM",
+    pDays: "{n}일",
+    pOver: "{n}일 경과",
+    pSummary: "30일 내 {a}본 · 60일 내 {b}본",
+    pNone: "30일 이내 교체 예정 타이어가 없습니다.",
+    pFoot: "마모 추세로 산출한 추정일입니다. 예측할 수 없는 타이어(회차 3개 미만·HM Reset 등)는 빠집니다 — 수명 DB 탭의 「30일 이내 교체」 필터와 같은 목록입니다.",
   },
   id: {
     monitoringUnits: "Unit dipantau",
@@ -82,6 +97,18 @@ const buildTX = () => ({
     cases: "item",
     noItems: "Tidak ada item.",
     danger: "Bahaya",
+    prepTitle: "Daftar Persiapan Penggantian",
+    prepSub: `Prakiraan Penggantian ≤ 30 hari (mencapai batas pesan ${treadThresholds().order}mm)`,
+    pDate: "Prakiraan tgl ganti",
+    pPos: "Posisi",
+    pSerial: "Serial",
+    pTread: "Kedalaman alur terakhir",
+    pRem: "Sisa KM",
+    pDays: "{n} hari",
+    pOver: "lewat {n} hari",
+    pSummary: "≤ 30 hari {a} ban · ≤ 60 hari {b} ban",
+    pNone: "Tidak ada ban yang dijadwalkan ganti dalam 30 hari.",
+    pFoot: "Tanggal perkiraan dari tren Aus. Ban yang tidak dapat diprediksi (kurang dari 3 Pemeriksaan, HM Reset, dll.) tidak termasuk — sama dengan filter «Ganti ≤ 30 hari» di tab DB umur ban.",
   },
   en: {
     monitoringUnits: "Monitored vehicles",
@@ -120,6 +147,18 @@ const buildTX = () => ({
     cases: "cases",
     noItems: "No matching items.",
     danger: "Danger",
+    prepTitle: "Replacement Prep List",
+    prepSub: `Projected replacement within 30 days (reaching the ${treadThresholds().order}mm order threshold)`,
+    pDate: "Projected date",
+    pPos: "Position",
+    pSerial: "Serial",
+    pTread: "Latest tread",
+    pRem: "Remaining KM",
+    pDays: "{n} d",
+    pOver: "{n} d overdue",
+    pSummary: "{a} tires within 30 days · {b} within 60 days",
+    pNone: "No tires are projected for replacement within 30 days.",
+    pFoot: "Estimated from the wear trend. Tires that cannot be projected (fewer than 3 inspections, HM Reset, etc.) are left out — same list as the “Replace ≤ 30 days” filter in the Lifetime DB tab.",
   },
 } as const);
 
@@ -191,6 +230,11 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
       ok: acc.ok, warn: acc.warn, order: acc.order, danger: acc.danger, rc: acc.rc, // 상태·교체이력 합계
     };
   })();
+
+  // 교체 준비 목록 (§A-2) — 60일 창으로 한 번 뽑고 30일분을 표에, 두 건수를 요약에 쓴다.
+  const today = todayInField();
+  const prep60 = replacementPrepList(PREP_WINDOW_DAYS * 2, today);
+  const prep30 = prep60.filter((x) => x.daysLeft <= PREP_WINDOW_DAYS);
 
   // 주의·교체권장 카운트 클릭 → 해당 차량 알림 모달
   const [alertModal, setAlertModal] = useState<{ ch: string; lv: "warn" | "order" | "danger" } | null>(null);
@@ -321,6 +365,58 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
         </div>
       </div>
 
+
+      {/* ── 교체 준비 목록 (§A-2) ── */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center gap-2 mb-1">
+          <CalendarClock className="w-4 h-4 text-primary" />
+          <span className="text-sm font-bold">{tx.prepTitle}</span>
+          <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
+            {tx.pSummary.replace("{a}", fmtInt(prep30.length)).replace("{b}", fmtInt(prep60.length))}
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground mb-3">{tx.prepSub}</p>
+        {prep30.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-2">{tx.pNone}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-150 text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border text-xs text-muted-foreground">
+                  <th className="px-2 py-2 text-left font-semibold">{tx.pDate}</th>
+                  <th className="px-2 py-2 text-left font-semibold">{tx.unit}</th>
+                  <th className="px-2 py-2 text-left font-semibold">{tx.pPos}</th>
+                  <th className="px-2 py-2 text-left font-semibold">{tx.pSerial}</th>
+                  <th className="px-2 py-2 text-right font-semibold">{tx.pTread}</th>
+                  <th className="px-2 py-2 text-right font-semibold">{tx.pRem}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prep30.map((x) => (
+                  <tr key={x.serial} className="border-b border-border/30">
+                    <td className="px-2 py-1.5 font-mono">
+                      <span className={`font-bold ${x.daysLeft <= PREP_URGENT_DAYS ? "text-level-danger" : "text-level-warn"}`}>
+                        {x.projectedDate}
+                      </span>
+                      <span className="ml-2 text-[11px] text-muted-foreground">
+                        {x.daysLeft < 0
+                          ? tx.pOver.replace("{n}", fmtInt(-x.daysLeft))
+                          : tx.pDays.replace("{n}", fmtInt(x.daysLeft))}
+                      </span>
+                    </td>
+                    <td className="px-2 py-1.5 font-mono">CH {x.ch}</td>
+                    <td className="px-2 py-1.5 font-mono">{x.pos}</td>
+                    <td className="px-2 py-1.5 font-mono text-xs">{x.serial}</td>
+                    <td className="px-2 py-1.5 font-mono text-right">{fmtTread(x.latestTread)}</td>
+                    <td className="px-2 py-1.5 font-mono text-right">{fmtInt(x.remainingKm)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="mt-3 text-[11px] text-muted-foreground">{tx.pFoot}</p>
+      </div>
 
       {/* ── 결재 라인 ── */}
       <div>

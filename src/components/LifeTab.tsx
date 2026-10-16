@@ -1,9 +1,12 @@
 // @section: life-tab
 import { Fragment, useState, useEffect, useRef } from "react";
-import { TMS_DATA, treadLevel, treadThresholds } from "@/data/tmsData";
+import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
-import { codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements } from "@/data/tmsUtils";
-import { EMPTY, fmtInt, fmtTread } from "@/lib/format";
+import {
+  codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
+  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, type LifeCalc,
+} from "@/data/tmsUtils";
+import { EMPTY, fmtInt, fmtTread, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
@@ -32,8 +35,17 @@ const buildTX = () => ({
     colTreadAvg: "최근 트레드(4점평균)",
     colKm: "주행 KM",
     colHr: "주행 HR",
-    colExpKm: "예상 KM",
-    colExpHm: "예상 HM",
+    colExpKm: "예상 KM (0mm)",
+    colExpHm: "예상 HM (0mm)",
+    colRemKm: "잔여 KM (발주)",
+    colProjDate: "예상 교체일",
+    colWearRate: "마모율 (mm/1,000km)",
+    due30: "30일 이내 교체",
+    projDays: "{n}일",
+    projOver: "{n}일 경과",
+    projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족" },
+    foot8a: "잔여 KM · 예상 교체일",
+    foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일입니다. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율)입니다. 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개입니다.`,
     colStatus: "상태",
     colNote: "비고",
     avg: "평균",
@@ -112,8 +124,17 @@ const buildTX = () => ({
     colTreadAvg: "Tapak terkini (rata-rata 4 titik)",
     colKm: "KM tempuh",
     colHr: "Jam (HR)",
-    colExpKm: "Prediksi KM",
-    colExpHm: "Prediksi HM",
+    colExpKm: "Prediksi KM (0mm)",
+    colExpHm: "Prediksi HM (0mm)",
+    colRemKm: "Sisa KM (pesan)",
+    colProjDate: "Prakiraan tgl ganti",
+    colWearRate: "Laju aus (mm/1,000km)",
+    due30: "Ganti ≤ 30 hari",
+    projDays: "{n} hari",
+    projOver: "lewat {n} hari",
+    projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang" },
+    foot8a: "Sisa KM · Prakiraan tgl ganti",
+    foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm.`,
     colStatus: "Status",
     colNote: "Catatan",
     avg: "Rata-rata",
@@ -192,8 +213,17 @@ const buildTX = () => ({
     colTreadAvg: "Latest tread (4-point avg)",
     colKm: "Distance KM",
     colHr: "Operating HR",
-    colExpKm: "Estimated KM",
-    colExpHm: "Estimated HM",
+    colExpKm: "Est. KM (0mm)",
+    colExpHm: "Est. HM (0mm)",
+    colRemKm: "Remaining KM (order)",
+    colProjDate: "Projected repl. date",
+    colWearRate: "Wear rate (mm/1,000km)",
+    due30: "Replace ≤ 30 days",
+    projDays: "{n} d",
+    projOver: "{n} d overdue",
+    projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data" },
+    foot8a: "Remaining KM · Projected date",
+    foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm.`,
     colStatus: "Status",
     colNote: "Note",
     avg: "Average",
@@ -261,7 +291,6 @@ const buildTX = () => ({
   },
 } as const);
 
-const TARGET_KM = 75000; // 목표 수명 (km)
 
 /** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
 
@@ -287,10 +316,22 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
     { k: "r" as const, label: tx.wR },
   ];
   const [lifeFilter, setLifeFilter] = useState<string>("ALL");
+  const today = todayInField();
 
-  const filtered = TMS_DATA.life.filter(
-    (l) => lifeFilter === "ALL" || l.status === lifeFilter
-  );
+  // DUE30 — 대시보드 「교체 준비 목록」과 같은 판정(prepDaysLeft)이라 건수가 일치한다.
+  const filtered = TMS_DATA.life.filter((l) => {
+    if (lifeFilter === "ALL") return true;
+    if (lifeFilter === "DUE30") {
+      const d = prepDaysLeft(l.serial, l.status, today);
+      return d != null && d <= PREP_WINDOW_DAYS;
+    }
+    return l.status === lifeFilter;
+  });
+
+  /** 예상 교체일을 못 낸 사유 — 셀 툴팁 */
+  const projWhy = (c: LifeCalc | null, hmReset: boolean | undefined) =>
+    c ? (c.projection.reason ? tx.projWhy[c.projection.reason] : "")
+      : hmReset ? tx.projWhy.hm_reset : tx.projWhy.no_data;
 
   // 시리얼 포커스(다른 페이지/교체이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
   const focusRow = useRef<HTMLTableRowElement | null>(null);
@@ -324,7 +365,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
 
   // 표시 행(필터 적용)의 평균값 — 최근 트레드 / 주행 KM·HR / 예상 KM·HM
   const avg = (() => {
-    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0] };
+    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0] };
     const add = (slot: number[], v: number | null | undefined) => { if (v != null) { slot[0] += v; slot[1]++; } };
     filtered.forEach((l) => {
       const c = lifeCalc(l.serial);
@@ -334,9 +375,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
       add(acc.hr, c?.hr);
       if (!noExp) add(acc.ekm, c?.expectedKm);
       if (!noExp) add(acc.ehm, c?.expectedHm);
+      if (l.status === "Install") add(acc.rem, c?.projection.remainingKm);
     });
     const m = (s: number[]) => (s[1] > 0 ? s[0] / s[1] : null);
-    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm) };
+    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem) };
   })();
 
   // 현재 필터에 표시된 행을 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
@@ -344,6 +386,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
     const rows = filtered.map((l) => {
       const c = lifeCalc(l.serial);
       const noExpected = l.status === "Scrap" || l.status === "Not Install";
+      const installed = l.status === "Install";
       const unit = findUnitBySerial(l.serial);
       const monitored = !!unit;
       const tread = latestTreadOf(l.serial);
@@ -364,13 +407,16 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         [tx.colHr]: c?.hr ?? "",
         [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
         [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
+        [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(3)) : "",
+        [tx.colRemKm]: installed && c?.projection.remainingKm != null ? Math.round(c.projection.remainingKm) : "",
+        [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",
         [tx.colStatus]: l.status,
         [tx.colNote]: noteParts.join(" · "),
       };
     });
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 28 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
     const d = new Date();
@@ -405,6 +451,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
               <option value="Scrap">Scrap</option>
               <option value="Spare">Spare</option>
               <option value="Not Install">Not Install</option>
+              <option value="DUE30">{tx.due30}</option>
             </select>
             {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
             {canDownload && (
@@ -419,10 +466,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full min-w-210 table-fixed text-xs border-collapse font-mono">
+          <table className="w-full min-w-250 table-fixed text-xs border-collapse font-mono">
             <colgroup>
               {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(12%). 합계 100% */}
-              {["4%", "13%", "10%", "9%", "9%", "9%", "9%", "9%", "12%", "16%"].map((w, i) => (
+              {["3%", "12%", "8%", "7%", "7%", "7%", "8%", "7%", "8%", "9%", "10%", "14%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />
               ))}
             </colgroup>
@@ -437,6 +484,8 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   { k: "hr", label: tx.colHr, align: "text-right" },
                   { k: "ekm", label: tx.colExpKm, align: "text-right" },
                   { k: "ehm", label: tx.colExpHm, align: "text-right" },
+                  { k: "rem", label: tx.colRemKm, align: "text-right" },
+                  { k: "pdate", label: tx.colProjDate, align: "text-right" },
                   { k: "status", label: tx.colStatus, align: "text-center" },
                   { k: "note", label: tx.colNote, align: "text-center" },
                 ].map((h) => (
@@ -461,6 +510,12 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 const treadCls = tread == null ? "" : TREAD_CLS[treadLevel(tread)];
                 const damage = l.damage && l.damage !== "-" ? l.damage : null;
                 const isFocus = highlight != null && l.serial === highlight;
+                const installed = l.status === "Install";
+                const proj = installed ? c?.projection ?? null : null;
+                const daysLeft = installed ? prepDaysLeft(l.serial, l.status, today) : null;
+                const dateCls = daysLeft == null ? "" : daysLeft <= PREP_URGENT_DAYS
+                  ? "text-level-danger font-bold" : daysLeft <= PREP_WINDOW_DAYS ? "text-level-warn font-bold" : "text-foreground";
+                const why = installed && !proj?.projectedDate ? projWhy(c, hmReset) : "";
                 return (
                 <tr
                   key={l.no}
@@ -504,7 +559,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedKm != null && !noExpected ? (
-                      <span className={`font-bold ${c.expectedKm >= TARGET_KM ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
+                      <span className={`font-bold ${c.expectedKm >= targetLifeKm() ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
                       <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
@@ -514,6 +569,27 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       <span className="font-bold text-primary">{fmtInt(c.expectedHm)}</span>
                     ) : (
                       <span className="text-muted-foreground/40">{EMPTY}</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    {proj?.remainingKm != null ? (
+                      <span className="text-foreground">{fmtInt(proj.remainingKm)}</span>
+                    ) : (
+                      <span className="text-muted-foreground/40" title={why || undefined}>{EMPTY}</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right" title={why || undefined}>
+                    {proj?.projectedDate && daysLeft != null ? (
+                      <>
+                        <span className={dateCls}>{proj.projectedDate}</span>
+                        <div className="text-[10px] text-muted-foreground/70 leading-tight">
+                          {daysLeft < 0
+                            ? tx.projOver.replace("{n}", fmtInt(-daysLeft))
+                            : tx.projDays.replace("{n}", fmtInt(daysLeft))}
+                        </div>
+                      </>
+                    ) : (
+                      <span className={`text-muted-foreground/40 ${why ? "cursor-help underline decoration-dotted" : ""}`}>{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-center">
@@ -547,7 +623,8 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ehm)}</td>
-                <td colSpan={2} />
+                <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>
@@ -555,13 +632,15 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">{tx.foot1a}</strong>{tx.foot1b}
           <br />
-          <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(TARGET_KM))}</strong>{tx.foot2b}
+          <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(targetLifeKm()))}</strong>{tx.foot2b}
           <br />
           <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
           <br />
           <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
           <br />
           {tx.foot5}
+          <br />
+          <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
           <br />
           <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
           <br />
