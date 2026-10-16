@@ -1,5 +1,5 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved } from "./tmsData";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
@@ -654,8 +654,9 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     dailyKm(rounds),
     treadThresholds().order,
   );
-  // 계기 리셋 차량은 실패 사유를 리셋으로 돌린다 — 회차 부족보다 그쪽이 원인이다.
-  if (projection.reason && unit?.hmReset) projection.reason = "hm_reset";
+  // 보정값이 없는 계기 리셋 차량은 실패 사유를 리셋으로 돌린다 — 회차 부족보다 그쪽이 원인이다.
+  // 보정값(§A-9)이 있으면 km 이 이미 연속이라 보통 회차처럼 예측된다.
+  if (projection.reason && meterUnresolved(unit)) projection.reason = "hm_reset";
 
   return { ch, pos, km, hr, expectedKm, expectedHm, projection };
 }

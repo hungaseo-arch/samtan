@@ -1,6 +1,6 @@
 // @section: round-context
 // validateRound() 에 넘길 비교 기준을 TMS_DATA·점검 이력에서 뽑는다 (§A-8).
-import { TMS_DATA, HEAD_MAP } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, meterUnresolved } from "./tmsData";
 import { unitByCh } from "./tmsUtils";
 import type { InspectionRow } from "@/api/inspections";
 import type { PrevRound, ValidateContext } from "@/lib/roundValidate";
@@ -34,15 +34,20 @@ export function prevRoundOf(history: InspectionRow[], ch: string, date: string):
     if (byPos[r.pos] || r.tread == null || r.tread_status === "not_measured") continue;
     byPos[r.pos] = { tread: r.tread, serial: r.serial };
   }
-  return { hm: meter?.hm ?? null, km: meter?.km ?? null, byPos };
+  return { hm: meter?.hm ?? null, km: meter?.km ?? null, meterDate: meter?.inspection_date, byPos };
 }
 
 export function validateContextFor(history: InspectionRow[], ch: string, date: string): ValidateContext {
   const expectedSerial: Record<string, string | null> = {};
   for (const pos of POSITIONS) expectedSerial[pos] = expectedSerialAt(ch, pos, date);
-  return {
-    prev: prevRoundOf(history, ch, date),
-    expectedSerial,
-    meterReset: !!TMS_DATA.units.find((u) => u.ch === ch)?.hmReset,
-  };
+  const unit = TMS_DATA.units.find((u) => u.ch === ch);
+  const prev = prevRoundOf(history, ch, date);
+  // 입력값은 계기 원본이다. 직전 회차가 리셋 전이고 이번 회차가 리셋 후면
+  // 직전 값을 리셋 후 눈금으로 내려 비교한다 (§A-9) — 그래야 역행 경고가 다시 쓸모 있다.
+  const off = unit?.meterOffset;
+  if (prev && off && date >= off.resetDate && prev.meterDate && prev.meterDate < off.resetDate) {
+    if (prev.hm != null && off.hm != null) prev.hm -= off.hm;
+    if (prev.km != null && off.km != null) prev.km -= off.km;
+  }
+  return { prev, expectedSerial, meterReset: meterUnresolved(unit) };
 }

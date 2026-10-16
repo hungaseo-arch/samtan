@@ -1,6 +1,6 @@
 // @section: life-tab
 import { Fragment, useState, useEffect, useRef } from "react";
-import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm } from "@/data/tmsData";
+import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
 import {
   codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
@@ -51,6 +51,8 @@ const buildTX = () => ({
     avg: "평균",
     nonMeasured: "측정 외",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "계기 리셋 보정값 적용 — HM·KM 을 리셋 전 누적값에 이어 계산합니다",
     foot1a: "행을 클릭",
     foot1b: "하면 해당 타이어의 전체 히스토리(장착·탈착·폐기·HM Reset·측정 회차)를 모달로 확인할 수 있습니다.",
     foot2a: "목표 수명 {km} km",
@@ -140,6 +142,8 @@ const buildTX = () => ({
     avg: "Rata-rata",
     nonMeasured: "Non-ukur",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "Koreksi reset meter diterapkan — HM·KM dilanjutkan dari akumulasi sebelum reset",
     foot1a: "Klik baris",
     foot1b: " untuk melihat riwayat lengkap ban (pasang·lepas·afkir·HM Reset·sesi ukur) dalam modal.",
     foot2a: "Target umur {km} km",
@@ -229,6 +233,8 @@ const buildTX = () => ({
     avg: "Average",
     nonMeasured: "Not measured",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "Meter reset offset applied — HM·KM continue from the pre-reset total",
     foot1a: "Click a row",
     foot1b: " to open a modal with that tire's full history (install · removal · scrap · HM Reset · measurement rounds).",
     foot2a: "Target lifetime {km} km",
@@ -504,6 +510,8 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 const noExpected = l.status === "Scrap" || l.status === "Not Install";
                 const unit = findUnitBySerial(l.serial);
                 const hmReset = unit?.hmReset;
+                // 보정값(§A-9)이 들어간 리셋 차량은 예측이 되므로 사유를 리셋으로 돌리지 않는다
+                const hmUnresolved = meterUnresolved(unit);
                 const monitored = !!unit; // 모니터링 5대 장착 여부 (아니면 측정 외)
                 const tread = latestTreadOf(l.serial);
                 const treadAvg = latestTreadAvgOf(l.serial);
@@ -515,7 +523,7 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 const daysLeft = installed ? prepDaysLeft(l.serial, l.status, today) : null;
                 const dateCls = daysLeft == null ? "" : daysLeft <= PREP_URGENT_DAYS
                   ? "text-level-danger font-bold" : daysLeft <= PREP_WINDOW_DAYS ? "text-level-warn font-bold" : "text-foreground";
-                const why = installed && !proj?.projectedDate ? projWhy(c, hmReset) : "";
+                const why = installed && !proj?.projectedDate ? projWhy(c, hmUnresolved) : "";
                 return (
                 <tr
                   key={l.no}
@@ -606,7 +614,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                       !monitored && <span key="nm" className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
                       damage && <button key="dmg" className="text-destructive font-bold hover:underline" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
                       l.note && <span key="note">{l.note}</span>,
-                      hmReset && <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>,
+                      hmReset && (hmUnresolved
+                        ? <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>
+                        : <span key="hmr" className="text-muted-foreground" title={tx.hmResetFixedTitle}>{tx.hmResetFixed}</span>),
                     ].filter(Boolean).map((node, i) => (
                       <Fragment key={i}>{i > 0 && " · "}{node}</Fragment>
                     ))}

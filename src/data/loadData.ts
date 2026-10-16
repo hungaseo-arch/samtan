@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
 import type { Unit, LifeRecord, LedgerSegment, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
+import { applyMeterOffset, meterOffsetOf } from "@/lib/meterOffset";
 
 // ============================================================
 // 하중(축하중) 데이터 — Techking "Load Distribution Road Train unit" 시트 기준
@@ -226,6 +227,13 @@ function buildRounds(rows: InspectionRow[]) {
 
     const sorted = [...rounds.values()].sort((a, b) => a.date.localeCompare(b.date));
     unit.dates = sorted.map((r) => r.date);
+    // 계기 리셋 차량은 리셋일 이후 회차에 리셋 직전 누적값을 더해 잇는다 (§A-9).
+    // segments 도 같은 round 객체를 읽으므로 여기서 고치면 전 화면이 연속값을 본다.
+    const off = unit.meterOffset ?? null;
+    for (const r of sorted) {
+      r.hm = applyMeterOffset(r.date, r.hm, "hm", off);
+      if (typeof r.km === "number") r.km = applyMeterOffset(r.date, r.km, "km", off);
+    }
     unit.hm = sorted.map((r) => r.hm);
     unit.km = sorted.map((r) => r.km);
 
@@ -385,6 +393,7 @@ export async function loadData(): Promise<void> {
     hm: [],
     km: [],
     hmReset: !!v.hm_reset,
+    meterOffset: meterOffsetOf(v),
     positions: (curByCh.get(v.ch) ?? []).map((c): TirePosition => ({
       pos: c.pos,
       serial: c.serial ?? "",

@@ -4,6 +4,7 @@
 // ※ 데이터는 Supabase에서 로드합니다 (src/data/loadData.ts).
 //   이 파일은 타입·상수와 런타임에 채워지는 빈 TMS_DATA 컨테이너만 정의합니다.
 // ============================================================
+import type { MeterOffset } from "@/lib/meterOffset";
 
 // ── 임계치·권장 공기압 ──────────────────────────────────────
 // 정본은 DB(tire_config)입니다. 아래 상수는 loadData() 이전이나 DB 미설정 시의
@@ -203,7 +204,13 @@ export interface Unit {
   km: (number | string | null)[];
   positions: TirePosition[];
   hmReset?: boolean;
+  /** 계기 리셋 보정값 (§A-9). 있으면 hm·km 배열은 이미 보정된 연속값이다 */
+  meterOffset?: MeterOffset | null;
 }
+
+/** 계기 리셋 차량인데 보정값이 아직 없다 — 예측·역행 검증을 할 수 없다 */
+export const meterUnresolved = (u: Pick<Unit, "hmReset" | "meterOffset"> | null | undefined): boolean =>
+  !!u?.hmReset && !u.meterOffset;
 
 export interface ReplRecord {
   ch: string;

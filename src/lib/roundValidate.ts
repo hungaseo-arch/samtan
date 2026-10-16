@@ -44,6 +44,8 @@ export interface RoundInput {
 export interface PrevRound {
   hm: number | null;
   km: number | null;
+  /** hm·km 을 읽은 회차의 점검일 */
+  meterDate?: string;
   /** 포지션 → 직전 측정 트레드·시리얼 */
   byPos: Record<string, { tread: number | null; serial: string | null }>;
 }
