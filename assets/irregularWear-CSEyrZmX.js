@@ -1,0 +1,1 @@
+const c=3,u=5,i=3;function _(n){if(n.length!==4||n.some(l=>l==null||!Number.isFinite(l)))return null;const[r,t,e,R]=n,s=Math.max(r,t,e,R)-Math.min(r,t,e,R),a=s>=5-1e-9?"danger":s>=3-1e-9?"warn":"ok",o=(r+t)/2,M=(e+R)/2,E=o<M-3-1e-9?"outer":M<o-3-1e-9?"inner":null;return{range:s,level:a,shoulder:E}}const A=n=>n?_([n.l,n.c1,n.c2,n.r]):null;export{c as I,i as S,u as a,A as i};
