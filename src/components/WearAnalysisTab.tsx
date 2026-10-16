@@ -10,8 +10,9 @@
 // 단일 종합점수는 만들지 않는다. 4개 평가축(마모성능·균일성·편마모·내구성)을
 // 따로 보여 주는 것이 설계서 §16 의 명시적 요구다.
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { TMS_DATA, HEAD_MAP, NEW_TREAD } from "@/data/tmsData";
+import { lifeCalc } from "@/data/tmsUtils";
 import { useLang } from "@/i18n";
 import {
   EMPTY, fmtTread, fmtTreadAvg, fmtPercent, fmtRatio,
@@ -32,6 +33,49 @@ import { AlertTriangle, Info, Loader2 } from "lucide-react";
 import { HEX } from "@/lib/chartColors";
 
 const POSITIONS = Array.from({ length: 10 }, (_, i) => HEAD_MAP[i + 1]);
+
+/** 차량 칩의 «평균» 자리. 실제 CH 값과 겹치지 않는 표식이다. */
+const AVG = "__avg__";
+
+/**
+ * 한 (ch, pos) 의 현재 장착 타이어(최신 세그먼트) 대표값.
+ * 차량 1대 화면과 «평균» 화면이 같은 규칙으로 고르도록 한 곳에 둔다.
+ */
+function posStats(
+  series: TreadSeriesRow[],
+  segments: WearRateSegmentRow[],
+  patterns: WearPatternRow[],
+  ch: string,
+  pos: string,
+) {
+  /** 원시값을 가진 회차. 이게 비어 있으면 아래는 전부 그리지 않는다. */
+  const measured = series.filter(
+    (r) => r.pos === pos && (r.point_count ?? 0) > 0 && r.tread_avg != null,
+  );
+  const segNo = measured.length ? measured[measured.length - 1].seg_no : null;
+  const segRows = segNo == null ? [] : measured.filter((r) => r.seg_no === segNo);
+  const segment =
+    segments.find((s) => s.ch === ch && s.pos === pos && s.seg_no === segNo) ?? null;
+  const patRows = patterns.filter((p) => p.pos === pos && p.seg_no === segNo);
+  const latestPattern = patRows.length ? patRows[patRows.length - 1] : null;
+  const latest = segRows.length ? segRows[segRows.length - 1] : null;
+  const initialAvg = segment?.initial_avg ?? (segRows.length ? segRows[0].tread_avg : null);
+  const totalWear =
+    initialAvg != null && latest?.tread_avg != null
+      ? Math.round((initialAvg - latest.tread_avg) * 100) / 100
+      : null;
+  // 예상 주행거리는 새로 계산하지 않고 수명 DB(lifeCalc, 최소 트레드 회귀 → 0 mm)
+  // 값을 그대로 쓴다. 같은 타이어가 화면마다 다른 수명으로 찍히면 안 된다.
+  const serial = latest?.serial ?? segment?.serial ?? null;
+  const expectedKm = serial ? lifeCalc(serial)?.expectedKm ?? null : null;
+  return { measured, segNo, segRows, segment, latestPattern, latest, initialAvg, totalWear, expectedKm };
+}
+
+/** 값이 있는 차량만 산술 평균. 하나도 없으면 null — 0 으로 메우지 않는다. */
+function meanOf(xs: (number | null | undefined)[]) {
+  const v = xs.filter((x): x is number => typeof x === "number");
+  return v.length ? { mean: v.reduce((a, b) => a + b, 0) / v.length, n: v.length } : null;
+}
 
 /**
  * 3단으로 놓인 비교 차트(2·3·4)의 공통 높이와 여백.
@@ -63,6 +107,7 @@ const CategoryTick = ({ x, y, payload }: {
 const TX = {
   ko: {
     vehicle: "차량(CH):",
+    avg: "평균",
     position: "포지션:",
     loading: "마모 통계를 불러오는 중…",
     loadFail: "마모 통계를 불러오지 못했습니다.",
@@ -71,6 +116,9 @@ const TX = {
     cTread: "초기 → 현재 트레드",
     cTotalWear: "누적 마모량",
     cWearRate: "마모속도",
+    cExpKm: "예상 주행거리 (0mm)",
+    expKmNote: "수명 DB 와 같은 값 (최소 트레드 기준)",
+    expKmNone: "산출 불가 — 신품 22mm 부터 측정된 타이어만 계산합니다",
     cCv: "마모 균일성 (CV)",
     cSc: "S/C 비율 (숄더/중앙)",
     // 외측/내측(O/I) 지표는 방향 규약 확정 전까지 노출하지 않는다 (v3 §Q1).
@@ -100,10 +148,16 @@ const TX = {
     gCv: "폭 4점(L·C1·C2·R) 트레드의 표본표준편차(n−1) ÷ 평균 × 100. 한 타이어 안에서 얼마나 고르게 닳았는지를 봅니다. 낮을수록 균일하고, 높으면 폭 방향 어느 한쪽만 닳고 있다는 뜻입니다. 합격 기준은 아직 정하지 않아 플릿 중앙값 대비 위치로만 읽습니다.",
     gSc: "숄더(L·R) 마모량 ÷ 중앙(C1·C2) 마모량. 마모량은 신품 트레드 대비 줄어든 값입니다. 1.00 에 가까우면 균일, 1보다 크면 숄더가 먼저 닳는 중(공기압 부족·과적이 흔한 원인), 1보다 작으면 중앙이 먼저 닳는 중(공기압 과다가 흔한 원인)입니다. 숄더 마모·중앙 마모 판정 경계와 판정 보류 최소 마모량은 tire_config 설정값을 따릅니다.",
     legacyTitle: "통계 산출 불가",
+    avgNote: (n: number) => `차량 ${n}대의 현재 장착 타이어(최신 구간) 값을 산술 평균했습니다. 값이 없는 차량은 빼고 셉니다.`,
+    avgCount: (n: number, total: number) => `${n}/${total}대 평균`,
+    avgLine: "평균",
+    avgSelect: "트레드 추이 · 폭 방향 · 숄더/중앙 차트는 차량마다 회차와 주행거리가 달라 평균을 내지 않습니다. 차량을 선택하면 보입니다.",
+    avgNone: "이 포지션에는 폭 4점 원시값이 있는 차량이 아직 없습니다.",
     noPoints: "이 차량에는 폭 4점 원시 측정값이 아직 없습니다. 점검 입력 화면에서 4점을 기록하면 이 화면이 채워집니다.",
   },
   id: {
     vehicle: "Unit (CH):",
+    avg: "Rata-rata",
     position: "Posisi:",
     loading: "Memuat statistik keausan…",
     loadFail: "Gagal memuat statistik keausan.",
@@ -112,6 +166,9 @@ const TX = {
     cTread: "Tapak awal → sekarang",
     cTotalWear: "Total keausan",
     cWearRate: "Laju keausan",
+    cExpKm: "Prediksi jarak tempuh (0mm)",
+    expKmNote: "Sama dengan DB umur ban (berdasar tapak minimum)",
+    expKmNone: "Tidak dapat dihitung — hanya ban yang diukur sejak baru 22mm",
     cCv: "Keseragaman keausan (CV)",
     cSc: "Rasio S/C (bahu/tengah)",
     dirPending: "Masih dipastikan apakah Kiri/Kanan berarti sisi luar atau sisi dalam",
@@ -140,10 +197,16 @@ const TX = {
     gCv: "Simpangan baku sampel (n−1) dari 4 titik lebar (L·C1·C2·R) ÷ rata-rata × 100. Menunjukkan seberapa merata satu ban aus. Makin rendah makin merata; makin tinggi berarti hanya satu sisi arah lebar yang aus. Kriteria lulus belum ditetapkan, jadi dibaca hanya sebagai posisi relatif terhadap median armada.",
     gSc: "Keausan bahu (L·R) ÷ keausan tengah (C1·C2). Keausan dihitung dari selisih terhadap tapak ban baru. Mendekati 1,00 berarti merata; di atas 1 berarti bahu aus lebih dulu (umumnya tekanan angin kurang atau muatan berlebih); di bawah 1 berarti tengah aus lebih dulu (umumnya tekanan angin berlebih). Batas penilaian dan keausan minimum untuk menunda penilaian mengikuti nilai di tire_config.",
     legacyTitle: "Statistik tidak tersedia",
+    avgNote: (n: number) => `Rata-rata aritmetika nilai ban terpasang (segmen terbaru) dari ${n} unit. Unit tanpa nilai tidak dihitung.`,
+    avgCount: (n: number, total: number) => `Rata-rata ${n}/${total} unit`,
+    avgLine: "Rata-rata",
+    avgSelect: "Grafik tren tapak · arah lebar · bahu/tengah tidak dirata-ratakan karena sesi dan jarak tempuh tiap unit berbeda. Pilih unit untuk melihatnya.",
+    avgNone: "Belum ada unit dengan data mentah 4 titik pada posisi ini.",
     noPoints: "Unit ini belum punya data mentah 4 titik. Isi 4 titik di layar input inspeksi untuk mengisi halaman ini.",
   },
   en: {
     vehicle: "Vehicle (CH):",
+    avg: "Average",
     position: "Position:",
     loading: "Loading wear statistics…",
     loadFail: "Failed to load wear statistics.",
@@ -152,6 +215,9 @@ const TX = {
     cTread: "Initial → current tread",
     cTotalWear: "Total wear",
     cWearRate: "Wear rate",
+    cExpKm: "Est. distance (0mm)",
+    expKmNote: "Same value as the lifetime DB (minimum tread basis)",
+    expKmNone: "Not available — only tires measured from new 22mm are projected",
     cCv: "Wear uniformity (CV)",
     cSc: "S/C ratio (shoulder/center)",
     dirPending: "Whether Kiri/Kanan means outboard or inboard is being confirmed",
@@ -180,6 +246,11 @@ const TX = {
     gCv: "Sample standard deviation (n−1) of the four width points (L·C1·C2·R) ÷ mean × 100. It shows how evenly a single tire has worn. Lower is more even; higher means only one side across the width is wearing. No pass criteria are set yet, so read it only as a position relative to the fleet median.",
     gSc: "Shoulder (L·R) wear ÷ center (C1·C2) wear, where wear is the drop from new tread. Near 1.00 is even; above 1 means the shoulders wear first (commonly under-inflation or overload); below 1 means the center wears first (commonly over-inflation). The shoulder/center decision boundaries and the minimum wear that defers a decision come from tire_config.",
     legacyTitle: "Statistics unavailable",
+    avgNote: (n: number) => `Arithmetic mean of the mounted tire (latest segment) across ${n} vehicles. Vehicles without a value are left out.`,
+    avgCount: (n: number, total: number) => `Mean of ${n}/${total} vehicles`,
+    avgLine: "Average",
+    avgSelect: "Tread trend, width-direction and shoulder/center charts are not averaged because rounds and distance differ by vehicle. Select a vehicle to see them.",
+    avgNone: "No vehicle has 4-point raw measurements on this position yet.",
     noPoints: "This vehicle has no 4-point raw measurements yet. Record 4 points on the inspection input screen to populate this page.",
   },
 } as const;
@@ -193,11 +264,13 @@ export default function WearAnalysisTab() {
   // null = «최신 회차». 0 으로 두면 첫 회차가 기준일 자신이라 누적 마모량이
   // 전부 0.00 mm 로 열렸다. 차량·포지션을 바꿔도 최신에 붙어 있게 null 로 되돌린다.
   const [roundIdx, setRoundIdx] = useState<number | null>(null);
+  const isAvg = selCh === AVG;
+  const chs = TMS_DATA.units.map((u) => u.ch);
 
   const series = useQuery<TreadSeriesRow[]>({
     queryKey: ["v_tread_series", selCh],
     queryFn: () => listTreadSeries(selCh),
-    enabled: !!selCh,
+    enabled: !!selCh && !isAvg,
   });
   const segments = useQuery<WearRateSegmentRow[]>({
     queryKey: ["v_wear_rate_segment"],
@@ -206,7 +279,7 @@ export default function WearAnalysisTab() {
   const patterns = useQuery<WearPatternRow[]>({
     queryKey: ["v_wear_pattern", selCh],
     queryFn: () => listWearPattern(selCh),
-    enabled: !!selCh,
+    enabled: !!selCh && !isAvg,
   });
   const cvBench = useQuery<CvBenchmarkRow[]>({
     queryKey: ["v_cv_benchmark"],
@@ -215,56 +288,74 @@ export default function WearAnalysisTab() {
   const points = useQuery<TreadPointRow[]>({
     queryKey: ["tread_points", selCh],
     queryFn: () => listTreadPoints(selCh),
-    enabled: !!selCh,
+    enabled: !!selCh && !isAvg,
+  });
+  // «평균» — 차량별 쿼리 키를 그대로 써서 차량 칩과 캐시를 나눠 쓴다.
+  const allSeries = useQueries({
+    queries: chs.map((ch) => ({
+      queryKey: ["v_tread_series", ch],
+      queryFn: () => listTreadSeries(ch),
+      enabled: isAvg,
+    })),
+  });
+  const allPatterns = useQueries({
+    queries: chs.map((ch) => ({
+      queryKey: ["v_wear_pattern", ch],
+      queryFn: () => listWearPattern(ch),
+      enabled: isAvg,
+    })),
   });
 
   const loading =
-    series.isLoading || segments.isLoading || patterns.isLoading ||
-    cvBench.isLoading || points.isLoading;
+    segments.isLoading || cvBench.isLoading ||
+    (isAvg
+      ? allSeries.some((q) => q.isLoading) || allPatterns.some((q) => q.isLoading)
+      : series.isLoading || patterns.isLoading || points.isLoading);
   const failed =
-    series.isError || segments.isError || patterns.isError ||
-    cvBench.isError || points.isError;
+    segments.isError || cvBench.isError ||
+    (isAvg
+      ? allSeries.some((q) => q.isError) || allPatterns.some((q) => q.isError)
+      : series.isError || patterns.isError || points.isError);
 
   // ── 선택된 (ch, pos) 의 최신 세그먼트 ────────────────────────
-  const posSeries = useMemo(
-    () => (series.data ?? []).filter((r) => r.pos === selPos),
-    [series.data, selPos],
+  const stats = useMemo(
+    () => posStats(series.data ?? [], segments.data ?? [], patterns.data ?? [], selCh, selPos),
+    [series.data, segments.data, patterns.data, selCh, selPos],
   );
+  const { measured, segNo, segRows, segment, latestPattern, latest, initialAvg, totalWear, expectedKm } = stats;
 
-  /** 원시값을 가진 회차. 이게 비어 있으면 아래는 전부 그리지 않는다. */
-  const measured = useMemo(
-    () => posSeries.filter((r) => (r.point_count ?? 0) > 0 && r.tread_avg != null),
-    [posSeries],
-  );
+  /** «평균» — 차량마다 같은 규칙으로 고른 대표값. 원시값이 없는 차량은 뺀다.
+   *  7대 × 수백 행이라 메모하지 않는다(useQueries 결과는 렌더마다 새 배열이다). */
+  const perCh = isAvg
+    ? chs
+        .map((ch, i) => ({
+          ch,
+          st: posStats(allSeries[i].data ?? [], segments.data ?? [], allPatterns[i].data ?? [], ch, selPos),
+        }))
+        .filter((x) => x.st.measured.length > 0)
+    : [];
 
-  const segNo = measured.length ? measured[measured.length - 1].seg_no : null;
-  const segRows = useMemo(
-    () => (segNo == null ? [] : measured.filter((r) => r.seg_no === segNo)),
-    [measured, segNo],
-  );
+  const avg = {
+    testDist: meanOf(perCh.map((x) => x.st.segment?.test_distance_km)),
+    initial: meanOf(perCh.map((x) => x.st.initialAvg)),
+    current: meanOf(perCh.map((x) => x.st.latest?.tread_avg)),
+    min: meanOf(perCh.map((x) => x.st.latest?.tread_min)),
+    totalWear: meanOf(perCh.map((x) => x.st.totalWear)),
+    rate: meanOf(perCh.map((x) => x.st.segment?.wear_rate_km_ols)),
+    expKm: meanOf(perCh.map((x) => x.st.expectedKm)),
+    cv: meanOf(perCh.map((x) => x.st.latest?.tread_cv)),
+    sc: meanOf(perCh.map((x) => x.st.latestPattern?.sc_ratio)),
+  };
 
-  const segment = useMemo(
-    () =>
-      (segments.data ?? []).find(
-        (s) => s.ch === selCh && s.pos === selPos && s.seg_no === segNo,
-      ) ?? null,
-    [segments.data, selCh, selPos, segNo],
-  );
-
-  const latestPattern = useMemo(() => {
-    const rows = (patterns.data ?? []).filter(
-      (p) => p.pos === selPos && p.seg_no === segNo,
-    );
-    return rows.length ? rows[rows.length - 1] : null;
-  }, [patterns.data, selPos, segNo]);
-
-  const latest = segRows.length ? segRows[segRows.length - 1] : null;
-  const initialAvg = segment?.initial_avg ?? (segRows.length ? segRows[0].tread_avg : null);
-  const totalWear =
-    initialAvg != null && latest?.tread_avg != null
-      ? Math.round((initialAvg - latest.tread_avg) * 100) / 100
-      : null;
-
+  // ── «평균» 차트 3·4 — 선택 포지션을 차량끼리 비교
+  const avgRateData = perCh
+    .filter((x) => x.st.segment?.wear_rate_km_ols != null)
+    .map((x) => ({ label: `CH ${x.ch}`, rate: x.st.segment!.wear_rate_km_ols as number, isSel: false }))
+    .sort((a, b) => a.rate - b.rate);
+  const avgCvData = perCh
+    .filter((x) => x.st.latest?.tread_cv != null)
+    .map((x) => ({ label: `CH ${x.ch}`, cv: x.st.latest!.tread_cv as number, isSel: false }))
+    .sort((a, b) => a.cv - b.cv);
   // ── 차트 1. 트레드 추이 — 세그먼트마다 계열 키를 바꿔 선을 끊는다 (v2 §A-3 승계)
   const trendData = useMemo(() => {
     return measured.map((r) => {
@@ -407,8 +498,12 @@ export default function WearAnalysisTab() {
   }
 
   /** 이 포지션에 원시값이 하나도 없는 경우 — 안내만 띄우고 차트는 전부 생략한다. */
-  const legacyOnly = measured.length === 0;
+  const legacyOnly = isAvg ? perCh.length === 0 : measured.length === 0;
   const hasAnyPoints = (series.data ?? []).some((r) => (r.point_count ?? 0) > 0);
+  const rateRows = isAvg ? avgRateData : rateData;
+  const cvRows = isAvg ? avgCvData : cvData;
+  /** «평균» 칩의 KPI 각주 — 몇 대가 평균에 들어갔는지. */
+  const nOf = (m: { n: number } | null) => (m ? tx.avgCount(m.n, chs.length) : undefined);
 
   return (
     <div className="space-y-4">
@@ -431,6 +526,17 @@ export default function WearAnalysisTab() {
                 {u.ch}
               </button>
             ))}
+            <button
+              onClick={() => { setSelCh(AVG); setRoundIdx(null); }}
+              aria-pressed={isAvg}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                isAvg
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-muted/30 border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {tx.avg}
+            </button>
           </div>
         </div>
         <label className="flex items-center gap-2 ml-auto">
@@ -456,7 +562,8 @@ export default function WearAnalysisTab() {
               {/* 과거 회차는 최소값만 있어 평균·CV·편마모를 만들 수 없다.
                   추정으로 채우면 마모율 통계가 오염되므로 빈칸으로 둔다 (v3 §3). */}
               <p className="mt-1 text-sm text-muted-foreground">{t("note.legacy")}</p>
-              {!hasAnyPoints && (
+              {isAvg && <p className="mt-2 text-sm text-muted-foreground">{tx.avgNone}</p>}
+              {!isAvg && !hasAnyPoints && (
                 <p className="mt-2 text-sm text-muted-foreground">{tx.noPoints}</p>
               )}
             </div>
@@ -465,6 +572,36 @@ export default function WearAnalysisTab() {
       ) : (
         <>
           {/* ── KPI 카드 ─────────────────────────────────────── */}
+          {isAvg ? (
+            <>
+              {/* 차량별 대표값의 산술 평균. R²·편마모 판정은 한 타이어의 값이라 평균하지 않는다. */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Kpi label={tx.cTestDist} value={fmtDistanceKm(avg.testDist?.mean)} note={nOf(avg.testDist)} />
+                <Kpi
+                  label={tx.cTread}
+                  value={
+                    avg.initial == null || avg.current == null
+                      ? EMPTY
+                      : `${fmtTreadAvg(avg.initial.mean, false)} → ${fmtTreadAvg(avg.current.mean)}`
+                  }
+                  note={`${t("tread.min")} ${fmtTread(avg.min?.mean)} · ${nOf(avg.current) ?? ""}`}
+                />
+                <Kpi label={tx.cTotalWear} value={fmtTreadAvg(avg.totalWear?.mean)} note={nOf(avg.totalWear)} />
+                <Kpi label={tx.cWearRate} value={fmtWearRate(avg.rate?.mean)} note={nOf(avg.rate)} />
+                <Kpi label={tx.cExpKm} value={fmtDistanceKm(avg.expKm?.mean)} note={nOf(avg.expKm) ?? tx.expKmNone} />
+                <Kpi label={tx.cCv} value={fmtPercent(avg.cv?.mean)} note={nOf(avg.cv)} />
+                <Kpi label={tx.cSc} value={fmtRatio(avg.sc?.mean)} note={nOf(avg.sc)} />
+                <Kpi label={tx.cDamage} value={tx.noDamage} />
+              </div>
+              <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-4">
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p>{tx.avgNote(perCh.length)}</p>
+                  <p>{tx.avgSelect}</p>
+                </div>
+              </div>
+            </>
+          ) : (<>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Kpi label={tx.cTestDist} value={fmtDistanceKm(segment?.test_distance_km)} />
             <Kpi
@@ -483,6 +620,11 @@ export default function WearAnalysisTab() {
               note={segment?.r2 == null ? undefined : `R² ${fmtR2(segment.r2)}`}
               // R² < 0.80 은 대표값으로 쓰기 어렵다 — 값을 숨기지 않고 신뢰도만 알린다.
               warn={segment?.r2 != null && segment.r2 < 0.8 ? tx.r2Low : undefined}
+            />
+            <Kpi
+              label={tx.cExpKm}
+              value={fmtDistanceKm(expectedKm)}
+              note={expectedKm == null ? tx.expKmNone : tx.expKmNote}
             />
             <Kpi label={tx.cCv} value={fmtPercent(latest?.tread_cv)} note={tx.cvNoCriteria} />
             <Kpi
@@ -594,9 +736,10 @@ export default function WearAnalysisTab() {
           {/* 넓은 화면에서는 3단. 폭 4점·세그먼트 비교 차트는 가로를 다 쓸 이유가
               없다 — 한 행에 셋을 놓아야 서로 비교가 된다. 추이 차트(1·5)는 x축이
               날짜/거리라 좁히면 눈금이 뭉개지므로 전폭을 유지한다. */}
+          </>)}
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
             {/* ── 차트 2. 폭 방향 누적 마모량 ──────────────────── */}
-            {widthDates.length > 0 && (
+            {!isAvg && widthDates.length > 0 && (
               <ChartCard
                 title={tx.ch2}
                 right={
@@ -642,10 +785,10 @@ export default function WearAnalysisTab() {
             )}
 
             {/* ── 차트 3. 마모속도 비교 ────────────────────────── */}
-            {rateData.length > 0 && (
+            {rateRows.length > 0 && (
               <ChartCard title={tx.ch3}>
                 <ResponsiveContainer width="100%" height={CHART_H}>
-                  <BarChart data={rateData} layout="vertical" margin={CHART_MARGIN}>
+                  <BarChart data={rateRows} layout="vertical" margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
@@ -658,20 +801,28 @@ export default function WearAnalysisTab() {
                       formatter={(v: unknown) => fmtWearRate(v as number)}
                     />
                     <Bar dataKey="rate" name={t("wear.rate")} isAnimationActive={false}>
-                      {rateData.map((d) => (
+                      {rateRows.map((d) => (
                         <Cell key={d.label} fill={d.isSel ? HEX.ink : HEX.divider} />
                       ))}
                     </Bar>
+                    {isAvg && avg.rate && (
+                      <ReferenceLine
+                        x={avg.rate.mean}
+                        stroke={HEX.ink}
+                        strokeDasharray="5 4"
+                        label={{ value: `${tx.avgLine} ${fmtWearRate(avg.rate.mean)}`, fontSize: 10, fill: HEX.ink, position: "top" }}
+                      />
+                    )}
                   </BarChart>
                 </ResponsiveContainer>
               </ChartCard>
             )}
 
             {/* ── 차트 4. CV — 플릿 중앙값 기준선 ──────────────── */}
-            {cvData.length > 0 && (
+            {cvRows.length > 0 && (
               <ChartCard title={tx.ch4}>
                 <ResponsiveContainer width="100%" height={CHART_H}>
-                  <BarChart data={cvData} layout="vertical" margin={CHART_MARGIN}>
+                  <BarChart data={cvRows} layout="vertical" margin={CHART_MARGIN}>
                     <CartesianGrid strokeDasharray="3 3" stroke={HEX.band} />
                     <XAxis
                       type="number"
@@ -684,10 +835,18 @@ export default function WearAnalysisTab() {
                       formatter={(v: unknown) => fmtPercent(v as number)}
                     />
                     <Bar dataKey="cv" name={t("tread.cv")} isAnimationActive={false}>
-                      {cvData.map((d) => (
+                      {cvRows.map((d) => (
                         <Cell key={d.label} fill={d.isSel ? HEX.ink : HEX.divider} />
                       ))}
                     </Bar>
+                    {isAvg && avg.cv && (
+                      <ReferenceLine
+                        x={avg.cv.mean}
+                        stroke={HEX.ink}
+                        strokeDasharray="5 4"
+                        label={{ value: `${tx.avgLine} ${fmtPercent(avg.cv.mean)}`, fontSize: 10, fill: HEX.ink, position: "insideBottomRight" }}
+                      />
+                    )}
                     {/* 합격선이 아니라 플릿 내 위치 참고선이다 (설계서 §10). */}
                     {fleetCvMedian != null && (
                       <ReferenceLine
@@ -705,7 +864,7 @@ export default function WearAnalysisTab() {
           </div>
 
           {/* ── 차트 5. Shoulder vs Center + S/C 보조축 ──────── */}
-          {scData.length > 0 && (
+          {!isAvg && scData.length > 0 && (
             <ChartCard title={tx.ch5}>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={scData} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
