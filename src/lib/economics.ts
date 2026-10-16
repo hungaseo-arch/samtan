@@ -6,13 +6,24 @@
 import type { CostParam } from "@/data/tmsData";
 
 /**
+ * 시리얼의 브랜드 — v_tco_unit 과 같은 규칙. 정식 brand 컬럼이 생기기 전까지는
+ * NONTK- 플레이스홀더 시리얼만 경쟁제품이다.
+ */
+export function brandOfSerial(serial: string): "NONTK" | "TECHKING" {
+  return serial.startsWith("NONTK-") ? "NONTK" : "TECHKING";
+}
+
+/**
  * 기준일 이전 중 effectiveFrom 이 가장 최근인 원가 행 (v_tco_unit 의 lateral 과 같은 규칙).
  * date 가 null 이면 가장 최근 행. params 는 effectiveFrom 오름차순이 아니어도 된다.
+ * brand 를 주면 brand 가 null(전체 적용)이거나 같은 행만 본다 — TECHKING 단가가
+ * 경쟁제품(NONTK)에 씌워지지 않게 한다.
  */
-export function costParamAt(params: CostParam[], date: string | null): CostParam | null {
+export function costParamAt(params: CostParam[], date: string | null, brand?: string): CostParam | null {
   let best: CostParam | null = null;
   for (const p of params) {
     if (date != null && p.effectiveFrom > date) continue;
+    if (brand != null && p.brand != null && p.brand !== brand) continue;
     if (!best || p.effectiveFrom > best.effectiveFrom) best = p;
   }
   return best;

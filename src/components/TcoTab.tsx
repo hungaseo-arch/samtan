@@ -52,7 +52,15 @@ const TX = {
     cpkL: "CPK-L · 생애주기 기준",
     cpkLSub: "총소유비용 − 회수가치 ÷ 누적 주행거리",
     priceUnset: "단가 미확정",
-    priceUnsetHelp: "본당 단가가 확정되어야 산출됩니다. 보고서 9장 ⑦ 확인 요청 중입니다.",
+    priceUnsetHelp: "본당 단가가 원가 설정(cost_params)에 입력되어야 산출됩니다.",
+    paramsUnset: "파라미터 미확정",
+    paramsUnsetHelp: "단가는 입력됐지만 아래 부대비용 파라미터가 비어 있어 산출하지 않습니다.",
+    priceTitle: "적용 단가",
+    priceLine: (from: string, sale: string, market: string) =>
+      `${from} 부터 · TECHKING 14.00R24 · 판매가 ${sale} · 시장가 ${market}`,
+    priceSave: (pct: string) => `시장가 대비 ${pct}`,
+    vatExcl: "부가세(PPN) 미포함",
+    priceNontk: "경쟁제품(NONTK) 단가는 미확정 — 해당 타이어 CPK 는 산출하지 않습니다.",
     missingLabel: "대기 중인 파라미터",
     basisSample: "표본",
     basisTires: "본",
@@ -119,7 +127,15 @@ const TX = {
     cpkL: "CPK-L · dasar siklus hidup",
     cpkLSub: "Biaya kepemilikan total − nilai pemulihan ÷ jarak tempuh kumulatif",
     priceUnset: "Harga satuan belum pasti",
-    priceUnsetHelp: "Perlu harga per ban dulu. Sedang dikonfirmasi (laporan bab 9 ⑦).",
+    priceUnsetHelp: "Perlu harga per ban di pengaturan biaya (cost_params).",
+    paramsUnset: "Parameter belum pasti",
+    paramsUnsetHelp: "Harga satuan sudah diisi, tetapi parameter biaya tambahan di bawah masih kosong sehingga belum dihitung.",
+    priceTitle: "Harga yang berlaku",
+    priceLine: (from: string, sale: string, market: string) =>
+      `mulai ${from} · TECHKING 14.00R24 · harga jual ${sale} · harga pasar ${market}`,
+    priceSave: (pct: string) => `${pct} dibanding harga pasar`,
+    vatExcl: "belum termasuk PPN",
+    priceNontk: "Harga ban pembanding (NONTK) belum pasti — CPK ban tersebut tidak dihitung.",
     missingLabel: "Parameter yang ditunggu",
     basisSample: "Sampel",
     basisTires: "ban",
@@ -186,7 +202,15 @@ const TX = {
     cpkL: "CPK-L · lifecycle basis",
     cpkLSub: "Total ownership cost − recovery value ÷ cumulative distance",
     priceUnset: "Unit price not set",
-    priceUnsetHelp: "Requires the per-tire price. Confirmation pending (report ch. 9 ⑦).",
+    priceUnsetHelp: "Requires the per-tire price in the cost settings (cost_params).",
+    paramsUnset: "Parameters pending",
+    paramsUnsetHelp: "The unit price is set, but the add-on cost parameters below are still empty, so this is not computed.",
+    priceTitle: "Applied price",
+    priceLine: (from: string, sale: string, market: string) =>
+      `from ${from} · TECHKING 14.00R24 · selling price ${sale} · market price ${market}`,
+    priceSave: (pct: string) => `${pct} vs market price`,
+    vatExcl: "excl. VAT (PPN)",
+    priceNontk: "Competitor (NONTK) price not set — CPK is not computed for those tires.",
     missingLabel: "Parameters awaited",
     basisSample: "Sample",
     basisTires: "tires",
@@ -298,11 +322,15 @@ export default function TcoTab() {
   );
 
   /** 아직 못 채운 파라미터의 합집합. 개체마다 같은 것이 빠지므로 중복을 없앤다. */
+  /** TECHKING 단가가 입력돼 있으면 CPK 가 비는 이유는 단가가 아니라 부대비용 파라미터다 */
+  const priced = params.data?.unit_price != null;
   const missing = useMemo(() => {
     const s = new Set<string>();
     for (const u of units.data ?? []) for (const m of u.params_missing ?? []) s.add(m);
+    // 단가가 있으면 unit_price 결손은 경쟁제품(NONTK) 몫 — 카드가 아니라 단가 안내에서 따로 알린다
+    if (params.data?.unit_price != null) s.delete("unit_price");
     return [...s].sort();
-  }, [units.data]);
+  }, [units.data, params.data]);
 
   /** 비용 구성 — 차량별 합계. 전 항목 null 이면 빈 배열이라 차트를 그리지 않는다. */
   const costByCh = useMemo(() => {
@@ -434,10 +462,25 @@ export default function TcoTab() {
           `${tx.basisCosted} ${fmtInt(all?.costed_count ?? 0)}`
         } />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_avg ?? null} tx={tx} missing={missing} />
-          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_avg ?? null} tx={tx} missing={missing} />
-          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_avg ?? null} tx={tx} missing={missing} />
+          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_avg ?? null} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_avg ?? null} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_avg ?? null} tx={tx} missing={missing} priced={priced} />
         </div>
+        {params.data?.unit_price != null && (
+          <Note tone="info">
+            <span className="font-bold">{tx.priceTitle}</span>{" — "}
+            {tx.priceLine(
+              params.data.effective_from,
+              fmtCurrencyDoc(params.data.unit_price, params.data.currency),
+              fmtCurrencyDoc(params.data.market_price ?? null, params.data.currency),
+            )}
+            {params.data.market_price != null && params.data.market_price > 0 && (
+              <>{" ("}{tx.priceSave(fmtPercent(((params.data.unit_price - params.data.market_price) / params.data.market_price) * 100))}{")"}</>
+            )}
+            {" · "}{tx.vatExcl}
+            {(units.data ?? []).some((u) => u.brand === "NONTK") && <>{" · "}{tx.priceNontk}</>}
+          </Note>
+        )}
         {(all?.km_incomplete_count ?? 0) > 0 && (
           <Note tone="warn">
             <span className="font-bold">{tx.kmIncomplete} {fmtInt(all!.km_incomplete_count)} / {fmtInt(all!.sample_size)}</span>
@@ -684,14 +727,16 @@ function Kpi({ label, value, strong }: { label: string; value: string; strong?: 
  * 대기 중인 파라미터를 쓴다. 빈칸은 "0" 으로도 "누락" 으로도 읽혀서 못 쓴다.
  */
 function CpkCard({
-  label, sub, value, tx, missing,
+  label, sub, value, tx, missing, priced,
 }: {
   label: string;
   sub: string;
   value: number | null;
   // TX 는 as const 라 로케일마다 리터럴 타입이 갈린다. 여기서 쓰는 3개만 구조로 받는다.
-  tx: { priceUnset: string; priceUnsetHelp: string; missingLabel: string };
+  tx: { priceUnset: string; priceUnsetHelp: string; paramsUnset: string; paramsUnsetHelp: string; missingLabel: string };
   missing: string[];
+  /** 단가가 입력된 상태면 «단가 미확정» 대신 «파라미터 미확정» */
+  priced: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4" style={{ borderTopColor: HEX.blue, borderTopWidth: 3 }}>
@@ -701,8 +746,8 @@ function CpkCard({
         <p className="mt-3 font-mono text-xl font-bold text-foreground">{fmtCpk(value)}</p>
       ) : (
         <>
-          <p className="mt-3 text-sm font-bold" style={{ color: HEX.warn }}>{tx.priceUnset}</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">{tx.priceUnsetHelp}</p>
+          <p className="mt-3 text-sm font-bold" style={{ color: HEX.warn }}>{priced ? tx.paramsUnset : tx.priceUnset}</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">{priced ? tx.paramsUnsetHelp : tx.priceUnsetHelp}</p>
           {missing.length > 0 && (
             <>
               <p className="mt-2 text-[11px] font-semibold text-muted-foreground">{tx.missingLabel}</p>

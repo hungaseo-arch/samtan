@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import { TMS_DATA } from "@/data/tmsData";
 import { todayInField } from "@/lib/format";
-import { costParamAt } from "@/lib/economics";
+import { brandOfSerial, costParamAt } from "@/lib/economics";
 import { updateLifetimePrice } from "@/api/tires";
 import {
   listDamageCodes, registerReplacement, ReplacementEntryError,
@@ -193,7 +193,7 @@ export default function ReplacementEntryModal({
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
   const existingLife = TMS_DATA.life.find((l) => l.serial === serial.trim());
-  const param = costParamAt(TMS_DATA.costParams, date);
+  const param = costParamAt(TMS_DATA.costParams, date, brandOfSerial(serial.trim()));
   const defaultPrice = existingLife?.purchasePrice ?? param?.unitPrice ?? null;
   const priceSrc = existingLife?.purchasePrice != null ? "life" : param?.unitPrice != null ? "params" : null;
   const priceCurrency = existingLife?.currency ?? param?.currency ?? "IDR";

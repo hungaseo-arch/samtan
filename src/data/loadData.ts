@@ -378,7 +378,10 @@ export async function loadData(): Promise<void> {
 
   TMS_DATA.costParams = (costs.data ?? []).map((r) => ({
     effectiveFrom: r.effective_from,
+    brand: r.brand ?? null,
     unitPrice: numOrNull(r.unit_price),
+    // 20261016130000 미적용 환경에서는 컬럼이 없다
+    marketPrice: numOrNull(r.market_price),
     currency: r.currency ?? "IDR",
     retreadAllowed: r.retread_allowed === true,
   }));

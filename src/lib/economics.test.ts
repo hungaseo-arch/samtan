@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost, toIdr } from "./economics";
+import { brandOfSerial, costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost, toIdr } from "./economics";
 import type { CostParam } from "@/data/tmsData";
 
-const P = (effectiveFrom: string, unitPrice: number | null): CostParam =>
-  ({ effectiveFrom, unitPrice, currency: "IDR", retreadAllowed: false });
+const P = (effectiveFrom: string, unitPrice: number | null, brand: string | null = null): CostParam =>
+  ({ effectiveFrom, brand, unitPrice, marketPrice: null, currency: "IDR", retreadAllowed: false });
 
 describe("economics — B-1 원가·CPK", () => {
   it("원가 행은 기준일 이전 최신 행, 기준일 없으면 최신 행", () => {
@@ -12,6 +12,14 @@ describe("economics — B-1 원가·CPK", () => {
     expect(costParamAt(ps, "2026-06-01")?.unitPrice).toBe(120);
     expect(costParamAt(ps, "2025-12-31")).toBeNull();
     expect(costParamAt(ps, null)?.unitPrice).toBe(120);
+  });
+
+  it("브랜드 지정 단가는 다른 브랜드에 씌우지 않는다 (2026 TECHKING 단가 — NONTK 는 미확정)", () => {
+    const ps = [P("2026-01-01", 13_000_000, "TECHKING")];
+    expect(costParamAt(ps, "2026-07-10", brandOfSerial("DA1BFANH04814D"))?.unitPrice).toBe(13_000_000);
+    expect(costParamAt(ps, "2026-07-10", brandOfSerial("NONTK-01"))).toBeNull();
+    // 전체 적용(brand null) 행은 어느 브랜드에나
+    expect(costParamAt([P("2026-01-01", 900)], "2026-07-10", "NONTK")?.unitPrice).toBe(900);
   });
 
   it("총비용 = 구매가(없으면 기본 단가) + 재생비, 둘 다 없으면 null", () => {

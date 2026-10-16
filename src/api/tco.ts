@@ -118,6 +118,8 @@ export interface CostParamsRow {
   brand: string | null;
   size: string | null;
   unit_price: number | null;
+  /** 시장가(참고값, 20261016130000). CPK 에는 쓰지 않는다. 컬럼 미적용 환경에서는 undefined */
+  market_price?: number | null;
   freight_per_tire: number | null;
   mount_cost: number | null;
   repair_avg: number | null;
@@ -179,6 +181,8 @@ export async function getCurrentCostParams(): Promise<CostParamsRow | null> {
     .from("cost_params")
     .select("*")
     .is("deleted_at", null)
+    // 이 화면의 카드·시나리오는 시험 타이어(TECHKING) 기준 — 경쟁제품 전용 행은 집지 않는다
+    .or("brand.is.null,brand.eq.TECHKING")
     .order("effective_from", { ascending: false })
     .limit(1);
   if (error) throw error;

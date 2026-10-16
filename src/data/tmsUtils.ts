@@ -1,6 +1,6 @@
 // @section: tms-utils
 import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm } from "./tmsData";
-import { costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
+import { brandOfSerial, costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
@@ -1003,7 +1003,7 @@ export function tireCostOf(serial: string): TireCost | null {
   const l = TMS_DATA.life.find((x) => x.serial === serial);
   if (!l) return null;
   const installDate = l.install && /^\d{4}-\d{2}-\d{2}/.test(l.install) ? l.install.slice(0, 10) : null;
-  const param = costParamAt(TMS_DATA.costParams, installDate);
+  const param = costParamAt(TMS_DATA.costParams, installDate, brandOfSerial(serial));
   const price = l.purchasePrice ?? param?.unitPrice ?? null;
   const priceSource = l.purchasePrice != null ? "purchase" : param?.unitPrice != null ? "params" : null;
   const currency = (l.purchasePrice != null ? l.currency : null) ?? param?.currency ?? "IDR";

@@ -240,8 +240,12 @@ export interface LifeRecord {
 /** cost_params 이력 1행 중 화면 산출에 필요한 것만 (§B-1). 장착일 기준으로 적용한다 */
 export interface CostParam {
   effectiveFrom: string;
+  /** null = 전 브랜드 적용. 'TECHKING' / 'NONTK' — v_tco_unit 과 같은 규칙 */
+  brand: string | null;
   /** null = 단가 미확정 — CPK 를 0 으로 채우지 않는다 */
   unitPrice: number | null;
+  /** 시장가(참고값). CPK 에는 쓰지 않는다 */
+  marketPrice: number | null;
   currency: string;
   retreadAllowed: boolean;
 }
