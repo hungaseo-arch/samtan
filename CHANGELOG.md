@@ -5,7 +5,7 @@
 
 ## [Unreleased] — 2026-10-16 · CHK-TMS-2026-10-16-WEB 웹사이트 개선
 
-결과 보고 `docs/CHK-TMS-2026-10-16-WEB_결과.md`. 마이그레이션 3건은 **prod 미적용** (decisions M-7).
+결과 보고 `docs/CHK-TMS-2026-10-16-WEB_결과.md`. 마이그레이션 3건은 **prod 적용 완료 2026-10-16** (decisions M-7).
 
 ### Fixed
 - 현재 장착 단일 출처 (R-1 · LAY-01 · TRD-01 · LIFE-03) — 상태·최근값은 `v_current_tire` 시리얼과 같은 구간에서만 뽑는다.
@@ -29,7 +29,7 @@
 - 공기압 알림에 측정일·경과일, «측정 본수» 를 실제 판정 본수로 (PRS-02).
 - 대시보드 알림 모달 «타이어 N본 · 알림 M건» (DASH-07). «최초 장착일» → «최초 점검일» (DASH-06).
 - 라우트별 문서 제목 `마모 분석 · SAMTAN TMS` (COM-08). 탭 아이콘을 정사각 S 마크로 (COM-07 일부).
-- 마이그레이션 (미적용): `20261016170000_tire_config_stale_days.sql` · `20261016180000_ck_pressure_50_150.sql` ·
+- 마이그레이션 (prod 적용 2026-10-16): `20261016170000_tire_config_stale_days.sql` · `20261016180000_ck_pressure_50_150.sql` ·
   `20261016190000_tread_points_single_zero_outlier.sql`.
 - `docs/트레드0-현장확인-20261016.md` — 0.0 mm 측정 현장 확인 목록.
 
