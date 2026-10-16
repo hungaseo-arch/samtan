@@ -3,6 +3,26 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르고 날짜는 WIB 기준입니다.
 버전 태그는 아직 쓰지 않으므로 배포 단위 대신 **작업 묶음(Phase · Task)** 으로 나눕니다.
 
+## [Unreleased] — 2026-10-16 · WO-TMS-2026-10-LIFE 수명·주행거리 보정
+
+### Fixed
+- `v_tire_ledger` 구간 km 과대평가 — 장착일 이전 회차 km 대신 교체 KM → 같은 날 회차 → 앞뒤 회차 날짜 비례 보간 →
+  앞 회차(`APPROX`) 순으로 경계 km 산출. `km_method` · `km_start_src_date` · `km_end_src_date` 등 근거 열 추가.
+  `v_tire_ledger_total.cumulative_km` 은 OK + APPROX 합, `approx_segments` 추가 (`20261016150000_v_tire_ledger_interpolate.sql`).
+  prod 기준 시리얼 29본 중 27본 값 변동, 평균 25,191.8 → 23,114.0 km.
+
+### Added
+- `v_odometer_anomaly` 뷰 — KM_DECREASE · KM_DAILY · SPEED · HM_DAILY. 임계값 `tire_config.odo_daily_km_max`(800) ·
+  `odo_speed_kmh_max`(60) · `odo_daily_hm_max`(24), 관리자 › 판정 기준 «주행계 이상» 에서 조정 (`20261016140000_v_odometer_anomaly.sql`).
+- 점검 입력 주행계 경고 — KM 감소는 리셋 사유 필수, 그 외는 확인 체크 필수. 저장 시 비고에 `[ODO-WARN]` 접두어 (`src/lib/odometerCheck.ts`).
+- 마모 분석 «결과 요약» 카드 — 정상 / 주의 / 데이터 확인 필요 배지와 수명·예측·패턴·데이터 4줄 (`ResultSummaryCard.tsx`, `src/lib/resultSummary.ts`).
+- 수명 DB 주행 KM `(하한값)` 표시(툴팁 «장착일 이전 주행 미상»), 평균 행 주행 KM 을 하한값 제외 평균으로 대체(사용자 결정), Excel `km_flag` · `km_method` 열.
+- `docs/backfill_removal_code_20261016.sql` — removal_code 백필 초안 (ROLLBACK 으로 끝남, **미실행**).
+
+### Changed
+- 교체 등록 모달 — KM/HM 을 교체일 아래로 올리고 직전 회차 값을 placeholder 로 표시. KM 미입력 저장 시 확인 창.
+  탈착 사유(`removal_code`) 필수.
+
 ## [Unreleased] — 2026-09-06 · 사이트 최적화
 
 ### Added

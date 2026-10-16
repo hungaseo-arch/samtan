@@ -1,11 +1,12 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm, KM_USABLE, odometerLimits } from "./tmsData";
 import { brandOfSerial, costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
 import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
 import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
 import { inspectionAge, type InspectionAge } from "@/lib/inspectionAge";
+import { scanOdometer, type OdoAnomaly, type OdoReading } from "@/lib/odometerCheck";
 import {
   exposureIntervals, exposureSum, meanDeviationPct, pressureComplianceOf,
   type Compliance, type PressRound,
@@ -423,6 +424,12 @@ export interface LifeCalc {
   expectedHm: number | null; // 예상 HM = 주행 HR + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 HR)
   /** 예상 교체 시점 — tread_order(발주) 기준 (§A-2). 0 mm 외삽인 expectedKm 과 다르다 */
   projection: Projection;
+  /**
+   * 주행 KM 이 하한값인가 (WO-TMS-2026-10-LIFE T-2). 원장에 거리로 못 쓰는 구간
+   * (NO_KM·KM_DECREASE)이 있거나 측정 점열 대체 경로(최신 − 최초)를 탔으면 true —
+   * 장착일 이전·구간 밖 주행이 빠져 있다. TCO 탭 invalid_segments > 0 과 같은 기준.
+   */
+  kmIsLowerBound: boolean;
 }
 
 /**
@@ -529,12 +536,43 @@ export function ledgerOf(serial: string): LedgerSegment[] {
   return serial ? TMS_DATA.ledger[serial] ?? [] : [];
 }
 
-/** 차량 `ch` 의 `date` 시점 주행계 — `hmAt()` 과 같은 규칙(그 날짜 이하 마지막 회차). */
+/**
+ * 차량 `ch` 의 `date` 시점 주행계 — `hmAt()` 과 같은 규칙(그 날짜 이하 마지막 회차).
+ * 원장에 km_start(보간값)가 있으면 그쪽이 우선이다. 이 함수는 뷰 미적용 환경의 폴백이다.
+ */
 function kmAt(ch: string, date: string | null): number | null {
   return sampleAt(ch, date, (u, i) => {
     const v = u.km[i];
     return typeof v === "number" ? v : null;
   });
+}
+
+/**
+ * 차량의 점검 회차를 (일자, KM, HM) 열로 — 같은 날 여러 행은 최대값, 0 이하는 미측정.
+ * v_odometer_anomaly 의 회차 CTE 와 같은 규칙. units 의 km·hm 은 이미 리셋 보정된 연속값이다.
+ */
+export function odoReadings(u: Unit): OdoReading[] {
+  const byDate = new Map<string, OdoReading>();
+  u.dates.forEach((d, i) => {
+    if (!d) return;
+    const kmRaw = u.km[i];
+    const km = typeof kmRaw === "number" && kmRaw > 0 ? kmRaw : null;
+    const hm = typeof u.hm[i] === "number" && (u.hm[i] as number) > 0 ? (u.hm[i] as number) : null;
+    const prev = byDate.get(d);
+    byDate.set(d, {
+      date: d,
+      km: prev?.km != null && km != null ? Math.max(prev.km, km) : (km ?? prev?.km ?? null),
+      hm: prev?.hm != null && hm != null ? Math.max(prev.hm, hm) : (hm ?? prev?.hm ?? null),
+    });
+  });
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** 차량 `ch` 의 주행계 이상 구간 (WO-TMS-2026-10-LIFE T-3). 임계값은 tire_config.odo_* */
+export function odometerAnomalies(ch: string): OdoAnomaly[] {
+  const u = TMS_DATA.units.find((x) => x.ch === ch);
+  if (!u) return [];
+  return scanOdometer(ch, odoReadings(u), odometerLimits());
 }
 
 /**
@@ -575,8 +613,10 @@ function sampleAt(
  *   그 타이어가 측정된 회차 밖(교체 당일)에 있어서 점검 점열의 차이로는 잡히지 않는다.
  *   `km_flag = 'OK'` 인 구간을 합산하며, 한 시리얼이 차량·포지션을 옮겨 다닌 경우도
  *   구간마다 더해진다.
+ * - 구간 경계 km 는 원장이 교체 km_at → 앞뒤 회차 날짜 보간으로 낸다 (WO-TMS-2026-10-LIFE T-1).
+ *   `APPROX`(뒤 회차가 없어 앞 회차 값)도 거리로 합산한다.
  * - 산출 가능한 구간이 하나도 없으면(최초 장착분은 `mounted_at` 이 없어 전부 `NO_KM`)
- *   종전대로 측정 점열의 최신 − 최초 로 되돌아간다.
+ *   종전대로 측정 점열의 최신 − 최초 로 되돌아간다. 이 값은 하한값이다 (`kmIsLowerBound`).
  * - **마모 점열은 구간 근거가 inspections.serial 이다** (원장의 장착일이 아니라).
  *   측정값이 그 타이어의 것임을 회차 단위로 보장하므로 앞뒤 타이어가 섞이지 않는다.
  *   차량이 바뀌면 km 가 리셋되므로 구간별 누적 오프셋으로 이어 붙인다.
@@ -618,10 +658,13 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     );
     const g = gi >= 0 ? segs[gi] : null;
     if (gi >= 0) used.add(gi);
-    const measurable = g != null && g.kmFlag === "OK" && g.segmentKm != null;
+    const measurable = g != null && KM_USABLE.includes(g.kmFlag) && g.segmentKm != null;
 
-    const kmOrigin = measurable && g.mountedAt ? kmAt(g.ch, g.mountedAt) ?? raw[0].km : raw[0].km;
-    const hmOrigin = (measurable && g.mountedAt ? hmAt(g.ch, g.mountedAt) : null)
+    // 원점은 원장의 km_start(보간값) — 없으면(뷰 미적용) 종전 규칙(장착일 이하 마지막 회차)
+    const kmOrigin = measurable && g.mountedAt
+      ? g.kmStart ?? kmAt(g.ch, g.mountedAt) ?? raw[0].km
+      : raw[0].km;
+    const hmOrigin = (measurable && g.mountedAt ? g.hmStart ?? hmAt(g.ch, g.mountedAt) : null)
       ?? raw.find((p) => p.hm != null)?.hm ?? null;
 
     for (const p of raw) {
@@ -633,7 +676,7 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     }
     // 다음 구간은 이 구간이 실제로 달린 만큼 뒤에서 시작한다.
     kmBase += measurable ? (g.segmentKm as number) : raw[raw.length - 1].km - raw[0].km;
-    const hmEnd = measurable && g.removedAt ? hmAt(g.ch, g.removedAt) : null;
+    const hmEnd = measurable && g.removedAt ? g.hmEnd ?? hmAt(g.ch, g.removedAt) : null;
     hmBase += hmEnd != null && hmOrigin != null
       ? hmEnd - hmOrigin
       : (pts[pts.length - 1].hm ?? hmBase) - hmBase;
@@ -643,11 +686,13 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   const wear = monotoneWear(pts);
   if (wear.length < 2) return null;
 
-  // ④ 주행 KM — 원장의 산출 가능 구간 합. 없으면 측정 점열의 증분.
-  const ok = ledgerOf(serial).filter((g) => g.kmFlag === "OK" && g.segmentKm != null);
+  // ④ 주행 KM — 원장의 산출 가능 구간(OK·APPROX) 합. 없으면 측정 점열의 증분.
+  //    점열 증분은 첫 점검 이전 주행이 빠진 하한값이다 (T-2 — kmIsLowerBound).
+  const ok = segs.filter((g) => KM_USABLE.includes(g.kmFlag) && g.segmentKm != null);
   const ledgerKm = ok.reduce((sum, g) => sum + (g.segmentKm as number), 0);
   const spanKm = wear[wear.length - 1].km - wear[0].km;
   const km = ok.length ? (ledgerKm > 0 ? ledgerKm : null) : (spanKm > 0 ? spanKm : null);
+  const kmIsLowerBound = !ok.length || segs.some((g) => !KM_USABLE.includes(g.kmFlag));
 
   // ⑤ 주행 HR — 같은 구간의 HM 차. 원장에 HM 이 없어 구간 경계일로 되짚는다.
   let hr: number | null = null;
@@ -655,8 +700,8 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     let sum = 0;
     let any = false;
     for (const g of ok) {
-      const a = hmAt(g.ch, g.mountedAt);
-      const b = hmAt(g.ch, g.removedAt);
+      const a = g.hmStart ?? hmAt(g.ch, g.mountedAt);
+      const b = g.hmEnd ?? hmAt(g.ch, g.removedAt);
       if (a == null || b == null || b <= a) continue;
       sum += b - a;
       any = true;
@@ -699,7 +744,7 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   // 보정값(§A-9)이 있으면 km 이 이미 연속이라 보통 회차처럼 예측된다.
   if (projection.reason && meterUnresolved(unit)) projection.reason = "hm_reset";
 
-  return { ch, pos, km, hr, expectedKm, expectedHm, projection };
+  return { ch, pos, km, hr, expectedKm, expectedHm, projection, kmIsLowerBound };
 }
 
 /** 교체 준비 목록 기본 창 (일). 대시보드 카드와 수명 DB 필터가 같은 값을 쓴다 */
