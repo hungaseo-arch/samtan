@@ -1,14 +1,29 @@
 // @section: life-tab
-import { useState, useEffect, useRef } from "react";
-import { TMS_DATA, TREAD_WARN, TREAD_DANGER } from "@/data/tmsData";
-import { codeName, fmtD, fmtInt, fmtTread, lifeCalc, findUnitBySerial, latestTreadOf, tireHistory, tireMovements } from "@/data/tmsUtils";
+import { Fragment, useState, useEffect, useRef } from "react";
+import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved } from "@/data/tmsData";
+import type { TreadLevel } from "@/data/tmsData";
+import {
+  codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
+  prepDaysLeft, PREP_WINDOW_DAYS, PREP_URGENT_DAYS, tireCostOf, type LifeCalc,
+} from "@/data/tmsUtils";
+import { EMPTY, fmtCpk, fmtInt, fmtTread, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
-import { motion, AnimatePresence } from "framer-motion";
 import { X, Download } from "lucide-react";
 import { useLang } from "@/i18n";
 import { useAuth } from "@/auth/AuthProvider";
+import TireDetailCard from "./TireDetailCard";
+import IrregularWearBadge from "./IrregularWearBadge";
+import TireCostSection from "./TireCostSection";
 
-const TX = {
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
+const TREAD_CLS: Record<TreadLevel, string> = {
+  ok: "text-level-ok",
+  warn: "text-level-warn font-bold",
+  order: "text-level-order font-bold",
+  danger: "text-level-danger font-bold",
+};
+
+const buildTX = () => ({
   ko: {
     dbTitle: "타이어 수명 DB",
     status: "상태",
@@ -18,15 +33,33 @@ const TX = {
     colSerial: "시리얼",
     colInstall: "최초 장착일",
     colTread: "최근 트레드",
+    avgPrefix: "평균 ",
+    colTreadAvg: "최근 트레드(4점평균)",
     colKm: "주행 KM",
     colHr: "주행 HR",
-    colExpKm: "예상 KM",
-    colExpHm: "예상 HM",
+    colExpKm: "예상 KM (0mm)",
+    colExpHm: "예상 HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "예상 CPK",
+    colTotalCost: "총비용",
+    cpkExpPrefix: "예상 ",
+    colCurrency: "통화",
+    colRemKm: "잔여 KM (발주)",
+    colProjDate: "예상 교체일",
+    colWearRate: "마모율 (mm/1,000km)",
+    due30: "30일 이내 교체",
+    projDays: "{n}일",
+    projOver: "{n}일 경과",
+    projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족" },
+    foot8a: "잔여 KM · 예상 교체일",
+    foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일입니다. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율)입니다. 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개입니다.`,
     colStatus: "상태",
     colNote: "비고",
     avg: "평균",
     nonMeasured: "측정 외",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "계기 리셋 보정값 적용 — HM·KM 을 리셋 전 누적값에 이어 계산합니다",
     foot1a: "행을 클릭",
     foot1b: "하면 해당 타이어의 전체 히스토리(장착·탈착·폐기·HM Reset·측정 회차)를 모달로 확인할 수 있습니다.",
     foot2a: "목표 수명 {km} km",
@@ -34,7 +67,11 @@ const TX = {
     foot3a: "최근 수명(km·hr)",
     foot3b: " = 측정 시작(신품)부터 최신 회차까지 누적 주행거리·가동시간. ",
     foot3c: "최근 트레드",
-    foot3d: " = 해당 타이어의 가장 최근 측정값(≤8mm 주의, ≤5mm 교체권장).",
+    foot3d: " = 가장 최근 회차의 폭 4점 중 ",
+    foot3dMin: "최소값",
+    foot3d2: `입니다(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 즉시교체). 교체 판정은 가장 얇은 지점을 기준으로 하기 때문입니다. 그 아래 회색 숫자는 같은 회차의 `,
+    foot3dAvg: "4점 평균",
+    foot3d3: "입니다. 중앙 그루브가 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 주행 중일 수 있으며, 두 값의 차이가 그 상태를 보여줍니다. 4점 측정 이전 회차는 평균이 표시되지 않습니다.",
     foot4a: "HM Reset",
     foot4b: " = 운용 중 차량의 가동시간계(Hour Meter)·주행거리가 0으로 초기화된 차량(CH 832·835). 리셋 이전 누적 이력이 끊겨 수명·예상수명이 ",
     foot4c: "로 표시될 수 있습니다.",
@@ -61,6 +98,14 @@ const TX = {
     hKmHr: "주행 KM / HR",
     hExpKmHm: "예상 KM / HM",
     hTread: "최근 트레드",
+    wL: "좌", wC1: "중1", wC2: "중2", wR: "우",
+    hTreadMin: "최소",
+    hTreadAvg: "평균",
+    colIrregular: "편마모",
+    hWidths: "폭 4점",
+    hNoWidths: "4점 측정 이전 회차",
+    modalFoot: "굵은 숫자가 그 회차의 최소값이며 교체 판정과 색상은 최소값 기준입니다. 평균은 참고용으로, 중앙이 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 있습니다.",
+    colDepth: "트레드(mm)",
     measHist: "측정 이력",
     sessions: "회차",
     noMeasData: "측정 데이터 없음",
@@ -85,15 +130,33 @@ const TX = {
     colSerial: "Serial",
     colInstall: "Tgl pasang awal",
     colTread: "Tapak terkini",
+    avgPrefix: "rerata ",
+    colTreadAvg: "Tapak terkini (rata-rata 4 titik)",
     colKm: "KM tempuh",
     colHr: "Jam (HR)",
-    colExpKm: "Prediksi KM",
-    colExpHm: "Prediksi HM",
+    colExpKm: "Prediksi KM (0mm)",
+    colExpHm: "Prediksi HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "CPK prediksi",
+    colTotalCost: "Total biaya",
+    cpkExpPrefix: "pred. ",
+    colCurrency: "Mata uang",
+    colRemKm: "Sisa KM (pesan)",
+    colProjDate: "Prakiraan tgl ganti",
+    colWearRate: "Laju aus (mm/1,000km)",
+    due30: "Ganti ≤ 30 hari",
+    projDays: "{n} hari",
+    projOver: "lewat {n} hari",
+    projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang" },
+    foot8a: "Sisa KM · Prakiraan tgl ganti",
+    foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm.`,
     colStatus: "Status",
     colNote: "Catatan",
     avg: "Rata-rata",
     nonMeasured: "Non-ukur",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "Koreksi reset meter diterapkan — HM·KM dilanjutkan dari akumulasi sebelum reset",
     foot1a: "Klik baris",
     foot1b: " untuk melihat riwayat lengkap ban (pasang·lepas·afkir·HM Reset·sesi ukur) dalam modal.",
     foot2a: "Target umur {km} km",
@@ -101,7 +164,11 @@ const TX = {
     foot3a: "Umur terkini (km·hr)",
     foot3b: " = akumulasi jarak·jam dari awal ukur (baru) hingga sesi terbaru. ",
     foot3c: "Tapak terkini",
-    foot3d: " = nilai ukur paling baru ban tersebut (≤8mm perhatian, ≤5mm disarankan ganti).",
+    foot3d: " = ",
+    foot3dMin: "nilai terkecil dari 4 titik lebar",
+    foot3d2: ` pada sesi ukur terbaru (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm ganti segera). Penilaian ganti selalu memakai titik paling tipis. Angka abu-abu di bawahnya adalah `,
+    foot3dAvg: "rata-rata 4 titik",
+    foot3d3: " pada sesi yang sama. Pada ban yang alur tengahnya habis lebih dulu, nilai terkecil bisa 0.0mm padahal bahunya masih tersisa dan ban masih jalan — selisih kedua angka menunjukkan kondisi itu. Sesi sebelum pengukuran 4 titik tidak menampilkan rata-rata.",
     foot4a: "HM Reset",
     foot4b: " = unit yang Hour Meter·jarak tempuhnya di-reset ke 0 saat operasi (CH 832·835). Riwayat akumulasi sebelum reset terputus sehingga umur·prediksi dapat ditampilkan ",
     foot4c: ".",
@@ -128,6 +195,14 @@ const TX = {
     hKmHr: "KM tempuh / HR",
     hExpKmHm: "Prediksi KM / HM",
     hTread: "Tapak terkini",
+    wL: "Kiri", wC1: "Tgh 1", wC2: "Tgh 2", wR: "Kanan",
+    hTreadMin: "min",
+    hTreadAvg: "rerata",
+    colIrregular: "Aus tdk rata",
+    hWidths: "4 titik lebar",
+    hNoWidths: "Sesi sebelum pengukuran 4 titik",
+    modalFoot: "Angka tebal adalah nilai minimum sesi tersebut; penilaian penggantian dan warna memakai nilai minimum. Rata-rata hanya acuan — pada ban yang aus di tengah, bahu masih tersisa meski minimum 0.0 mm.",
+    colDepth: "Tapak (mm)",
     measHist: "Riwayat ukur",
     sessions: "sesi",
     noMeasData: "Tidak ada data ukur",
@@ -152,15 +227,33 @@ const TX = {
     colSerial: "Serial",
     colInstall: "First install date",
     colTread: "Latest tread",
+    avgPrefix: "avg ",
+    colTreadAvg: "Latest tread (4-point avg)",
     colKm: "Distance KM",
     colHr: "Operating HR",
-    colExpKm: "Estimated KM",
-    colExpHm: "Estimated HM",
+    colExpKm: "Est. KM (0mm)",
+    colExpHm: "Est. HM (0mm)",
+    colCpk: "CPK",
+    colExpCpk: "Est. CPK",
+    colTotalCost: "Total cost",
+    cpkExpPrefix: "est. ",
+    colCurrency: "Currency",
+    colRemKm: "Remaining KM (order)",
+    colProjDate: "Projected repl. date",
+    colWearRate: "Wear rate (mm/1,000km)",
+    due30: "Replace ≤ 30 days",
+    projDays: "{n} d",
+    projOver: "{n} d overdue",
+    projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data" },
+    foot8a: "Remaining KM · Projected date",
+    foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm.`,
     colStatus: "Status",
     colNote: "Note",
     avg: "Average",
     nonMeasured: "Not measured",
     hmReset: "HM Reset",
+    hmResetFixed: "HM Reset ✓",
+    hmResetFixedTitle: "Meter reset offset applied — HM·KM continue from the pre-reset total",
     foot1a: "Click a row",
     foot1b: " to open a modal with that tire's full history (install · removal · scrap · HM Reset · measurement rounds).",
     foot2a: "Target lifetime {km} km",
@@ -168,7 +261,11 @@ const TX = {
     foot3a: "Latest lifetime (km·hr)",
     foot3b: " = cumulative distance and operating hours from the first measurement (new tire) to the latest round. ",
     foot3c: "Latest tread",
-    foot3d: " = the most recent measured value for that tire (≤8mm caution, ≤5mm replace recommended).",
+    foot3d: " = the ",
+    foot3dMin: "minimum of the 4 width points",
+    foot3d2: ` in the latest round (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm replace now). Replacement is judged on the thinnest point. The grey figure below it is the `,
+    foot3dAvg: "4-point average",
+    foot3d3: " for the same round. On tires whose centre grooves wear first, the minimum can read 0.0mm while the shoulders still have rubber and the tire is still running — the gap between the two shows that. Rounds measured before 4-point recording show no average.",
     foot4a: "HM Reset",
     foot4b: " = vehicles whose Hour Meter and distance were reset to 0 during operation (CH 832·835). Cumulative history before the reset is broken, so lifetime and estimated lifetime may be shown as ",
     foot4c: ".",
@@ -195,6 +292,14 @@ const TX = {
     hKmHr: "Distance KM / HR",
     hExpKmHm: "Estimated KM / HM",
     hTread: "Latest tread",
+    wL: "L", wC1: "C1", wC2: "C2", wR: "R",
+    hTreadMin: "min",
+    hTreadAvg: "avg",
+    colIrregular: "Irregular",
+    hWidths: "4 width points",
+    hNoWidths: "Round measured before 4-point recording",
+    modalFoot: "Bold figures are that round\u2019s minimum; replacement judgement and colour follow the minimum. The average is reference only — a centre-worn tyre can read 0.0 mm at the minimum while the shoulders still carry rubber.",
+    colDepth: "Tread (mm)",
     measHist: "Measurement history",
     sessions: "rounds",
     noMeasData: "No measurement data",
@@ -210,28 +315,51 @@ const TX = {
     mCurrent: "Current",
     excelDownload: "Excel download",
   },
-} as const;
+} as const);
 
-const TARGET_KM = 75000; // 목표 수명 (km)
+
+/** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
 
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
-  Install: "text-green-400 border-green-500/40 bg-green-500/10",
-  Scrap: "text-destructive border-destructive/40 bg-destructive/10",
-  Spare: "text-yellow-400 border-yellow-500/40 bg-yellow-500/10",
+  Install: "text-level-ok border-level-ok/40 bg-level-ok/10",
+  Scrap: "text-level-danger border-level-danger/40 bg-level-danger/10",
+  Spare: "text-level-warn border-level-warn/40 bg-level-warn/10",
   "Not Install": "text-muted-foreground border-border bg-muted/20",
 };
 
-export default function LifeTab({ focusSerial }: { focusSerial?: string | null }) {
+export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: string | null; onDataChanged?: () => void | Promise<void> }) {
   const { lang } = useLang();
   const { canDownload } = useAuth();
-  const tx = TX[lang];
+  // 문구에 임계치가 들어가므로 DB 로드 후 렌더 시점에 만든다.
+  const tx = buildTX()[lang];
+
+  // 폭 방향 4점. 열 순서(좌→중1→중2→우)는 확정이고, 차량 기준 외측/내측은
+  // 미확정이라 방향 이름을 붙이지 않는다 (v3 §Q1 보류).
+  const WIDTH_KEYS = [
+    { k: "l" as const, label: tx.wL },
+    { k: "c1" as const, label: tx.wC1 },
+    { k: "c2" as const, label: tx.wC2 },
+    { k: "r" as const, label: tx.wR },
+  ];
   const [lifeFilter, setLifeFilter] = useState<string>("ALL");
+  const today = todayInField();
 
-  const filtered = TMS_DATA.life.filter(
-    (l) => lifeFilter === "ALL" || l.status === lifeFilter
-  );
+  // DUE30 — 대시보드 「교체 준비 목록」과 같은 판정(prepDaysLeft)이라 건수가 일치한다.
+  const filtered = TMS_DATA.life.filter((l) => {
+    if (lifeFilter === "ALL") return true;
+    if (lifeFilter === "DUE30") {
+      const d = prepDaysLeft(l.serial, l.status, today);
+      return d != null && d <= PREP_WINDOW_DAYS;
+    }
+    return l.status === lifeFilter;
+  });
 
-  // 시리얼 포커스(다른 페이지/교체 이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
+  /** 예상 교체일을 못 낸 사유 — 셀 툴팁 */
+  const projWhy = (c: LifeCalc | null, hmReset: boolean | undefined) =>
+    c ? (c.projection.reason ? tx.projWhy[c.projection.reason] : "")
+      : hmReset ? tx.projWhy.hm_reset : tx.projWhy.no_data;
+
+  // 시리얼 포커스(다른 페이지/교체이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
   const focusRow = useRef<HTMLTableRowElement | null>(null);
   const [target, setTarget] = useState<string | null>(focusSerial ?? null);
   const [highlight, setHighlight] = useState<string | null>(null);
@@ -253,6 +381,8 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
   const [historyOf, setHistoryOf] = useState<string | null>(null);
   const hist = historyOf ? tireHistory(historyOf) : null;
   const moves = historyOf ? tireMovements(historyOf) : [];
+  // 요약의 4점 — hist 안에서 한 번 꺼내 둔다(렌더 안에서 non-null 단언을 쓰지 않도록).
+  const latestW = hist?.latestWidths ?? null;
 
   // 손상 코드 모달 (코드 클릭 시 열기, hiCode = 강조할 코드)
   const [showCodes, setShowCodes] = useState(false);
@@ -261,7 +391,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
 
   // 표시 행(필터 적용)의 평균값 — 최근 트레드 / 주행 KM·HR / 예상 KM·HM
   const avg = (() => {
-    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0] };
+    const acc = { tread: [0, 0], km: [0, 0], hr: [0, 0], ekm: [0, 0], ehm: [0, 0], rem: [0, 0], cpk: [0, 0] };
+    // CPK 평균은 통화가 하나일 때만 낸다 — IDR 과 USD 를 섞어 더하면 의미가 없다.
+    const curs = new Set<string>();
     const add = (slot: number[], v: number | null | undefined) => { if (v != null) { slot[0] += v; slot[1]++; } };
     filtered.forEach((l) => {
       const c = lifeCalc(l.serial);
@@ -271,19 +403,27 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
       add(acc.hr, c?.hr);
       if (!noExp) add(acc.ekm, c?.expectedKm);
       if (!noExp) add(acc.ehm, c?.expectedHm);
+      if (l.status === "Install") add(acc.rem, c?.projection.remainingKm);
+      const cost = tireCostOf(l.serial);
+      if (cost?.cpk != null) { add(acc.cpk, cost.cpk); curs.add(cost.currency); }
     });
     const m = (s: number[]) => (s[1] > 0 ? s[0] / s[1] : null);
-    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm) };
+    const cpkCur = curs.size === 1 ? [...curs][0] : null;
+    return { tread: m(acc.tread), km: m(acc.km), hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
+      cpk: cpkCur ? m(acc.cpk) : null, cpkCur: cpkCur ?? "IDR" };
   })();
 
   // 현재 필터에 표시된 행을 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
   const exportExcel = async () => {
     const rows = filtered.map((l) => {
       const c = lifeCalc(l.serial);
+      const cost = tireCostOf(l.serial);
       const noExpected = l.status === "Scrap" || l.status === "Not Install";
+      const installed = l.status === "Install";
       const unit = findUnitBySerial(l.serial);
       const monitored = !!unit;
       const tread = latestTreadOf(l.serial);
+      const treadAvg = latestTreadAvgOf(l.serial);
       const damage = l.damage && l.damage !== "-" ? l.damage : null;
       const noteParts: string[] = [];
       if (!monitored) noteParts.push(tx.nonMeasured);
@@ -295,17 +435,26 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         [tx.colSerial]: l.serial,
         [tx.colInstall]: fmtD(l.install),
         [tx.colTread]: tread != null ? Number(tread.toFixed(1)) : "",
+        [tx.colTreadAvg]: treadAvg != null ? Number(treadAvg.toFixed(1)) : "",
         [tx.colKm]: c?.km ?? "",
         [tx.colHr]: c?.hr ?? "",
         [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
         [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
+        // 엑셀은 계산이 되도록 숫자로 낸다. 통화는 옆 열 — 행마다 다를 수 있다
+        [tx.colCurrency]: cost?.total != null ? cost.currency : "",
+        [tx.colTotalCost]: cost?.total ?? "",
+        [tx.colCpk]: cost?.cpk != null ? Number(cost.cpk.toFixed(4)) : "",
+        [tx.colExpCpk]: cost?.expCpk != null ? Number(cost.expCpk.toFixed(4)) : "",
+        [tx.colWearRate]: c?.projection.wearRateKm != null ? Number(c.projection.wearRateKm.toFixed(3)) : "",
+        [tx.colRemKm]: installed && c?.projection.remainingKm != null ? Math.round(c.projection.remainingKm) : "",
+        [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",
         [tx.colStatus]: l.status,
         [tx.colNote]: noteParts.join(" · "),
       };
     });
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 28 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
     const d = new Date();
@@ -315,6 +464,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
 
   return (
     <div className="space-y-4">
+      {/* 배치도에서 시리얼을 클릭해 들어온 경우 — v_tire_detail 단건 상세.
+          수명 DB에 없는 시리얼이면 아래 표에 행이 없으므로 이 카드가 유일한 표시원이다. */}
+      {target && <TireDetailCard key={target} serial={target} />}
+
       {/* Lifetime DB */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -336,12 +489,13 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
               <option value="Scrap">Scrap</option>
               <option value="Spare">Spare</option>
               <option value="Not Install">Not Install</option>
+              <option value="DUE30">{tx.due30}</option>
             </select>
             {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
             {canDownload && (
               <button
                 onClick={exportExcel}
-                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-level-ok text-white hover:bg-level-ok/85 transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 {tx.excelDownload}
@@ -350,9 +504,10 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
           </div>
         </div>
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full min-w-190 table-fixed text-xs border-collapse font-mono">
+          <table className="w-full min-w-250 table-fixed text-xs border-collapse font-mono">
             <colgroup>
-              {["4%", "13%", "11%", "9%", "9%", "9%", "9%", "9%", "9%", "18%"].map((w, i) => (
+              {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(12%). 합계 100% */}
+              {["3%", "11%", "7%", "7%", "7%", "6%", "7%", "7%", "8%", "7%", "9%", "10%", "11%"].map((w, i) => (
                 <col key={i} style={{ width: w }} />
               ))}
             </colgroup>
@@ -367,6 +522,9 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   { k: "hr", label: tx.colHr, align: "text-right" },
                   { k: "ekm", label: tx.colExpKm, align: "text-right" },
                   { k: "ehm", label: tx.colExpHm, align: "text-right" },
+                  { k: "cpk", label: tx.colCpk, align: "text-right" },
+                  { k: "rem", label: tx.colRemKm, align: "text-right" },
+                  { k: "pdate", label: tx.colProjDate, align: "text-right" },
                   { k: "status", label: tx.colStatus, align: "text-center" },
                   { k: "note", label: tx.colNote, align: "text-center" },
                 ].map((h) => (
@@ -382,14 +540,24 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             <tbody>
               {filtered.map((l) => {
                 const c = lifeCalc(l.serial);
+                const cost = tireCostOf(l.serial);
                 const noExpected = l.status === "Scrap" || l.status === "Not Install";
                 const unit = findUnitBySerial(l.serial);
                 const hmReset = unit?.hmReset;
+                // 보정값(§A-9)이 들어간 리셋 차량은 예측이 되므로 사유를 리셋으로 돌리지 않는다
+                const hmUnresolved = meterUnresolved(unit);
                 const monitored = !!unit; // 모니터링 5대 장착 여부 (아니면 측정 외)
                 const tread = latestTreadOf(l.serial);
-                const treadCls = tread == null ? "" : tread <= TREAD_DANGER ? "text-destructive font-bold" : tread <= TREAD_WARN ? "text-yellow-600 font-bold" : "text-green-600";
+                const treadAvg = latestTreadAvgOf(l.serial);
+                const treadCls = tread == null ? "" : TREAD_CLS[treadLevel(tread)];
                 const damage = l.damage && l.damage !== "-" ? l.damage : null;
                 const isFocus = highlight != null && l.serial === highlight;
+                const installed = l.status === "Install";
+                const proj = installed ? c?.projection ?? null : null;
+                const daysLeft = installed ? prepDaysLeft(l.serial, l.status, today) : null;
+                const dateCls = daysLeft == null ? "" : daysLeft <= PREP_URGENT_DAYS
+                  ? "text-level-danger font-bold" : daysLeft <= PREP_WINDOW_DAYS ? "text-level-warn font-bold" : "text-foreground";
+                const why = installed && !proj?.projectedDate ? projWhy(c, hmUnresolved) : "";
                 return (
                 <tr
                   key={l.no}
@@ -402,51 +570,101 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   <td className="px-2 py-1.5 text-muted-foreground">{fmtD(l.install)}</td>
                   <td className="px-2 py-1.5 text-right">
                     {tread != null ? (
-                      <span className={treadCls}>{fmtTread(tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                      <>
+                        <span className={treadCls}>{fmtTread(tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                        {/* 4점 평균 병기 — 최소값이 0.0 이어도 숄더가 남았는지 여기서 보인다.
+                            판정·색상은 위의 최소값이 그대로 쥔다. 평균은 읽기 보조일 뿐이다.
+                            평균이 최소값과 같으면(4점이 모두 동일) 줄만 차지하므로 생략한다. */}
+                        {treadAvg != null && treadAvg !== tread && (
+                          <div className="text-[10px] text-muted-foreground/60 leading-tight">
+                            {tx.avgPrefix}{fmtTread(treadAvg, false)}
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.km != null ? (
                       <span className="font-bold text-primary">{fmtInt(c.km)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.hr != null ? (
                       <span className="text-foreground">{fmtInt(c.hr)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedKm != null && !noExpected ? (
-                      <span className={`font-bold ${c.expectedKm >= TARGET_KM ? "text-green-600" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
+                      <span className={`font-bold ${c.expectedKm >= targetLifeKm() ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedHm != null && !noExpected ? (
                       <span className="font-bold text-primary">{fmtInt(c.expectedHm)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">−</span>
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                    )}
+                  </td>
+                  {/* CPK (§B-1) — 단가 미입력이면 − (0 이 아님). 예상 CPK 는 아래 줄에 작게 */}
+                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
+                    {cost?.cpk != null ? (
+                      <span className="text-foreground">{fmtCpk(cost.cpk, cost.currency)}</span>
+                    ) : (
+                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                    )}
+                    {cost?.expCpk != null && (
+                      <div className="text-[10px] text-muted-foreground/70 leading-tight">{tx.cpkExpPrefix}{fmtCpk(cost.expCpk, cost.currency)}</div>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    {proj?.remainingKm != null ? (
+                      <span className="text-foreground">{fmtInt(proj.remainingKm)}</span>
+                    ) : (
+                      <span className="text-muted-foreground/40" title={why || undefined}>{EMPTY}</span>
+                    )}
+                  </td>
+                  <td className="px-2 py-1.5 text-right" title={why || undefined}>
+                    {proj?.projectedDate && daysLeft != null ? (
+                      <>
+                        <span className={dateCls}>{proj.projectedDate}</span>
+                        <div className="text-[10px] text-muted-foreground/70 leading-tight">
+                          {daysLeft < 0
+                            ? tx.projOver.replace("{n}", fmtInt(-daysLeft))
+                            : tx.projDays.replace("{n}", fmtInt(daysLeft))}
+                        </div>
+                      </>
+                    ) : (
+                      <span className={`text-muted-foreground/40 ${why ? "cursor-help underline decoration-dotted" : ""}`}>{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-center">
                     <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
+                      className={`inline-block whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
                     >
                       {l.status}
                     </span>
                   </td>
+                  {/* 비고 — 조각 사이에 실제 ' · ' 문자를 넣는다.
+                      여백(margin)만으로 띄우면 복사·스크린리더에서 '측정 외850 R2i' 처럼 붙는다. */}
                   <td className="px-2 py-1.5 text-[10px] text-muted-foreground text-center">
-                    {!monitored && <span className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 mr-1.5 align-middle">{tx.nonMeasured}</span>}
-                    {damage && <button className="text-destructive font-bold hover:underline mr-1.5" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>}
-                    {l.note && <span className="mr-1.5">{l.note}</span>}
-                    {hmReset && <span className="text-yellow-600 font-semibold">{tx.hmReset}</span>}
+                    {[
+                      !monitored && <span key="nm" className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
+                      damage && <button key="dmg" className="text-destructive font-bold hover:underline" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
+                      l.note && <span key="note">{l.note}</span>,
+                      hmReset && (hmUnresolved
+                        ? <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>
+                        : <span key="hmr" className="text-muted-foreground" title={tx.hmResetFixedTitle}>{tx.hmResetFixed}</span>),
+                    ].filter(Boolean).map((node, i) => (
+                      <Fragment key={i}>{i > 0 && " · "}{node}</Fragment>
+                    ))}
                   </td>
                 </tr>
                 );
@@ -455,12 +673,14 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
             <tfoot>
               <tr className="border-t-2 border-border bg-muted/30 font-bold">
                 <td className="px-2 py-2 text-muted-foreground" colSpan={3}>{tx.avg}</td>
-                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : "−"}</td>
+                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : EMPTY}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.km)}</td>
                 <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
                 <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ehm)}</td>
-                <td colSpan={2} />
+                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtCpk(avg.cpk, avg.cpkCur)}</td>
+                <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>
+                <td colSpan={3} />
               </tr>
             </tfoot>
           </table>
@@ -468,31 +688,30 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
         <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
           <strong className="text-foreground">{tx.foot1a}</strong>{tx.foot1b}
           <br />
-          <strong className="text-foreground">{tx.foot2a.replace("{km}", TARGET_KM.toLocaleString("ko-KR"))}</strong>{tx.foot2b}
+          <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(targetLifeKm()))}</strong>{tx.foot2b}
           <br />
-          <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}
+          <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
           <br />
-          <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">−</span>{tx.foot4c}
+          <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
           <br />
           {tx.foot5}
           <br />
-          <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">−</span>{tx.foot6c}
+          <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
+          <br />
+          <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
           <br />
           {tx.foot7a}<strong className="text-destructive">{tx.foot7b}</strong>{tx.foot7c}<button className="text-primary hover:underline font-semibold" onClick={() => openCodes(null)}>{tx.foot7d}</button>
         </p>
       </div>
 
       {/* 손상 코드 모달 (표의 손상 코드 클릭 또는 '손상 코드 전체 보기'로 열림) */}
-      <AnimatePresence>
         {showCodes && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setShowCodes(false)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -515,22 +734,18 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   );
                 })}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
 
       {/* 타이어 히스토리 모달 */}
-      <AnimatePresence>
         {hist && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setHistoryOf(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -560,8 +775,46 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                 <HRow label={tx.hHmReset} value={hist.hmReset ? tx.hHmResetYes : tx.hHmResetNo} danger={hist.hmReset} />
                 <HRow label={tx.hKmHr} value={`${fmtInt(hist.km)} km / ${fmtInt(hist.hr)} hr`} mono />
                 <HRow label={tx.hExpKmHm} value={`${fmtInt(hist.expectedKm)} km / ${fmtInt(hist.expectedHm)} hr`} mono />
-                <HRow label={tx.hTread} value={hist.latestTread != null ? `${fmtTread(hist.latestTread)} mm` : null} mono />
+                <HRow
+                  label={tx.hTread}
+                  value={hist.latestTread != null
+                    ? `${fmtTread(hist.latestTread, false)} mm (${tx.hTreadMin})`
+                    : null}
+                  mono
+                />
+                {/* 4점은 두 칸을 다 쓴다 — 값 넷에 평균까지 한 줄에 넣어야 비교가 된다.
+                    최소값이 어느 점에서 나왔는지 굵게 표시해 위의 숫자와 이어 붙인다. */}
+                <div className="col-span-2">
+                  <span className="text-[11px] text-muted-foreground font-semibold">{tx.hWidths}</span>
+                  {latestW ? (
+                    <p className="font-mono text-xs mt-0.5">
+                      {WIDTH_KEYS.map((w) => {
+                        const v = latestW[w.k];
+                        const isMin = v != null && hist.latestTread != null && v === hist.latestTread;
+                        return (
+                          <span key={w.k} className="inline-block mr-3">
+                            <span className="text-[10px] text-muted-foreground mr-1">{w.label}</span>
+                            <span className={isMin ? "font-bold text-foreground" : ""}>
+                              {v != null ? fmtTread(v, false) : EMPTY}
+                            </span>
+                          </span>
+                        );
+                      })}
+                      {hist.latestTreadAvg != null && (
+                        <span className="text-muted-foreground">
+                          · {tx.hTreadAvg} {fmtTread(hist.latestTreadAvg, false)} mm
+                        </span>
+                      )}
+                      <span className="ml-2"><IrregularWearBadge widths={latestW} /></span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{tx.hNoWidths}</p>
+                  )}
+                </div>
               </div>
+
+              {/* 비용 (§B-1) */}
+              <TireCostSection serial={hist.serial} onSaved={onDataChanged} />
 
               {/* 장착 이력 (위치·차량 변경) */}
               <div className="mb-4">
@@ -581,12 +834,12 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                         const current = hist.ch === m.ch && hist.pos === m.pos;
                         return (
                           <tr key={i} className={`border-b border-border/30 ${current ? "bg-primary/5" : ""}`}>
-                            <td className="px-2 py-1">{m.date ?? "−"}</td>
+                            <td className="px-2 py-1">{m.date ?? EMPTY}</td>
                             <td className="px-2 py-1 font-bold text-primary">CH {m.ch}</td>
                             <td className="px-2 py-1">{m.pos}</td>
                             <td className="px-2 py-1">
                               <span className="font-sans text-muted-foreground">{m.kind === "install" ? tx.mInstall : tx.mMount}</span>
-                              {current && <span className="font-sans ml-1 text-[10px] text-green-600 font-bold">· {tx.mCurrent}</span>}
+                              {current && <span className="font-sans ml-1 text-[10px] text-level-ok font-bold">· {tx.mCurrent}</span>}
                             </td>
                           </tr>
                         );
@@ -606,9 +859,21 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs border-collapse font-mono">
                       <thead>
+                        <tr className="text-muted-foreground/70">
+                          <th />
+                          <th colSpan={7} className="px-2 pt-1 text-center text-[10px] font-semibold border-b border-border/40">{tx.colDepth}</th>
+                          <th colSpan={2} />
+                        </tr>
                         <tr className="border-b border-border text-muted-foreground">
                           <th className="px-2 py-1 text-left font-semibold">{tx.colInspect}</th>
-                          <th className="px-2 py-1 text-right font-semibold">트레드(mm)</th>
+                          {/* 폭 4점을 먼저 보이고, 그 뒤에 거기서 나온 최소·평균을 둔다.
+                              읽는 순서가 계산 순서와 같아야 표를 설명할 필요가 없다. */}
+                          {WIDTH_KEYS.map((w) => (
+                            <th key={w.k} className="px-2 py-1 text-right font-semibold">{w.label}</th>
+                          ))}
+                          <th className="px-2 py-1 text-right font-semibold">{tx.hTreadMin}</th>
+                          <th className="px-2 py-1 text-right font-semibold">{tx.hTreadAvg}</th>
+                          <th className="px-2 py-1 text-left font-semibold">{tx.colIrregular}</th>
                           <th className="px-2 py-1 text-right font-semibold">KM</th>
                           <th className="px-2 py-1 text-right font-semibold">HM</th>
                         </tr>
@@ -617,20 +882,34 @@ export default function LifeTab({ focusSerial }: { focusSerial?: string | null }
                         {hist.rounds.map((r, i) => (
                           <tr key={i} className="border-b border-border/30">
                             <td className="px-2 py-1">{r.date}</td>
-                            <td className="px-2 py-1 text-right">{r.tread != null ? fmtTread(r.tread) : "−"}</td>
+                            {WIDTH_KEYS.map((w) => {
+                              const v = r.widths ? r.widths[w.k] : null;
+                              // 최소값이 나온 지점을 굵게. 어느 그루브가 판정을 쥐는지가 이 표의 요점이다.
+                              const isMin = v != null && r.tread != null && v === r.tread;
+                              return (
+                                <td key={w.k} className={`px-2 py-1 text-right ${isMin ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                                  {v != null ? fmtTread(v, false) : EMPTY}
+                                </td>
+                              );
+                            })}
+                            <td className={`px-2 py-1 text-right font-bold ${r.tread != null ? TREAD_CLS[treadLevel(r.tread)] : ""}`}>
+                              {r.tread != null ? fmtTread(r.tread, false) : EMPTY}
+                            </td>
+                            <td className="px-2 py-1 text-right text-muted-foreground">{r.treadAvg != null ? fmtTread(r.treadAvg, false) : EMPTY}</td>
+                            <td className="px-2 py-1"><IrregularWearBadge widths={r.widths} compact /></td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.km)}</td>
                             <td className="px-2 py-1 text-right">{fmtInt(r.hm)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
+                    <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-relaxed">{tx.modalFoot}</p>
                   </div>
                 )}
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -639,8 +918,8 @@ function HRow({ label, value, mono, danger, sub }: { label: string; value: strin
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[11px] text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== "−" ? "text-destructive font-bold" : "text-foreground"}`}>
-        {value || "−"}{sub && value && value !== "−" ? <span className="text-[10px] text-muted-foreground ml-1">{sub}</span> : null}
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger && value && value !== EMPTY ? "text-level-danger font-bold" : "text-foreground"}`}>
+        {value || EMPTY}{sub && value && value !== EMPTY ? <span className="text-[10px] text-muted-foreground ml-1">{sub}</span> : null}
       </span>
     </div>
   );

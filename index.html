@@ -1,25 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <title>SAMTAN TMS</title>
-    <meta name="description" content="SAMTAN TMS" />
-    <meta name="author" content="ASEOA" />
 
-    <meta property="og:title" content="SAMTAN TMS" />
-    <meta property="og:description" content="SAMTAN TMS" />
-    <meta property="og:type" content="website" />
-    <script id="structured-data-jsonld" type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        "name": "SAMTAN TMS",
-        "description": "SAMTAN TMS",
-        "url": "__SITE_URL__"
-      }
-    </script>
+    <!-- 폰트: CSS @import 대신 여기서 바로 요청해 렌더 차단 체인을 한 단계 줄인다.
+         가변 굵기 범위로 받아 font-black(900) 도 실제 굵기로 그려진다. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..900&family=Noto+Sans+KR:wght@400..900&family=JetBrains+Mono:wght@400..600&display=swap"
+    />
+    <!-- Supabase 프로젝트(src/lib/supabase.ts 기본값과 같은 호스트). 로그인 직후 첫 쿼리의 TLS 핸드셰이크를 앞당긴다. -->
+    <link rel="preconnect" href="https://vndbzanhoumhhuneufni.supabase.co" />
+    <meta name="description" content="SAMTAN 덤프트럭 타이어 관리 시스템 — PT ASCENDO INTERNATIONAL" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#F0F0F0" />
   </head>
 
   <body>

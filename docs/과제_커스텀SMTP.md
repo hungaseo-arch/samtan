@@ -60,7 +60,7 @@ SMTP가 붙으면 초대 방식을 되살릴 수 있습니다. 현재 코드는 
 - `supabase/functions/admin-users/index.ts` 에 `invite` 액션 추가
   → `admin.auth.admin.inviteUserByEmail(email, { redirectTo })`
   → 생성 직후 `updateUserById` 로 역할 부여 (invite 호출은 `app_metadata` 를 받지 않음)
-- `src/api/adminUsers.ts` · `src/components/AdminUsersModal.tsx` 에 초대 경로 추가
+- `src/api/adminUsers.ts` · `src/components/admin/UsersPanel.tsx` 에 초대 경로 추가
   (직접 생성 방식은 **남겨둘 것** — 메일이 막힌 현장에서 여전히 유용)
 - **Redirect URLs 허용목록**에 앱 주소가 등록되어 있어야 링크가 앱으로 돌아옵니다
   `https://hungaseo-arch.github.io/samtan/**` · `http://localhost:8080/**`

@@ -4,16 +4,23 @@
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP } from "./tmsData";
-import type { Unit, LifeRecord, TirePosition } from "./tmsData";
+import type { Unit, LifeRecord, LedgerSegment, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
+import { applyMeterOffset, meterOffsetOf } from "@/lib/meterOffset";
 
 // ============================================================
 // 하중(축하중) 데이터 — Techking "Load Distribution Road Train unit" 시트 기준
-// 하중 그룹: ① 그룹 1 = Head + 트레일러 1 (Payload 55t, 총 94t)
-//            ② 그룹 2 = 돌리 + 트레일러 2 (Payload 65t, 총 96t)
-// 정격(rated): 하중지수(LI) + 장착방식 기준
-//   · Head 385/95R24 단독(single) 6,000 kg/본
-//   · 트레일러·돌리 12.00R24 듀얼(dual) 4,500 kg/본 (단독 LI 162 = 4,750 → 듀얼 LI 160 = 4,500)
+// 하중 그룹: ① 그룹 1 = Head + 트레일러 1 (Payload 55t, 총 94t) — 분배 Head 50% / 트레일러1 50%
+//            Head 50% 는 다시 조향축 : 구동축 = 20 : 80 (Western Star 6900XD 축 정격 비율 28,000 : 110,000 lb ≈ 20.3 : 79.7 을
+//            정수로 반올림 — 고객 하중분배 시트의 축하중 9,400 / 37,600 과 일치. 사용자 결정 2026-09-12)
+//            ② 그룹 2 = 돌리 + 트레일러 2 (Payload 65t, 총 96t) — 분배 50% / 50%
+// 정격(rated): 하중지수(LI) + 장착방식 기준. 듀얼(복륜) 장착은 단독 LI 대신 듀얼 LI 적용
+//   · 규칙: 듀얼 LI = 단독 LI − 2단계 (트레일러 325/95R24 22PR 의 공표값 162/160 에서 확인한 규칙)
+//   · Head 조향축 14.00R24 단독(single) — LI 170 = 6,000 kg/본
+//   · Head 구동축 14.00R24 듀얼(dual)   — 단독 LI 170 = 6,000 → 듀얼 LI 168 = 5,600 kg/본
+//     (Techking ETCrane 은 단독 LI 만 공표. 같은 규칙을 적용한 값이며 제조사 확인 전까지의 잠정치)
+//   · 트레일러·돌리 325/95R24 22PR 듀얼(dual) — 단독 LI 162 = 4,750 → 듀얼 LI 160 = 4,500 kg/본
+//     (12.00R24 는 등가 규격이나 20PR 이 LI 160/157 = 4,500/4,125 로 다르므로 실규격으로 표기)
 // ============================================================
 export type Mount = "single" | "dual";
 
@@ -32,8 +39,10 @@ export interface LoadUnit {
   spec: string;        // 타이어 규격
   count: number;       // 본수
   mount: Mount;        // 장착 방식 (단독/듀얼)
+  liSingle: number;    // 단독 하중지수(LI)
+  liDual: number;      // 듀얼 하중지수(LI) — 단독 장착이면 liSingle 과 같다
   ratedSingle: number; // 단독 정격 (kg/본)
-  ratedDual: number;   // 듀얼 정격 (kg/본)
+  ratedDual: number;   // 듀얼 정격 (kg/본) — 단독 장착이면 ratedSingle 과 같다
   unitWeight: number;  // 공차(Unit Weight, kg)
   group: 1 | 2;        // 소속 하중 그룹
   dist: number;        // 분배율 (axleOfHead=true → Head 하중 대비, 그 외 → 그룹 총중량 대비)
@@ -45,15 +54,30 @@ export const LOAD_GROUPS: LoadGroup[] = [
   { id: 2, name: "그룹 2 · 돌리 + 트레일러 2",  payload: 65000 },
 ];
 
-/** Head의 그룹 1 총중량 분배율 (나머지 50%는 트레일러 1). Head 하중 = 그룹1총중량 × 이 값 */
+/** Head의 그룹 1 총중량 분배율 (나머지 50%는 트레일러 1). Head 하중 = 그룹1총중량 × 이 값
+ *  근거: 고객 하중분배 시트(Load Distribution Road Train) — 그룹1 Head 50% / 트레일러1 50%. */
 export const HEAD_GROUP_SHARE = 0.5;
 
+/** Head 차량(프라임무버)과 축 정격(GAWR). 현장 투입 차량 기준 — 사용자 제공 2026-09-12. */
+export const HEAD_VEHICLE = {
+  model: "Western Star 6900XD",
+  steerAxleLb: 28000,     // 전축 최대 28,000 lb (12.7 t)
+  driveTandemLb: 110000,  // 후축 탠덤 최대 110,000 lb (49.9 t)
+} as const;
+
+/** Head 하중의 조향/구동 분배율 = 20% / 80%.
+ *  근거: Western Star 6900XD 축 정격 비율(28,000 : 110,000 lb ≈ 20.3% : 79.7%)을 정수로 반올림한 값.
+ *  고객 하중분배 시트의 축하중(조향 9,400 / 구동 37,600 kg)과 일치시키기 위해 정확 비율 대신 반올림값을 쓴다
+ *  (사용자 결정 2026-09-12). 표의 분배율 열(정수)로 재계산해도 축하중이 그대로 맞아떨어진다. */
+export const HEAD_STEER_SHARE = 0.2;
+export const HEAD_DRIVE_SHARE = 1 - HEAD_STEER_SHARE;
+
 export const LOAD_UNITS: LoadUnit[] = [
-  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (Head 20%)",          spec: "385/95R24(14.00R24)", count: 2,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: 0.20, axleOfHead: true },
-  { key: "headDrive", name: "Head Driving axis", sub: "L2·L3·R2·R3 · Single (Head 80%)",     spec: "385/95R24(14.00R24)", count: 8,  mount: "single", ratedSingle: 6000, ratedDual: 6000, unitWeight: 12800, group: 1, dist: 0.80, axleOfHead: true },
-  { key: "trailer1",  name: "Trailer 1",  sub: "Trailer 1",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
-  { key: "trailer2",  name: "Trailer 2",  sub: "Trailer 2",                         spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
-  { key: "dolly",     name: "Dolly",      sub: "Dolly",                               spec: "12.00R24",            count: 12, mount: "dual",   ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "headSteer", name: "Head Steering axis", sub: "L1·R1 · Single (steer axle)",   spec: "14.00R24",       count: 2,  mount: "single", liSingle: 170, liDual: 170, ratedSingle: 6000, ratedDual: 6000, unitWeight: 3200,  group: 1, dist: HEAD_STEER_SHARE, axleOfHead: true },
+  { key: "headDrive", name: "Head Driving axis",  sub: "L2·L3·R2·R3 · Dual (drive tandem)", spec: "14.00R24",   count: 8,  mount: "dual",   liSingle: 170, liDual: 168, ratedSingle: 6000, ratedDual: 5600, unitWeight: 12800, group: 1, dist: HEAD_DRIVE_SHARE, axleOfHead: true },
+  { key: "trailer1",  name: "Trailer 1",          sub: "Trailer 1",                     spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 23000, group: 1, dist: 0.50 },
+  { key: "dolly",     name: "Dolly",              sub: "Dolly",                         spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 6000,  group: 2, dist: 0.50 },
+  { key: "trailer2",  name: "Trailer 2",          sub: "Trailer 2",                     spec: "325/95R24 22PR", count: 12, mount: "dual",   liSingle: 162, liDual: 160, ratedSingle: 4750, ratedDual: 4500, unitWeight: 25000, group: 2, dist: 0.50 },
 ];
 
 /** 그룹 총중량(kg) = 그룹 소속 유닛 공차 합 + 그룹 Payload */
@@ -72,9 +96,97 @@ interface Round {
   km: number | string | null;
   press: Record<string, number | "N/A" | null>;
   tread: Record<string, number | null>;
+  /** 4점 평균 — 표시용 병기값. 판정은 언제나 tread(최소값)로 한다. */
+  treadAvg: Record<string, number | null>;
+  /** 폭 4점 원시값 — 히스토리 모달이 회차마다 그대로 보여준다. */
+  widths: Record<string, TreadWidths | null>;
+  /** 그 회차에 그 포지션에 달려 있던 시리얼 — 구간 분리의 유일한 근거 */
+  serial: Record<string, string | null>;
+  /** 그 회차에 행이 존재한 포지션. 값이 전부 null 인 행과 '행 없음'을 구분한다. */
+  seen: Set<string>;
 }
 
-/** inspections 행으로 units의 회차 배열(dates/hm/km/press)과 tread를 재구성. */
+/** numeric 은 PostgREST 가 문자열로 줄 수 있다. null·미존재 컬럼은 null 로 둔다. */
+function numOrNull(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 빈 문자열은 '시리얼 없음'으로 본다. DB 의 null 과 같게 취급. */
+function normSerial(s: string | null | undefined): string | null {
+  const v = (s ?? "").trim();
+  return v ? v : null;
+}
+
+/**
+ * 한 포지션의 회차열을 시리얼이 바뀌는 지점에서 잘라 구간 배열로 만든다.
+ *
+ * 판정은 DB 쪽 검증 쿼리와 같은 규칙이다 —
+ *   is_break = (직전 회차의 시리얼이 있다) AND (지금 시리얼과 다르다)
+ * SQL 의 `lag(serial) is not null AND serial IS DISTINCT FROM lag(serial)` 과 동치이며,
+ * 이 규칙으로 현재 원장에서 변경점 19개가 잡힌다(전부 replacements 와 1:1).
+ *
+ * ⚠ 트레드가 올라간 것은 절대 구분 근거로 쓰지 않는다 (작업지시서 v2 §3).
+ */
+function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[] {
+  const n = rounds.length;
+  const segs: TreadSegment[] = [];
+  let cur: TreadSegment | null = null;
+  let prev: string | null = null;
+  let seenAny = false;
+
+  for (let i = 0; i < n; i++) {
+    const r = rounds[i];
+    if (!r.seen.has(pos)) continue;
+    const s = normSerial(r.serial[pos]);
+    const isBreak = seenAny && prev !== null && s !== prev;
+
+    if (!cur || isBreak) {
+      cur = {
+        ch, pos,
+        segNo: segs.length,
+        serial: s ?? "",
+        idxFrom: i,
+        idxTo: i,
+        tread: new Array<number | null | undefined>(n).fill(undefined),
+        treadAvg: new Array<number | null | undefined>(n).fill(undefined),
+        widths: new Array<TreadWidths | null | undefined>(n).fill(undefined),
+        press: new Array<number | "N/A" | null | undefined>(n).fill(undefined),
+        replacedAt: null,
+        isCurrent: false,
+      };
+      segs.push(cur);
+    }
+
+    cur.idxTo = i;
+    // 구간 첫 회차에만 시리얼이 비어 있던 경우를 뒤 회차 값으로 메운다.
+    if (!cur.serial && s) cur.serial = s;
+    cur.tread[i] = r.tread[pos] ?? null;
+    cur.treadAvg[i] = r.treadAvg[pos] ?? null;
+    cur.widths[i] = r.widths[pos] ?? null;
+    cur.press[i] = r.press[pos] ?? null;
+
+    prev = s;   // SQL 의 lag() 과 같게 null 도 그대로 넘긴다
+    seenAny = true;
+  }
+
+  if (segs.length) segs[segs.length - 1].isCurrent = true;
+
+  // 교체일 매칭 — 시리얼이 근거이고 날짜는 표시용이다.
+  // 최초 구간(segNo 0)은 교체가 아니므로 비운다.
+  for (const seg of segs) {
+    if (seg.segNo === 0 || !seg.serial) continue;
+    const hit = TMS_DATA.repl.find(
+      (r) => r.ch === ch && r.pos === pos && r.newSerial === seg.serial,
+    );
+    seg.replacedAt = hit?.date ?? null;
+  }
+
+  return segs;
+}
+
+/** inspections 행으로 units의 회차 배열(dates/hm/km/press)과 tread·segments를 재구성. */
 function buildRounds(rows: InspectionRow[]) {
   const byCh = new Map<string, InspectionRow[]>();
   for (const r of rows) {
@@ -83,51 +195,107 @@ function buildRounds(rows: InspectionRow[]) {
   }
 
   TMS_DATA.tread = {};
+  TMS_DATA.segments = {};
   TMS_DATA.units.forEach((unit) => {
     const rounds = new Map<string, Round>();
     for (const r of byCh.get(unit.ch) || []) {
       let round = rounds.get(r.inspection_date);
       if (!round) {
-        round = { date: r.inspection_date, hm: null, km: null, press: {}, tread: {} };
+        round = {
+          date: r.inspection_date,
+          hm: null, km: null,
+          press: {}, tread: {}, treadAvg: {}, widths: {}, serial: {},
+          seen: new Set<string>(),
+        };
         rounds.set(r.inspection_date, round);
       }
       if (r.hm != null) round.hm = r.hm;
       if (r.km != null) round.km = r.km;
       if (r.pressure != null) round.press[r.pos] = r.pressure;
       if (r.tread != null) round.tread[r.pos] = r.tread;
+      if (r.tread_avg != null) round.treadAvg[r.pos] = r.tread_avg;
+      // 넷 중 하나라도 있으면 담는다. 전부 null 인 회차는 4점 측정 이전이다.
+      if (r.tread_l != null || r.tread_c1 != null || r.tread_c2 != null || r.tread_r != null) {
+        round.widths[r.pos] = {
+          l: r.tread_l ?? null, c1: r.tread_c1 ?? null,
+          c2: r.tread_c2 ?? null, r: r.tread_r ?? null,
+        };
+      }
+      round.serial[r.pos] = r.serial ?? null;
+      round.seen.add(r.pos);
     }
 
     const sorted = [...rounds.values()].sort((a, b) => a.date.localeCompare(b.date));
     unit.dates = sorted.map((r) => r.date);
+    // 계기 리셋 차량은 리셋일 이후 회차에 리셋 직전 누적값을 더해 잇는다 (§A-9).
+    // segments 도 같은 round 객체를 읽으므로 여기서 고치면 전 화면이 연속값을 본다.
+    const off = unit.meterOffset ?? null;
+    for (const r of sorted) {
+      r.hm = applyMeterOffset(r.date, r.hm, "hm", off);
+      if (typeof r.km === "number") r.km = applyMeterOffset(r.date, r.km, "km", off);
+    }
     unit.hm = sorted.map((r) => r.hm);
     unit.km = sorted.map((r) => r.km);
 
     TMS_DATA.tread[unit.ch] = {};
+    TMS_DATA.segments[unit.ch] = {};
     for (let p = 1; p <= 10; p++) {
       const rp = HEAD_MAP[p];
       const pd = unit.positions.find((x) => x.pos === rp);
       if (pd) pd.press = sorted.map((r) => r.press[rp] ?? null);
+      // (ch,pos) 로만 묶은 이 배열은 교체 전후 타이어가 섞여 있다.
+      // 추이 화면·마모율은 쓰지 않는다 — segments 를 쓸 것.
       TMS_DATA.tread[unit.ch][rp] = {
         dates: sorted.map((r) => r.date),
         min: sorted.map((r) => r.tread[rp] ?? null),
       };
+      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted);
     }
   });
 }
 
 /** 전체 데이터 로드 → TMS_DATA 갱신. 실패 시 throw. */
 export async function loadData(): Promise<void> {
-  const [cfg, veh, pos, repl, life, codes, insp] = await Promise.all([
+  const [cfg, veh, pos, cur, hist, repl, life, codes, insp, ledger, costs] = await Promise.all([
     supabase.from("tire_config").select("*").eq("id", 1).maybeSingle(),
     supabase.from("vehicles").select("*").order("seq", { ascending: true }),
-    supabase.from("vehicle_positions").select("*").order("seq", { ascending: true }),
-    supabase.from("replacements").select("*"),
-    supabase.from("lifetimes").select("*").order("no", { ascending: true }),
+    // 시리얼은 더 이상 여기서 읽지 않는다 — v_current_tire 가 단일 진실원.
+    // 이 테이블에서 필요한 것은 포지션 비고(remark)뿐이다.
+    supabase.from("vehicle_positions").select("ch,pos,remark").order("seq", { ascending: true }),
+    // 현재 장착 시리얼 (replacements 최신 회차 → 없으면 최초 장착분)
+    supabase.from("v_current_tire").select("*").order("seq", { ascending: true }),
+    // 포지션별 시리얼 이력 — 2칸 한도 없이 전 회차
+    supabase
+      .from("v_position_history")
+      .select("*")
+      .order("ch", { ascending: true })
+      .order("pos", { ascending: true })
+      .order("seq_no", { ascending: true }),
+    // 소프트 삭제(T-103)된 교체이력은 제외한다.
+    supabase.from("replacements").select("*").is("deleted_at", null),
+    // NONTK-* = 시험 대상 외 타이어(브리지스톤 등)를 표현하는 합성 시리얼.
+    // 엑셀 'Lifetime by Day'(TECHKING 전용)와 집계를 일치시키기 위해 제외한다.
+    supabase
+      .from("lifetimes")
+      .select("*")
+      .not("serial", "like", "NONTK-%")
+      .order("no", { ascending: true }),
     supabase.from("damage_codes").select("*").order("seq", { ascending: true }),
     listInspections(),
+    // 개체 단위 장착 구간 — 주행거리의 정본. 차량을 옮겨 다닌 타이어도 구간별로 복원돼 있다.
+    supabase
+      .from("v_tire_ledger")
+      .select("serial,ch,pos,seq_no,mounted_at,removed_at,is_current,segment_km,km_flag")
+      .order("seq_no", { ascending: true }),
+    // 원가 이력 (§B-1) — 단가 폴백. select * 로 받아 retread_allowed 미적용 환경도 견딘다
+    supabase
+      .from("cost_params")
+      .select("*")
+      .is("deleted_at", null)
+      .order("effective_from", { ascending: true }),
   ]);
 
-  for (const r of [cfg, veh, pos, repl, life, codes]) {
+  for (const r of [cfg, veh, pos, cur, hist, repl, life, codes, ledger, costs]) {
     if (r.error) throw r.error;
   }
 
@@ -140,6 +308,26 @@ export async function loadData(): Promise<void> {
       tubetype: cfg.data.tubetype,
       newTread: cfg.data.new_tread,
       capacity: cfg.data.capacity,
+      // 마이그레이션 미적용 환경에서는 컬럼 자체가 없으므로 ?? null 로 방어한다.
+      treadCaution: cfg.data.tread_caution ?? null,
+      treadOrder: cfg.data.tread_order ?? null,
+      treadCritical: cfg.data.tread_critical ?? null,
+      recPsiSteer: cfg.data.rec_psi_steer ?? null,
+      recPsiDrive: cfg.data.rec_psi_drive ?? null,
+      scRatioUpper: cfg.data.sc_ratio_upper ?? null,
+      scRatioLower: cfg.data.sc_ratio_lower ?? null,
+      wearMinMm: cfg.data.wear_min_mm ?? null,
+      psiLowRatio: numOrNull(cfg.data.psi_low_ratio),
+      psiDevWarn: numOrNull(cfg.data.psi_dev_warn),
+      psiDevDanger: numOrNull(cfg.data.psi_dev_danger),
+      inspectionIntervalDays: numOrNull(cfg.data.inspection_interval_days),
+      targetLifeKm: numOrNull(cfg.data.target_life_km),
+      fxUsdIdr: numOrNull(cfg.data.fx_usd_idr),
+      fuelBaseLPerKm: numOrNull(cfg.data.fuel_base_l_per_km),
+      fuelPrice: numOrNull(cfg.data.fuel_price),
+      fuelCurrency: cfg.data.fuel_currency ?? "IDR",
+      fuelSensPer10Pct: numOrNull(cfg.data.fuel_sens_per_10pct),
+      lifeSensPer10Pct: numOrNull(cfg.data.life_sens_per_10pct),
     };
   }
 
@@ -153,6 +341,24 @@ export async function loadData(): Promise<void> {
     ch: r.ch, pos: r.pos, date: r.date, newSerial: r.new_serial ?? "",
   }));
 
+  // ledger — 시리얼별로 묶어 둔다. seqNo 순은 쿼리에서 이미 보장된다.
+  const ledgerBySerial: Record<string, LedgerSegment[]> = {};
+  for (const r of ledger.data ?? []) {
+    if (!r.serial) continue;
+    (ledgerBySerial[r.serial] ??= []).push({
+      ch: r.ch,
+      pos: r.pos,
+      seqNo: r.seq_no,
+      mountedAt: r.mounted_at ?? null,
+      removedAt: r.removed_at ?? null,
+      isCurrent: !!r.is_current,
+      // numeric 은 PostgREST 가 문자열로 준다. null 과 0 을 섞지 않도록 명시 변환.
+      segmentKm: r.segment_km == null ? null : Number(r.segment_km),
+      kmFlag: r.km_flag,
+    });
+  }
+  TMS_DATA.ledger = ledgerBySerial;
+
   // life
   TMS_DATA.life = (life.data ?? []).map((r): LifeRecord => ({
     no: r.no,
@@ -163,6 +369,21 @@ export async function loadData(): Promise<void> {
     lifetime: r.lifetime ?? "-",
     status: r.status,
     note: r.note ?? null,
+    // 20261016120000 미적용 환경에서는 컬럼이 없다 — undefined 를 null/0 으로
+    purchasePrice: numOrNull(r.purchase_price),
+    currency: r.currency ?? null,
+    retreadCount: numOrNull(r.retread_count) ?? 0,
+    retreadCost: numOrNull(r.retread_cost) ?? 0,
+  }));
+
+  TMS_DATA.costParams = (costs.data ?? []).map((r) => ({
+    effectiveFrom: r.effective_from,
+    brand: r.brand ?? null,
+    unitPrice: numOrNull(r.unit_price),
+    // 20261016130000 미적용 환경에서는 컬럼이 없다
+    marketPrice: numOrNull(r.market_price),
+    currency: r.currency ?? "IDR",
+    retreadAllowed: r.retread_allowed === true,
   }));
 
   // summary (life 상태별 집계)
@@ -171,22 +392,43 @@ export async function loadData(): Promise<void> {
   TMS_DATA.summary = summary;
 
   // units + positions
-  const posByCh = new Map<string, typeof pos.data>();
-  (pos.data ?? []).forEach((p) => {
-    if (!posByCh.has(p.ch)) posByCh.set(p.ch, []);
-    posByCh.get(p.ch)!.push(p);
+  // 비고는 vehicle_positions, 시리얼은 v_current_tire / v_position_history 에서 온다.
+  const remarkByKey = new Map<string, string | null>();
+  (pos.data ?? []).forEach((p) => { remarkByKey.set(`${p.ch}|${p.pos}`, p.remark ?? null); });
+
+  const chainByKey = new Map<string, SerialChainEntry[]>();
+  (hist.data ?? []).forEach((h) => {
+    const k = `${h.ch}|${h.pos}`;
+    if (!chainByKey.has(k)) chainByKey.set(k, []);
+    chainByKey.get(k)!.push({
+      seqNo: h.seq_no,
+      serial: h.serial,
+      mountedAt: h.mounted_at ?? null,
+      source: h.source === "replacement" ? "replacement" : "initial",
+    });
   });
+
+  const curByCh = new Map<string, typeof cur.data>();
+  (cur.data ?? []).forEach((c) => {
+    if (!curByCh.has(c.ch)) curByCh.set(c.ch, []);
+    curByCh.get(c.ch)!.push(c);
+  });
+
   TMS_DATA.units = (veh.data ?? []).map((v): Unit => ({
     ch: v.ch,
     dates: [],
     hm: [],
     km: [],
     hmReset: !!v.hm_reset,
-    positions: (posByCh.get(v.ch) ?? []).map((p): TirePosition => ({
-      pos: p.pos,
-      serial: p.serial ?? "",
-      serial2: p.serial2 ?? undefined,
-      remark: p.remark ?? null,
+    meterOffset: meterOffsetOf(v),
+    positions: (curByCh.get(v.ch) ?? []).map((c): TirePosition => ({
+      pos: c.pos,
+      serial: c.serial ?? "",
+      serialInitial: c.serial_initial ?? "",
+      replCount: c.repl_count ?? 0,
+      mountedAt: c.mounted_at ?? null,
+      chain: chainByKey.get(`${c.ch}|${c.pos}`) ?? [],
+      remark: remarkByKey.get(`${c.ch}|${c.pos}`) ?? null,
       press: [],
     })),
   }));

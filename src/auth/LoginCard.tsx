@@ -4,12 +4,14 @@ import { useAuth } from "@/auth/AuthProvider";
 import { useLang, DICT } from "@/i18n";
 import { LogIn, Loader2 } from "lucide-react";
 
-export default function LoginCard({ onSuccess, heading, className, forceEn }: {
+export default function LoginCard({ onSuccess, heading, className, forceEn, notice }: {
   onSuccess?: () => void;
   heading?: string;
   className?: string;
   /** 로그인 화면은 언어 토글이 없으므로 항상 영어로 표시한다. */
   forceEn?: boolean;
+  /** 폼 위에 띄울 안내 문구 키(i18n). 세션 만료 안내 등. */
+  notice?: string;
 }) {
   const { signIn } = useAuth();
   const { t: tLang } = useLang();
@@ -37,6 +39,11 @@ export default function LoginCard({ onSuccess, heading, className, forceEn }: {
         <h3 className="text-sm font-bold text-foreground">{heading ?? t("auth.login")}</h3>
       </div>
       <p className="text-xs text-muted-foreground mb-4">{t("auth.desc")}</p>
+      {notice && (
+        <p role="status" className="mb-4 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs font-semibold text-foreground">
+          {t(notice)}
+        </p>
+      )}
       <form onSubmit={submit} className="space-y-3">
         <div>
           <label className="block text-xs font-semibold text-muted-foreground mb-1">{t("auth.email")}</label>

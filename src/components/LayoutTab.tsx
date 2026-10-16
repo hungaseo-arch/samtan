@@ -1,11 +1,14 @@
 // @section: layout-tab
 import { useState } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
-import { headPosData, statusOf, codeName, unitByCh, fmtTread } from "@/data/tmsUtils";
+import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs, currentSegmentLatestWidths } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
-import { X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { EMPTY, fmtTread } from "@/lib/format";
+import { MousePointerClick, X } from "lucide-react";
 import { useLang } from "@/i18n";
+import SerialChain from "./SerialChain";
+import IntegrityBadge from "./IntegrityBadge";
+import IrregularWearBadge from "./IrregularWearBadge";
 
 const TX = {
   ko: {
@@ -13,22 +16,25 @@ const TX = {
     roadTrainImgAlt: "Road Train 차량",
     layoutTitle: "Road Train 차량 배치도",
     direction: "← 진행 방향",
+    tapHint: "타이어를 누르면 상세",
     primeMover: "프라임무버",
     trailer1: "트레일러 1",
     dolly: "돌리",
     trailer2: "트레일러 2",
     statusOk: "정상",
     statusWarn: "주의",
-    statusDanger: "교체권장",
+    statusOrder: "발주",
+    statusDanger: "즉시 교체",
     statusNone: "시험 외",
-    legendNone: "시험 외 (12.00R24)",
-    footnoteA: "Head 10본 = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly는 12.00R24으로 ",
+    legendNone: "시험 외 (325/95R24)",
+    footnoteA: "Head 10본 = TECHKING ETCrane 14.00R24, Vessel·Dolly는 325/95R24로 ",
     footnoteB: "시험 미포함",
     recPress: "권장 공기압",
     serial: "시리얼",
     serialHint: "클릭 → 수명 DB 보기",
     latestPress: "최근 공기압",
     latestTread: "최근 트레드",
+    widths4: "4점 (좌·중1·중2·우)",
     newPrefix: "신품 ",
     remark: "비고",
     scrap: "폐기",
@@ -43,22 +49,25 @@ const TX = {
     roadTrainImgAlt: "Unit Road Train",
     layoutTitle: "Tata Letak Road Train",
     direction: "← Arah jalan",
+    tapHint: "Ketuk ban untuk detail",
     primeMover: "Prime Mover",
     trailer1: "Trailer 1",
     dolly: "Dolly",
     trailer2: "Trailer 2",
     statusOk: "Normal",
     statusWarn: "Perhatian",
-    statusDanger: "Rekomendasi ganti",
+    statusOrder: "Pesan ban",
+    statusDanger: "Ganti segera",
     statusNone: "Non-uji",
-    legendNone: "Non-uji (12.00R24)",
-    footnoteA: "Head 10 ban = TECHKING ETCrane 385/95R24(14.00R24), Vessel·Dolly 12.00R24 ",
+    legendNone: "Non-uji (325/95R24)",
+    footnoteA: "Head 10 ban = TECHKING ETCrane 14.00R24, Vessel·Dolly 325/95R24 ",
     footnoteB: "Tidak termasuk uji",
     recPress: "Tekanan rekomendasi",
     serial: "Serial",
     serialHint: "Klik → lihat DB umur",
     latestPress: "Tekanan terkini",
     latestTread: "Tapak terkini",
+    widths4: "4 titik (Kiri·Tgh 1·Tgh 2·Kanan)",
     newPrefix: "baru ",
     remark: "Catatan",
     scrap: "Afkir",
@@ -73,22 +82,25 @@ const TX = {
     roadTrainImgAlt: "Road Train vehicle",
     layoutTitle: "Road Train vehicle layout",
     direction: "← Travel direction",
+    tapHint: "Tap a tire for details",
     primeMover: "Prime Mover",
     trailer1: "Trailer 1",
     dolly: "Dolly",
     trailer2: "Trailer 2",
     statusOk: "Normal",
     statusWarn: "Caution",
-    statusDanger: "Replace recommended",
+    statusOrder: "Order tire",
+    statusDanger: "Replace now",
     statusNone: "Not tested",
-    legendNone: "Not tested (12.00R24)",
-    footnoteA: "Head 10 pcs = TECHKING ETCrane 385/95R24(14.00R24); Vessel·Dolly are 12.00R24 and ",
+    legendNone: "Not tested (325/95R24)",
+    footnoteA: "Head 10 pcs = TECHKING ETCrane 14.00R24; Vessel·Dolly are 325/95R24 and ",
     footnoteB: "not included in the test",
     recPress: "Recommended pressure",
     serial: "Serial",
     serialHint: "Click → view lifetime DB",
     latestPress: "Latest pressure",
     latestTread: "Latest tread",
+    widths4: "4 points (L·C1·C2·R)",
     newPrefix: "new ",
     remark: "Remark",
     scrap: "Scrap",
@@ -100,16 +112,18 @@ const TX = {
   },
 } as const;
 
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
-  ok: "border-green-600 bg-green-50 text-green-700",
-  warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
-  danger: "border-red-500 bg-red-50 text-red-700",
+  ok: "border-level-ok bg-level-ok/10 text-level-ok",
+  warn: "border-level-warn bg-level-warn/10 text-level-warn",
+  order: "border-level-order bg-level-order/10 text-level-order",
+  danger: "border-level-danger bg-level-danger/10 text-level-danger",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
-  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
-  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, danger: TX.id.statusDanger, none: TX.id.statusNone },
-  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, danger: TX.en.statusDanger, none: TX.en.statusNone },
+  ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, order: TX.ko.statusOrder, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
+  id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, order: TX.id.statusOrder, danger: TX.id.statusDanger, none: TX.id.statusNone },
+  en: { ok: TX.en.statusOk, warn: TX.en.statusWarn, order: TX.en.statusOrder, danger: TX.en.statusDanger, none: TX.en.statusNone },
 };
 
 interface ModalInfo {
@@ -135,21 +149,21 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
         { label: "③", top: [10, 9], bot: [8, 7] },
       ],
     },
-    { name: "Trailer 1", sub: tx.trailer1, cls: "border-primary", labelCls: "text-primary", size: "12.00R24", isHead: false,
+    { name: "Trailer 1", sub: tx.trailer1, cls: "border-primary", labelCls: "text-primary", size: "325/95R24", isHead: false,
       axles: [
         { label: "A", top: [11,12], bot: [13,14] },
         { label: "B", top: [15,16], bot: [17,18] },
         { label: "C", top: [19,20], bot: [21,22] },
       ],
     },
-    { name: "Dolly", sub: tx.dolly, cls: "border-primary", labelCls: "text-primary", size: "12.00R24", isHead: false,
+    { name: "Dolly", sub: tx.dolly, cls: "border-primary", labelCls: "text-primary", size: "325/95R24", isHead: false,
       axles: [
         { label: "A", top: [23,24], bot: [25,26] },
         { label: "B", top: [27,28], bot: [29,30] },
         { label: "C", top: [31,32], bot: [33,34] },
       ],
     },
-    { name: "Trailer 2", sub: tx.trailer2, cls: "border-primary", labelCls: "text-primary", size: "12.00R24", isHead: false,
+    { name: "Trailer 2", sub: tx.trailer2, cls: "border-primary", labelCls: "text-primary", size: "325/95R24", isHead: false,
       axles: [
         { label: "A", top: [35,36], bot: [37,38] },
         { label: "B", top: [39,40], bot: [41,42] },
@@ -180,21 +194,33 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
             CH {unit.ch}
           </button>
         ))}
+        {/* 정합성 배지 — error 0건이면 녹색, 있으면 주황 + 클릭 시 상세 (§2-3) */}
+        <IntegrityBadge />
       </div>
 
       {/* Road Train 시각화 */}
       <div className="rounded-xl border border-border bg-card p-4 relative overflow-hidden">
         {/* 실제 Road Train 차량(CH 834) 흐릿한 배경 */}
         <img
-          src={`${import.meta.env.BASE_URL}roadtrain.jpg`}
+          src={`${import.meta.env.BASE_URL}roadtrain.webp`}
           alt={tx.roadTrainImgAlt}
           aria-hidden="true"
+          width={1200}
+          height={513}
+          loading="lazy"
+          decoding="async"
           className="pointer-events-none select-none absolute inset-0 w-full h-full object-cover opacity-[0.25]"
         />
         <div className="relative">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-xs font-bold text-primary uppercase tracking-widest">{tx.layoutTitle}</span>
           <span className="text-xs text-muted-foreground">{tx.direction}</span>
+          {/* 배치도의 Head 10본은 눌러야 상세가 열린다. 눌리는 줄 모르고 지나치는
+              화면이라 색·그림자만으로 두지 않고 문구로도 말한다. */}
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-semibold text-primary">
+            <MousePointerClick className="w-3 h-3" />
+            {tx.tapHint}
+          </span>
         </div>
         <div className="overflow-x-auto pb-2">
           <div className="flex items-stretch gap-1 w-max mx-auto px-2 py-2" style={{ zoom: 1.5 }}>
@@ -251,9 +277,9 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
         {/* 범례 */}
         <div className="flex flex-wrap gap-4 mt-3 text-xs">
           {[
-            { cls: "bg-green-500/15 border-green-500", label: tx.statusOk },
-            { cls: "bg-yellow-400/15 border-yellow-400", label: tx.statusWarn },
-            { cls: "bg-red-500/15 border-red-500", label: tx.statusDanger },
+            { cls: "bg-level-ok/15 border-level-ok", label: tx.statusOk },
+            { cls: "bg-level-warn/15 border-level-warn", label: tx.statusWarn },
+            { cls: "bg-level-danger/15 border-level-danger", label: tx.statusDanger },
             { cls: "bg-muted/20 border-border/50 border-dashed opacity-50", label: tx.legendNone },
           ].map((l) => (
             <span key={l.label} className="flex items-center gap-1.5">
@@ -269,16 +295,13 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
       </div>
 
       {/* 모달 */}
-      <AnimatePresence>
         {modal && modalData && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <div
+            className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
             onClick={() => setModal(null)}
           >
-            <motion.div
-              className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
-              initial={{ scale: 0.92, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92, y: 20 }}
+            <div
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -303,23 +326,29 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   <Row label={tx.recPress} value={`${recPsi(modal.pos)} psi`} />
                   <div className="flex gap-2">
                     <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{tx.serial}</span>
-                    <span className="text-xs font-mono">
-                      <button className="text-primary hover:underline" onClick={() => onSerialClick?.(modalData.d!.serial)}>
-                        {modalData.d.serial}
-                      </button>
-                      {modalData.d.serial2 && (
-                        <>
-                          {" → "}
-                          <button className="text-primary hover:underline" onClick={() => onSerialClick?.(modalData.d!.serial2!)}>
-                            {modalData.d.serial2}
-                          </button>
-                        </>
-                      )}
-                      <span className="block text-[10px] text-muted-foreground/70">{tx.serialHint}</span>
-                    </span>
+                    <SerialChain
+                      chain={modalData.d.chain}
+                      fallbackSerial={modalData.d.serial}
+                      onSerialClick={onSerialClick}
+                      hint={tx.serialHint}
+                    />
                   </div>
-                  <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : "−"} mono />
-                  <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : "−"} mono />
+                  <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : EMPTY} mono />
+                  <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread, false)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
+                  {/* 4점 그루브 (§A-7) — 최근 트레드 회차에 4점이 있을 때만. 없으면 기존 화면 그대로. */}
+                  {(() => {
+                    const w = currentSegmentLatestWidths(modalData.d!.segments);
+                    if (!w) return null;
+                    return (
+                      <div className="flex gap-2">
+                        <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{tx.widths4}</span>
+                        <span className="text-xs font-mono flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>{[w.l, w.c1, w.c2, w.r].map((v) => (v != null ? fmtTread(v, false) : EMPTY)).join(" / ")} mm</span>
+                          <IrregularWearBadge widths={w} />
+                        </span>
+                      </div>
+                    );
+                  })()}
                   {modalData.d.remark && <Row label={tx.remark} value={modalData.d.remark} danger />}
                   {(() => {
                     const scrap = TMS_DATA.life.find((l) => l.serial === modalData.d!.serial && l.status === "Scrap");
@@ -330,27 +359,22 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                   <div className="mt-3">
                     <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.treadTrend}</p>
                     <MiniChart
-                      pairs={modalData.u.dates
-                        .map((d, i) => ({ d: d ?? "", v: modalData.d!.treadMin[i] ?? null }))
-                        .filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                      pairs={currentSegmentPairs(modalData.u, modalData.d.segments, "tread")}
                       min={0} max={NEW_TREAD} danger={5} warn={8} decimals={1}
                     />
                   </div>
                   <div className="mt-2">
                     <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.pressTrend}</p>
                     <MiniChart
-                      pairs={modalData.u.dates
-                        .map((d, i) => ({ d: d ?? "", v: typeof modalData.d!.press[i] === "number" ? (modalData.d!.press[i] as number) : null }))
-                        .filter((p) => p.d && p.v != null) as { d: string; v: number }[]}
+                      pairs={currentSegmentPairs(modalData.u, modalData.d.segments, "press")}
                       min={60} max={145} danger={null} warn={null} decimals={0}
                     />
                   </div>
                 </div>
               )}
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
@@ -359,8 +383,8 @@ function Row({ label, value, mono, danger }: { label: string; value: string | nu
   return (
     <div className="flex gap-2">
       <span className="w-28 shrink-0 text-xs text-muted-foreground font-semibold">{label}</span>
-      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-destructive font-bold" : ""}`}>
-        {value ?? "−"}
+      <span className={`text-xs ${mono ? "font-mono" : ""} ${danger ? "text-level-danger font-bold" : ""}`}>
+        {value ?? EMPTY}
       </span>
     </div>
   );
@@ -382,14 +406,23 @@ function TireCell({ pos, isHead, u, onClick }: {
   const st = statusOf(d, pos);
   const label = HEAD_MAP[pos] ?? String(pos);
   const parts = label.split(" ");
+  // 시험 외(Vessel·Dolly) 칸은 점선·평면이고, 누를 수 있는 Head 칸은 그림자로 떠 있다.
+  // 호버에 뜨고 클릭에 눌리는 반응까지 붙여 «버튼»으로 읽히게 한다.
   return (
     <button
       onClick={onClick}
       title={`${label} · ${d?.latestPress ?? "-"}psi / ${d?.latestTread ?? "-"}mm`}
-      className={`w-10 h-6 rounded border-2 flex flex-col items-center justify-center transition-all hover:scale-105 hover:shadow-lg cursor-pointer ${STATUS_STYLE[st]}`}
+      aria-label={label}
+      className={`group relative w-10 h-6 rounded border-2 flex flex-col items-center justify-center
+        shadow-sm transition-all cursor-pointer
+        hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
+        ${STATUS_STYLE[st]}`}
     >
       <span className="text-[10px] font-black leading-none">{parts[0]}</span>
       {parts[1] && <span className="text-[8px] font-bold leading-none opacity-80">{parts.slice(1).join(" ")}</span>}
+      {/* 우하단 손잡이 점 — 호버 전에도 «누를 수 있는 칸»을 구분해 주는 유일한 표식이다. */}
+      <span className="pointer-events-none absolute bottom-0.5 right-0.5 w-1 h-1 rounded-full bg-current opacity-45 transition-opacity group-hover:opacity-100" />
     </button>
   );
 }

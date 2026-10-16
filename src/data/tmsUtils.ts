@@ -1,16 +1,44 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, TREAD_WARN, TREAD_DANGER, NEW_TREAD, recPsi } from "./tmsData";
-import type { Unit, TirePosition } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm } from "./tmsData";
+import { brandOfSerial, costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
+import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
+import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
+import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
+import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
+import { inspectionAge, type InspectionAge } from "@/lib/inspectionAge";
+import {
+  exposureIntervals, exposureSum, meanDeviationPct, pressureComplianceOf,
+  type Compliance, type PressRound,
+} from "@/lib/pressureHistory";
+import type { Lang } from "@/i18n";
 
-export type TireStatus = "ok" | "warn" | "danger" | "none";
+/** 4단계 신호등 + 미측정. 심각도 순: ok < warn < order < danger */
+export type TireStatus = TreadLevel | "none";
+
+const SEVERITY: Record<TireStatus, number> = { none: -1, ok: 0, warn: 1, order: 2, danger: 3 };
+
+/** 여러 판정 중 더 심각한 쪽을 남긴다. */
+function worst(a: TireStatus, b: TireStatus): TireStatus {
+  return SEVERITY[b] > SEVERITY[a] ? b : a;
+}
 
 export interface HeadPosData {
   rp: string;
+  /** 현재 장착 시리얼 */
   serial: string;
-  serial2?: string;
+  /** 최초 장착 시리얼 */
+  serialInitial: string;
+  /** 교체 횟수 (0 = 최초 타이어 그대로) */
+  replCount: number;
+  /** 현재 타이어 장착일 (최초 타이어면 null) */
+  mountedAt: string | null;
+  /** 시리얼 이력 전체 — 개수 제한 없음 */
+  chain: SerialChainEntry[];
   remark?: string | null;
   press: (number | "N/A" | null)[];
   treadMin: (number | null)[];
+  /** 시리얼 단위로 잘린 측정 구간 — 추이 표·스파크라인·마모율은 이것만 쓴다. */
+  segments: TreadSegment[];
   dates: (string | null)[];
   latestPress: number | null;
   latestPressDate: string | null;
@@ -48,8 +76,12 @@ export function headPosData(u: Unit, pos: number): HeadPosData | null {
 
   return {
     rp,
+    segments: posSegments(u.ch, rp),
     serial: pd?.serial ?? "",
-    serial2: pd?.serial2,
+    serialInitial: pd?.serialInitial ?? "",
+    replCount: pd?.replCount ?? 0,
+    mountedAt: pd?.mountedAt ?? null,
+    chain: pd?.chain ?? [],
     remark: pd?.remark,
     press,
     treadMin,
@@ -71,17 +103,9 @@ export function statusOf(d: HeadPosData | null, pos: number): TireStatus {
   if (!d) return "none";
   let st: TireStatus = "ok";
 
-  if (d.latestTread != null) {
-    if (d.latestTread <= TREAD_DANGER) st = "danger";
-    else if (d.latestTread <= TREAD_WARN) st = "warn";
-  }
+  if (d.latestTread != null) st = worst(st, treadLevel(d.latestTread));
 
-  if (typeof d.latestPress === "number") {
-    const r = recPsi(pos);
-    if (d.latestPress < r * 0.85) st = "danger";
-    else if (Math.abs(d.latestPress - r) / r > 0.15 && st !== "danger")
-      st = "warn";
-  }
+  if (typeof d.latestPress === "number") st = worst(st, pressureJudge(d.latestPress, recPsi(pos)));
 
   if (
     d.serial &&
@@ -108,16 +132,9 @@ export function statusFromValues(
   if (tread == null && press == null) return "none";
   let st: TireStatus = "ok";
 
-  if (tread != null) {
-    if (tread <= TREAD_DANGER) st = "danger";
-    else if (tread <= TREAD_WARN) st = "warn";
-  }
+  if (tread != null) st = worst(st, treadLevel(tread));
 
-  if (typeof press === "number") {
-    const r = recPsi(pos);
-    if (press < r * 0.85) st = "danger";
-    else if (Math.abs(press - r) / r > 0.15 && st !== "danger") st = "warn";
-  }
+  if (typeof press === "number") st = worst(st, pressureJudge(press, recPsi(pos)));
 
   return st;
 }
@@ -128,28 +145,17 @@ export function codeName(c: string | null | undefined): string {
   return name ? `${c} (${name})` : c;
 }
 
-export function fmtN(n: number | string | null | undefined): string {
-  if (n == null || n === "") return "−";
-  if (typeof n === "number") return n.toLocaleString("ko-KR");
-  return String(n);
-}
-
+/**
+ * 장착일 표기. 원본이 "-" 인 행은 미상이라는 뜻이라 빈값 기호로 바꾼다.
+ *
+ * 숫자·트레드 서식 함수는 여기 두지 않는다. 예전에는 fmtInt·fmtTread 가
+ * 이 파일에도 있어서, 같은 이름이 파일마다 다른 함수를 가리켰다 —
+ * `@/lib/format` 쪽은 «11.2 mm» 를, 이쪽은 «11.2» 를 돌려주고 빈값 기호도
+ * «—» 와 «−» 로 갈렸다. 서식은 `@/lib/format` 하나만 쓴다 (CLAUDE.md §숫자 표기).
+ */
 export function fmtD(d: string | null | undefined): string {
-  if (!d || d === "-") return "−";
+  if (!d || d === "-") return EMPTY;
   return d;
-}
-
-/** KM·HM 표기: 정수 반올림 + 천단위 콤마 (#,000). */
-export function fmtInt(n: number | string | null | undefined): string {
-  if (n == null || n === "") return "−";
-  if (typeof n === "number") return Math.round(n).toLocaleString("ko-KR");
-  return String(n);
-}
-
-/** 트레드 표기: 소수점 1자리. */
-export function fmtTread(n: number | null | undefined): string {
-  if (n == null) return "−";
-  return n.toFixed(1);
 }
 
 export function unitByCh(ch: string) {
@@ -171,6 +177,243 @@ export function loadRatio(perTire: number, rated: number): number {
   return rated > 0 ? perTire / rated : 0;
 }
 
+// ── 시리얼 단위 측정 구간 · 마모율 (작업지시서 v2 §A) ─────────────
+
+/** 한 포지션의 측정 구간 목록(시간순). 데이터가 없으면 빈 배열. */
+export function posSegments(ch: string, pos: string): TreadSegment[] {
+  return (TMS_DATA.segments[ch] ?? {})[pos] ?? [];
+}
+
+export interface SerialSegment {
+  unit: Unit;
+  seg: TreadSegment;
+  /** 구간 첫 측정일 */
+  from: string;
+  /** 구간 마지막 측정일 */
+  to: string;
+}
+
+/**
+ * 시리얼이 실제로 측정된 구간 전체.
+ * v_position_history 대신 inspections.serial 을 근거로 삼으므로, 한 시리얼이
+ * 차량을 옮겨 다닌 경우(예: 834 → 849 → 832)도 구간이 각각 잡힌다.
+ */
+export function segmentsOfSerial(serial: string): SerialSegment[] {
+  if (!serial) return [];
+  const out: SerialSegment[] = [];
+  for (const u of TMS_DATA.units) {
+    for (const segs of Object.values(TMS_DATA.segments[u.ch] ?? {})) {
+      for (const seg of segs) {
+        if (seg.serial !== serial) continue;
+        out.push({
+          unit: u,
+          seg,
+          from: (u.dates[seg.idxFrom] ?? "") as string,
+          to: (u.dates[seg.idxTo] ?? "") as string,
+        });
+      }
+    }
+  }
+  out.sort((a, b) => a.from.localeCompare(b.from));
+  return out;
+}
+
+/** 대표 구간 — 현재 장착 중인 구간이 있으면 그것, 없으면 가장 최근 구간. */
+export function primarySerialSegment(serial: string): SerialSegment | null {
+  const all = segmentsOfSerial(serial);
+  if (!all.length) return null;
+  return all.find((x) => x.seg.isCurrent) ?? all[all.length - 1];
+}
+
+export interface SegPoint {
+  /** 회차 인덱스 (unit.dates 기준) */
+  i: number;
+  date: string;
+  /** 4점 최소값 — 판정·마모율은 전부 이 값을 쓴다. */
+  tread: number | null;
+  /** 4점 평균 — 표시 병기용. 최소값이 0 이어도 숄더가 남았는지 여기서 보인다. */
+  treadAvg: number | null;
+  /** 폭 4점 원시값. 4점 측정 이전 회차는 null. */
+  widths: TreadWidths | null;
+  km: number | null;
+  hm: number | null;
+}
+
+/** 구간에 속한 회차의 (일자·트레드·km·hm) 점열. 구간 밖 회차는 들어오지 않는다. */
+export function segmentPoints(u: Unit, seg: TreadSegment): SegPoint[] {
+  const out: SegPoint[] = [];
+  for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
+    const t = seg.tread[i];
+    if (t === undefined) continue;          // 이 구간의 회차가 아니다
+    const kv = u.km[i];
+    const hv = u.hm[i];
+    out.push({
+      i,
+      date: (u.dates[i] ?? "") as string,
+      tread: t,
+      treadAvg: seg.treadAvg[i] ?? null,
+      widths: seg.widths[i] ?? null,
+      km: typeof kv === "number" ? kv : null,
+      hm: typeof hv === "number" ? hv : null,
+    });
+  }
+  return out;
+}
+
+/**
+ * 포지션 상세 화면용 — **현재 장착된 타이어 구간만**의 (일자, 값) 점열.
+ * 교체 전 타이어를 같은 선에 이으면 트레드가 올라가 보인다. (작업지시서 v2 §A-3)
+ */
+export function currentSegmentPairs(
+  u: Unit,
+  segs: TreadSegment[],
+  metric: "tread" | "press",
+): { d: string; v: number }[] {
+  const seg = segs.length ? segs[segs.length - 1] : null;
+  if (!seg) return [];
+  const out: { d: string; v: number }[] = [];
+  for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
+    const v = metric === "tread" ? seg.tread[i] : seg.press[i];
+    const dt = u.dates[i];
+    if (dt && typeof v === "number") out.push({ d: dt, v });
+  }
+  return out;
+}
+
+/**
+ * 현재 장착 구간의 **마지막 트레드 회차** 4점 (§A-7). 그 회차에 4점이 없으면 null —
+ * 더 이전 회차의 4점을 끌어와 최신값처럼 보이지 않게 한다.
+ */
+export function currentSegmentLatestWidths(segs: TreadSegment[]): TreadWidths | null {
+  const seg = segs.length ? segs[segs.length - 1] : null;
+  if (!seg) return null;
+  for (let i = seg.idxTo; i >= seg.idxFrom; i--) {
+    if (typeof seg.tread[i] === "number") return seg.widths[i] ?? null;
+  }
+  return null;
+}
+
+export interface WearRate {
+  /** 마모율 (mm / 1,000 km) */
+  mmPer1000Km: number;
+  /** 1 mm 마모당 주행거리 (km) */
+  kmPerMm: number;
+  /** 계산에 채택된 인접 회차 구간 수 */
+  intervals: number;
+  sumMm: number;
+  sumKm: number;
+}
+
+interface WearInterval { mm: number; km: number }
+
+/**
+ * 한 측정 구간에서 마모율 계산에 채택되는 인접 회차 구간을 고른다.
+ *
+ * 채택 조건 (작업지시서 v2 §A-4):
+ *   ① 같은 세그먼트(= 같은 시리얼) 안의 인접 회차일 것 — 구간을 넘어 잇지 않는다
+ *   ② 트레드가 늘어난 구간 제외 (prev ≥ now). 늘어난 값은 측정 오차이지 마모가 아니다
+ *   ③ km 이 실제로 증가한 구간만. CH 849 는 km 이 전부 0이라 여기서 통째로 빠진다
+ *   ④ 끝점 트레드가 0 인 구간 제외 — 0 은 '다 닳음/미측정'이라 마모량을 대표하지 못한다
+ *
+ * ④ 를 빼면 4대 평균이 0.554 가 아니라 0.536 이 되어 실차보고서와 어긋난다.
+ * 결과가 음수가 되는 경로는 ② 때문에 존재하지 않는다.
+ */
+function wearIntervals(u: Unit, seg: TreadSegment): WearInterval[] {
+  const out: WearInterval[] = [];
+  let prevT: number | null = null;
+  let prevK: number | null = null;
+  let hasPrev = false;
+
+  for (const p of segmentPoints(u, seg)) {
+    if (
+      hasPrev &&
+      prevT != null && prevK != null &&
+      p.tread != null && p.km != null &&
+      prevT >= p.tread &&      // ②
+      p.km > prevK &&          // ③
+      p.tread > 0              // ④
+    ) {
+      out.push({ mm: prevT - p.tread, km: p.km - prevK });
+    }
+    // 값이 비어 있어도 직전 회차 자리는 그대로 넘긴다 — 결측을 건너뛰어
+    // 멀리 떨어진 두 회차를 인접한 것처럼 잇지 않기 위해서다.
+    prevT = p.tread;
+    prevK = p.km;
+    hasPrev = true;
+  }
+  return out;
+}
+
+/** 채택 구간들을 가중 합산 — Σ마모 ÷ Σ주행. 단순 평균이 아니다. */
+function accumulate(list: WearInterval[]): WearRate | null {
+  if (!list.length) return null;
+  const sumMm = list.reduce((s, x) => s + x.mm, 0);
+  const sumKm = list.reduce((s, x) => s + x.km, 0);
+  if (sumKm <= 0 || sumMm <= 0) return null;
+  const mmPer1000Km = (sumMm / sumKm) * 1000;
+  return { mmPer1000Km, kmPerMm: sumKm / sumMm, intervals: list.length, sumMm, sumKm };
+}
+
+/** 한 측정 구간(= 타이어 1본)의 마모율. */
+export function segmentWearRate(u: Unit, seg: TreadSegment): WearRate | null {
+  return accumulate(wearIntervals(u, seg));
+}
+
+/** 차량 1대의 마모율 — 그 차량 모든 포지션의 채택 구간을 가중 합산. */
+export function vehicleWearRate(ch: string): WearRate | null {
+  const u = TMS_DATA.units.find((x) => x.ch === ch);
+  if (!u) return null;
+  const all: WearInterval[] = [];
+  for (const segs of Object.values(TMS_DATA.segments[ch] ?? {})) {
+    for (const seg of segs) all.push(...wearIntervals(u, seg));
+  }
+  return accumulate(all);
+}
+
+/** 포지션 1곳의 마모율 — 그 포지션을 거쳐 간 모든 구간(시리얼)의 채택 구간 가중 합산 (§A-6).
+ *  정렬·토인처럼 차량·자리에 붙은 원인을 보려는 것이라 교체 전 타이어도 함께 넣는다. */
+export function positionWearRate(ch: string, pos: string): WearRate | null {
+  const u = TMS_DATA.units.find((x) => x.ch === ch);
+  if (!u) return null;
+  return accumulate(posSegments(ch, pos).flatMap((seg) => wearIntervals(u, seg)));
+}
+
+/**
+ * 구간 1개의 (주행 km, 트레드) 곡선 — 전 차량 비교 차트용 (§A-6).
+ * x 는 차량 누적 KM 이 아니라 **그 타이어 첫 측정 이후 주행 km** 다. 차량마다 계기값이
+ * 수만 km 씩 달라 누적 KM 으로 두면 선이 서로 겹치지 않아 기울기를 견줄 수 없다.
+ * km·트레드가 없는 회차와 트레드 0(다 닳음/미측정)은 뺀다.
+ */
+export function segmentKmCurve(u: Unit, seg: TreadSegment): { km: number; tread: number }[] {
+  const pts = segmentPoints(u, seg).filter(
+    (p): p is SegPoint & { km: number; tread: number } => p.km != null && p.tread != null && p.tread > 0,
+  );
+  if (!pts.length) return [];
+  const base = pts[0].km;
+  return pts.filter((p) => p.km >= base).map((p) => ({ km: p.km - base, tread: p.tread }));
+}
+
+export interface FleetWearRate {
+  mmPer1000Km: number;
+  kmPerMm: number;
+  /** 평균에 실제로 들어간 차량 */
+  vehicles: { ch: string; rate: WearRate }[];
+}
+
+/**
+ * 여러 대의 평균 마모율 — **차량별 마모율의 단순 산술평균**이다.
+ * 전체 구간을 다시 가중 합산하면 대당 주행거리 차이 때문에 값이 달라진다
+ * (4대 기준 0.554 가 아니라 0.547 이 나온다). 실차보고서와 같은 정의를 쓴다.
+ */
+export function fleetWearRate(chs: string[]): FleetWearRate | null {
+  const vehicles = chs
+    .map((ch) => ({ ch, rate: vehicleWearRate(ch) }))
+    .filter((x): x is { ch: string; rate: WearRate } => x.rate !== null);
+  if (!vehicles.length) return null;
+  const mean = vehicles.reduce((s, x) => s + x.rate.mmPer1000Km, 0) / vehicles.length;
+  return { mmPer1000Km: mean, kmPerMm: 1000 / mean, vehicles };
+}
+
 export interface LifeCalc {
   ch: string;
   pos: string;
@@ -178,6 +421,8 @@ export interface LifeCalc {
   hr: number | null;         // 주행 HR = 최신 HM − 최초 HM
   expectedKm: number | null; // 예상 KM = 주행 KM + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 KM)
   expectedHm: number | null; // 예상 HM = 주행 HR + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 HR)
+  /** 예상 교체 시점 — tread_order(발주) 기준 (§A-2). 0 mm 외삽인 expectedKm 과 다르다 */
+  projection: Projection;
 }
 
 /**
@@ -207,128 +452,358 @@ function projectExpected(pairs: { x: number; y: number }[], driven: number | nul
   return Math.round(driven + Math.max(0, remaining));
 }
 
-/** 시리얼(serial 또는 serial2)이 장착된 차량 Unit 탐색. */
+/**
+ * 한 시리얼이 특정 포지션에 장착돼 있던 구간.
+ * 구간은 [from, to) — from 이 null 이면 최초 장착(원장에 일자 없음)이라 앞이 열려 있고,
+ * to 가 null 이면 아직 장착 중이라 뒤가 열려 있다.
+ */
+export interface MountSpan {
+  ch: string;
+  pos: string;
+  seqNo: number;                  // 0 = 최초 장착, 1..n = 교체 회차
+  from: string | null;            // 장착일
+  to: string | null;              // 탈거일 (= 다음 타이어의 장착일)
+  isCurrent: boolean;             // 현재 장착 중인가
+}
+
+/**
+ * 시리얼의 장착 구간 전체를 시리얼 체인(v_position_history)에서 재구성.
+ * 과거처럼 serial/serial2 2칸만 보지 않으므로 중간 회차 타이어도 빠지지 않는다.
+ */
+export function mountSpansOf(serial: string): MountSpan[] {
+  if (!serial) return [];
+  const out: MountSpan[] = [];
+  for (const u of TMS_DATA.units) {
+    for (const p of u.positions) {
+      p.chain.forEach((c, i) => {
+        if (c.serial !== serial) return;
+        const next = p.chain[i + 1];
+        out.push({
+          ch: u.ch,
+          pos: p.pos,
+          seqNo: c.seqNo,
+          from: c.mountedAt,
+          to: next?.mountedAt ?? null,
+          isCurrent: !next,
+        });
+      });
+    }
+  }
+  out.sort((a, b) => (a.from ?? "").localeCompare(b.from ?? ""));
+  return out;
+}
+
+/** 대표 장착 구간 — 현재 장착 중인 구간이 있으면 그것, 없으면 가장 최근 구간. */
+export function primaryMountSpan(serial: string): MountSpan | null {
+  const spans = mountSpansOf(serial);
+  if (!spans.length) return null;
+  return spans.find((s) => s.isCurrent) ?? spans[spans.length - 1];
+}
+
+/**
+ * 수명 외삽용 점열 정리 — 트레드가 늘어나거나 km 이 줄어드는 점을 떨어낸다.
+ * 회귀 기울기가 양수(= 음의 마모율)로 뒤집히는 경로를 여기서 차단한다 (§A-4).
+ */
+function monotoneWear<T extends { tread: number; km: number }>(pts: T[]): T[] {
+  const out: T[] = [];
+  for (const p of pts) {
+    const last = out[out.length - 1];
+    if (!last) { out.push(p); continue; }
+    if (p.tread <= last.tread && p.km > last.km) out.push(p);
+  }
+  return out;
+}
+
+/** 시리얼이 (과거 포함) 장착됐던 차량 Unit 탐색. */
 export function findUnitBySerial(serial: string): Unit | null {
   if (!serial) return null;
   return (
     TMS_DATA.units.find((u) =>
-      u.positions.some((p) => p.serial === serial || p.serial2 === serial)
+      u.positions.some((p) => p.chain.some((c) => c.serial === serial))
     ) ?? null
   );
 }
 
+/** 원장 구간 목록 — 없으면 빈 배열. */
+export function ledgerOf(serial: string): LedgerSegment[] {
+  return serial ? TMS_DATA.ledger[serial] ?? [] : [];
+}
+
+/** 차량 `ch` 의 `date` 시점 주행계 — `hmAt()` 과 같은 규칙(그 날짜 이하 마지막 회차). */
+function kmAt(ch: string, date: string | null): number | null {
+  return sampleAt(ch, date, (u, i) => {
+    const v = u.km[i];
+    return typeof v === "number" ? v : null;
+  });
+}
+
+/**
+ * 차량 `ch` 의 `date` 시점 HM — 그 날짜 **이하**의 마지막 측정 회차 값.
+ * `v_tire_ledger` 가 km_start·km_end 를 잡는 규칙과 같다. 원장에 HM 컬럼이 없어
+ * 여기서 같은 규칙으로 되짚는다 — 다른 규칙을 쓰면 KM 과 HR 이 서로 다른 구간을 잰다.
+ */
+function hmAt(ch: string, date: string | null): number | null {
+  return sampleAt(ch, date, (u, i) => u.hm[i] ?? null);
+}
+
+/** `date` 이하의 마지막 회차에서 값을 꺼낸다. 회차열은 일자순이 아닐 수 있어 전부 훑는다. */
+function sampleAt(
+  ch: string,
+  date: string | null,
+  pick: (u: Unit, i: number) => number | null,
+): number | null {
+  if (!date) return null;
+  const u = TMS_DATA.units.find((x) => x.ch === ch);
+  if (!u) return null;
+  let hit: number | null = null;
+  let hitDate = "";
+  for (let i = 0; i < u.dates.length; i++) {
+    const d = u.dates[i];
+    if (!d || d > date || d < hitDate) continue;
+    const v = pick(u, i);
+    if (v == null) continue;
+    hit = v;
+    hitDate = d;
+  }
+  return hit;
+}
+
 /**
  * 시리얼로 타이어를 찾아 km/hr 수명과 예상 KM을 계산.
- * - serial(원본) / serial2(교체) 일치 포지션 탐색
- * - 교체 이력이 있으면 해당 타이어가 장착된 구간(교체일 기준)만 사용
- * - 트레드 존재 + km 수치 회차의 (km, hm, tread, date) 수집
- * - 예상수명: 트레드 vs (km−km0) 선형회귀 기울기로 limit(mm) 도달 km 외삽
- * 데이터 부족(또는 신품 기준 회차 미포함) 시 null 반환.
+ *
+ * - **주행 KM·HR 은 원장(`v_tire_ledger`) 이 정본이다.** 장착·탈착 시점의 차량 km 는
+ *   그 타이어가 측정된 회차 밖(교체 당일)에 있어서 점검 점열의 차이로는 잡히지 않는다.
+ *   `km_flag = 'OK'` 인 구간을 합산하며, 한 시리얼이 차량·포지션을 옮겨 다닌 경우도
+ *   구간마다 더해진다.
+ * - 산출 가능한 구간이 하나도 없으면(최초 장착분은 `mounted_at` 이 없어 전부 `NO_KM`)
+ *   종전대로 측정 점열의 최신 − 최초 로 되돌아간다.
+ * - **마모 점열은 구간 근거가 inspections.serial 이다** (원장의 장착일이 아니라).
+ *   측정값이 그 타이어의 것임을 회차 단위로 보장하므로 앞뒤 타이어가 섞이지 않는다.
+ *   차량이 바뀌면 km 가 리셋되므로 구간별 누적 오프셋으로 이어 붙인다.
+ * - tread = 0 회차는 제외하고, 마모가 단조로운 점만 남겨 음수 마모율을 차단한다.
+ * - 예상수명: 트레드 vs 누적 km 선형회귀 기울기로 limit(mm) 도달 km 외삽.
+ *   신품(22mm) 기준 회차가 점열에 없으면 **예상값만** 비운다 — 전체 수명을 대표하지
+ *   못하기 때문이다. 주행 실적은 원장에서 나오므로 이 가드와 무관하다.
+ *
+ * 데이터 부족 시 null 반환.
  */
 export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   if (!serial) return null;
 
-  // ① 시리얼로 ch/pos 탐색
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
+  // ① 이 시리얼이 실제로 측정된 구간 전체 (차량 이동 포함, 시간순)
+  const sels = segmentsOfSerial(serial);
+  if (!sels.length) return null;
+  // 표시 위치는 종전과 같이 대표 구간(현재 장착 중 → 없으면 최신)
+  const primary = sels.find((x) => x.seg.isCurrent) ?? sels[sels.length - 1];
+  const { ch, pos } = primary.seg;
+
+  // ② 구간별로 점열을 만들고 **누적** km·hm 축으로 이어 붙인다.
+  //    차량이 바뀌면 주행계·가동계가 리셋되므로 구간 안에서의 증분만 쓴다.
+  //    구간 원점은 원장의 장착 시점(km_start)이다 — 첫 측정 회차가 아니다.
+  //    첫 측정까지의 주행이 빠지면 구간 경계에서 누적값이 겹쳐 점이 하나 사라진다.
+  const segs = ledgerOf(serial);
+  const used = new Set<number>();
+  type P = { tread: number; km: number; hm: number | null; date: string };
+  const pts: P[] = [];
+  let kmBase = 0;
+  let hmBase = 0;
+  for (const sel of sels) {
+    const raw = segmentPoints(sel.unit, sel.seg)
+      .filter((p) => p.tread != null && p.km != null && (p.tread as number) > 0)
+      .map((p) => ({ tread: p.tread as number, km: p.km as number, hm: p.hm, date: p.date }));
+    if (!raw.length) continue;
+
+    const gi = segs.findIndex(
+      (g, i) => !used.has(i) && g.ch === sel.seg.ch && g.pos === sel.seg.pos,
+    );
+    const g = gi >= 0 ? segs[gi] : null;
+    if (gi >= 0) used.add(gi);
+    const measurable = g != null && g.kmFlag === "OK" && g.segmentKm != null;
+
+    const kmOrigin = measurable && g.mountedAt ? kmAt(g.ch, g.mountedAt) ?? raw[0].km : raw[0].km;
+    const hmOrigin = (measurable && g.mountedAt ? hmAt(g.ch, g.mountedAt) : null)
+      ?? raw.find((p) => p.hm != null)?.hm ?? null;
+
+    for (const p of raw) {
+      pts.push({
+        ...p,
+        km: kmBase + (p.km - kmOrigin),
+        hm: p.hm != null && hmOrigin != null ? hmBase + (p.hm - hmOrigin) : null,
+      });
+    }
+    // 다음 구간은 이 구간이 실제로 달린 만큼 뒤에서 시작한다.
+    kmBase += measurable ? (g.segmentKm as number) : raw[raw.length - 1].km - raw[0].km;
+    const hmEnd = measurable && g.removedAt ? hmAt(g.ch, g.removedAt) : null;
+    hmBase += hmEnd != null && hmOrigin != null
+      ? hmEnd - hmOrigin
+      : (pts[pts.length - 1].hm ?? hmBase) - hmBase;
   }
-  if (!ch || !pd) return null;
 
-  const u = TMS_DATA.units.find((x) => x.ch === ch)!;
-  const tr = (TMS_DATA.tread[ch] || {})[pos];
-  if (!tr) return null;
+  // ③ 마모 단조 · 누적 km 증가 구간만
+  const wear = monotoneWear(pts);
+  if (wear.length < 2) return null;
 
-  // ② 트레드 존재 + km 수치 회차 수집 (날짜 포함)
-  let pts: { km: number; hm: number | null; tread: number; date: string }[] = [];
-  tr.min.forEach((t, i) => {
-    if (typeof t !== "number") return;
-    const kmV = u.km[i];
-    if (typeof kmV !== "number") return;
-    const d = tr.dates[i] ?? u.dates[i];
-    if (!d) return;
-    const hmV = u.hm[i];
-    pts.push({ km: kmV, hm: typeof hmV === "number" ? hmV : null, tread: t, date: d as string });
-  });
-  if (pts.length < 2) return null;
+  // ④ 주행 KM — 원장의 산출 가능 구간 합. 없으면 측정 점열의 증분.
+  const ok = ledgerOf(serial).filter((g) => g.kmFlag === "OK" && g.segmentKm != null);
+  const ledgerKm = ok.reduce((sum, g) => sum + (g.segmentKm as number), 0);
+  const spanKm = wear[wear.length - 1].km - wear[0].km;
+  const km = ok.length ? (ledgerKm > 0 ? ledgerKm : null) : (spanKm > 0 ? spanKm : null);
 
-  pts.sort((a, b) => a.km - b.km);
-
-  // 교체 이력으로 해당 타이어 장착 구간만 선택 (원본/교체 시리즈 혼합 방지)
-  const replForPos = TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos);
-  const isReplacement = pd.serial2 === serial && pd.serial !== serial;
-  if (isReplacement) {
-    const my = replForPos.find((r) => r.newSerial === serial);
-    pts = my ? pts.filter((p) => p.date >= my.date) : [];
-  } else if (replForPos.length) {
-    const firstRepl = replForPos.reduce((a, b) => (a.date < b.date ? a : b));
-    pts = pts.filter((p) => p.date < firstRepl.date);
+  // ⑤ 주행 HR — 같은 구간의 HM 차. 원장에 HM 이 없어 구간 경계일로 되짚는다.
+  let hr: number | null = null;
+  if (ok.length) {
+    let sum = 0;
+    let any = false;
+    for (const g of ok) {
+      const a = hmAt(g.ch, g.mountedAt);
+      const b = hmAt(g.ch, g.removedAt);
+      if (a == null || b == null || b <= a) continue;
+      sum += b - a;
+      any = true;
+    }
+    hr = any ? sum : null;
+  } else {
+    const first = wear.find((p) => p.hm != null)?.hm ?? null;
+    const last = [...wear].reverse().find((p) => p.hm != null)?.hm ?? null;
+    hr = first != null && last != null && last - first > 0 ? last - first : null;
   }
-  if (pts.length < 2) return null;
 
-  // 신품(22mm) 기준 회차가 수집 데이터에 없으면(예: HM Reset 후 부분 km, 교체 타이어)
-  // 전체 수명을 대표하지 못하므로 계산 제외.
-  if (pts[0].tread < NEW_TREAD) return null;
-
-  // ③ km/hr 수명 = 최신 − 최초
-  const km0 = pts[0].km;
-  const kmDiff = pts[pts.length - 1].km - km0;
-  const km = kmDiff > 0 ? kmDiff : null;
-  const hmFirst = pts.find((p) => p.hm != null)?.hm ?? null;
-  const hmLast = [...pts].reverse().find((p) => p.hm != null)?.hm ?? null;
-  const hr = hmFirst != null && hmLast != null && hmLast - hmFirst > 0 ? hmLast - hmFirst : null;
-
-  // ④ 예상 KM / 예상 HM = 회귀 마모율로 현재 트레드 → 0mm 잔여 외삽 + 주행량 (항상 주행 이상)
-  const expectedKm = projectExpected(pts.map((p) => ({ x: p.km, y: p.tread })), km, limit);
-  const hmPairs = pts.filter((p) => p.hm != null).map((p) => ({ x: p.hm as number, y: p.tread }));
-  const expectedHm = hmPairs.length >= 2 && hmPairs[0].y >= NEW_TREAD
+  // ⑥ 예상 KM / 예상 HM — 회귀 마모율로 현재 트레드 → limit 잔여 외삽 + 주행량.
+  //    신품 기준 회차가 없으면 전체 수명을 대표하지 못하므로 예상값만 비운다.
+  const fromNew = wear[0].tread >= NEW_TREAD;
+  const expectedKm = fromNew
+    ? projectExpected(wear.map((p) => ({ x: p.km, y: p.tread })), km, limit)
+    : null;
+  const hmPairs = wear.filter((p) => p.hm != null).map((p) => ({ x: p.hm as number, y: p.tread }));
+  const expectedHm = fromNew && hmPairs.length >= 2
     ? projectExpected(hmPairs, hr, limit)
     : null;
 
-  return { ch, pos, km, hr, expectedKm, expectedHm };
+  // ⑦ 예상 교체 시점 (§A-2) — 발주 기준선(tread_order)까지. 신품 기준 회차는 요구하지 않는다:
+  //    마모율은 최근 추세만으로 충분하고, 교체 준비는 중고 장착 타이어에도 필요하다.
+  const unit = TMS_DATA.units.find((x) => x.ch === ch);
+  const rounds = unit
+    ? unit.dates.flatMap((d, i) => {
+        const k = unit.km[i];
+        return d && typeof k === "number" && k > 0 ? [{ date: d, km: k }] : [];
+      })
+    : [];
+  const latest = latestTreadOf(serial);
+  const projection = projectReplacement(
+    wear,
+    latest != null && latest > 0 ? latest : wear[wear.length - 1].tread,
+    dailyKm(rounds),
+    treadThresholds().order,
+  );
+  // 보정값이 없는 계기 리셋 차량은 실패 사유를 리셋으로 돌린다 — 회차 부족보다 그쪽이 원인이다.
+  // 보정값(§A-9)이 있으면 km 이 이미 연속이라 보통 회차처럼 예측된다.
+  if (projection.reason && meterUnresolved(unit)) projection.reason = "hm_reset";
+
+  return { ch, pos, km, hr, expectedKm, expectedHm, projection };
 }
 
-/** 시리얼 기준 최근 트레드(mm). 교체 타이어는 자기 장착 구간의 마지막 측정값. */
+/** 교체 준비 목록 기본 창 (일). 대시보드 카드와 수명 DB 필터가 같은 값을 쓴다 */
+export const PREP_WINDOW_DAYS = 30;
+/** 예상 교체일 배지 — 이 일수 이내면 적색 (§A-2) */
+export const PREP_URGENT_DAYS = 14;
+
+export interface PrepItem {
+  serial: string;
+  ch: string;
+  pos: string;
+  projectedDate: string;
+  /** 오늘(현장 WITA)부터 예상 교체일까지. 이미 지났으면 음수 */
+  daysLeft: number;
+  latestTread: number | null;
+  remainingKm: number | null;
+}
+
+/** 장착 중 타이어의 예상 교체일까지 남은 일수. 예측 불가·미장착이면 null */
+export function prepDaysLeft(serial: string, status: string, today = todayInField()): number | null {
+  if (status !== "Install") return null;
+  const d = lifeCalc(serial)?.projection.projectedDate;
+  return d ? daysBetween(today, d) : null;
+}
+
+/**
+ * 교체 준비 목록 — 예상 교체일이 오늘부터 withinDays 이내(이미 지난 것 포함)인 장착 타이어.
+ * 예상 교체일 오름차순. 대시보드 카드와 수명 DB 의 「30일 이내」 필터가 이 함수 하나를 쓴다.
+ */
+export function replacementPrepList(withinDays = PREP_WINDOW_DAYS, today = todayInField()): PrepItem[] {
+  const out: PrepItem[] = [];
+  for (const l of TMS_DATA.life) {
+    if (l.status !== "Install" || !l.serial) continue;
+    const c = lifeCalc(l.serial);
+    const d = c?.projection.projectedDate;
+    if (!c || !d) continue;
+    const daysLeft = daysBetween(today, d);
+    if (daysLeft > withinDays) continue;
+    out.push({
+      serial: l.serial, ch: c.ch, pos: c.pos, projectedDate: d, daysLeft,
+      latestTread: latestTreadOf(l.serial), remainingKm: c.projection.remainingKm,
+    });
+  }
+  return out.sort((a, b) => a.projectedDate.localeCompare(b.projectedDate) || a.ch.localeCompare(b.ch));
+}
+
+// ── 점검 지연 (§A-3) ────────────────────────────────────────
+
+/** 차량의 점검 경과 — 주기는 tire_config.inspection_interval_days, 오늘은 현장 WITA */
+export function unitInspectionAge(u: Unit, today = todayInField()): InspectionAge {
+  return inspectionAge(u.dates, today, inspectionIntervalDays());
+}
+
+/** 대시보드 집계 버킷. stale = 점검 지연 차량의 정상 판정 타이어 (마지막 값이 오래돼 정상이라 단정 못 함) */
+export type DashBucket = "ok" | "warn" | "order" | "danger" | "stale";
+
+/**
+ * 차량 1대의 대시보드 상태 집계. statusOf() 판정은 그대로 두고,
+ * 점검 지연(overdue) 차량에서 「정상」으로 나온 타이어만 stale 로 옮긴다.
+ * 주의·발주·위험은 오래된 값이어도 그대로 센다 — 지연이 경고를 지우면 안 된다.
+ */
+export function unitStatusCounts(u: Unit, today = todayInField()): Record<DashBucket, number> {
+  const overdue = unitInspectionAge(u, today).level === "overdue";
+  const c: Record<DashBucket, number> = { ok: 0, warn: 0, order: 0, danger: 0, stale: 0 };
+  for (let p = 1; p <= 10; p++) {
+    const st = statusOf(headPosData(u, p), p);
+    if (st === "none") continue;
+    if (st === "ok" && overdue) c.stale++;
+    else c[st]++;
+  }
+  return c;
+}
+
+/** 시리얼 기준 최근 트레드(mm) — 그 시리얼이 달려 있던 구간의 마지막 측정값. */
 export function latestTreadOf(serial: string): number | null {
-  if (!serial) return null;
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
-  }
-  if (!ch || !pd) return null;
-
-  const u = TMS_DATA.units.find((x) => x.ch === ch)!;
-  const tr = (TMS_DATA.tread[ch] || {})[pos];
-  if (!tr) return null;
-
-  let pts: { date: string; tread: number }[] = [];
-  tr.min.forEach((t, i) => {
-    if (typeof t !== "number") return;
-    const d = tr.dates[i] ?? u.dates[i];
-    if (!d) return;
-    pts.push({ date: d as string, tread: t });
-  });
-  if (!pts.length) return null;
-  pts.sort((a, b) => a.date.localeCompare(b.date));
-
-  const replForPos = TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos);
-  const isReplacement = pd.serial2 === serial && pd.serial !== serial;
-  if (isReplacement) {
-    const my = replForPos.find((r) => r.newSerial === serial);
-    pts = my ? pts.filter((p) => p.date >= my.date) : [];
-  } else if (replForPos.length) {
-    const firstRepl = replForPos.reduce((a, b) => (a.date < b.date ? a : b));
-    pts = pts.filter((p) => p.date < firstRepl.date);
-  }
-  if (!pts.length) return null;
-  return pts[pts.length - 1].tread;
+  return latestTreadPointOf(serial)?.tread ?? null;
 }
 
-export interface TireRound { date: string; tread: number | null; km: number | null; hm: number | null }
+/**
+ * 시리얼 기준 최근 4점 평균(mm) — `latestTreadOf()` 와 **같은 회차**의 값이다.
+ * 최소값만 보면 중앙 그루브가 닳은 타이어가 전부 0.0 mm 로 보여 폐기로 오독된다.
+ * 4점이 없던 회차(백필 이전 데이터)는 null 이므로 호출부에서 병기를 생략해야 한다.
+ */
+export function latestTreadAvgOf(serial: string): number | null {
+  return latestTreadPointOf(serial)?.treadAvg ?? null;
+}
+
+/** 두 함수가 서로 다른 회차를 보지 않도록 마지막 측정점을 한 곳에서 고른다. */
+function latestTreadPointOf(serial: string): SegPoint | null {
+  const sel = primarySerialSegment(serial);
+  if (!sel) return null;
+  const pts = segmentPoints(sel.unit, sel.seg).filter((p) => p.tread != null);
+  return pts.length ? pts[pts.length - 1] : null;
+}
+
+export interface TireRound {
+  date: string;
+  /** 4점 최소값 — 표의 기본 표시값이자 판정값 */
+  tread: number | null;
+  treadAvg: number | null;
+  widths: TreadWidths | null;
+  km: number | null;
+  hm: number | null;
+}
 export interface TireHistory {
   serial: string;
   ch: string;
@@ -345,6 +820,9 @@ export interface TireHistory {
   expectedKm: number | null;
   expectedHm: number | null;
   latestTread: number | null;
+  /** 최근 트레드와 **같은 회차**의 4점 평균·원시값. 4점 측정 이전이면 null. */
+  latestTreadAvg: number | null;
+  latestWidths: TreadWidths | null;
   rounds: TireRound[];          // 측정 이력 (해당 타이어 장착 구간)
 }
 
@@ -357,8 +835,8 @@ export interface TireMovement {
 
 /**
  * 시리얼의 장착 이동 이력(차량·포지션 변경) 재구성.
- * - 원본(최초) 장착: vehicle_positions.serial === serial → life.install 일자
- * - 교체 장착: replacements.newSerial === serial → repl.date
+ * 시리얼 체인의 장착 구간을 그대로 쓴다 — 최초 장착(seqNo 0)은 원장에 일자가 없으므로
+ * lifetimes.install(최초 투입일)을 표시 일자로 대신한다.
  * 일자순 정렬. 같은 (차량·포지션·일자)는 1건으로 합침.
  */
 export function tireMovements(serial: string): TireMovement[] {
@@ -366,15 +844,12 @@ export function tireMovements(serial: string): TireMovement[] {
   const life = TMS_DATA.life.find((l) => l.serial === serial);
   const install = life?.install && life.install !== "-" ? life.install : null;
 
-  const out: TireMovement[] = [];
-  for (const u of TMS_DATA.units) {
-    for (const p of u.positions) {
-      if (p.serial === serial) out.push({ date: install, ch: u.ch, pos: p.pos, kind: "install" });
-    }
-  }
-  for (const r of TMS_DATA.repl) {
-    if (r.newSerial === serial) out.push({ date: r.date, ch: r.ch, pos: r.pos, kind: "mount" });
-  }
+  const out: TireMovement[] = mountSpansOf(serial).map((s) => ({
+    date: s.seqNo === 0 ? install : s.from,
+    ch: s.ch,
+    pos: s.pos,
+    kind: s.seqNo === 0 ? "install" : "mount",
+  }));
 
   const seen = new Set<string>();
   const dedup = out.filter((m) => {
@@ -392,49 +867,36 @@ export function tireHistory(serial: string): TireHistory | null {
   if (!serial) return null;
   const life = TMS_DATA.life.find((l) => l.serial === serial) ?? null;
 
-  let ch = "", pos = "";
-  let pd: TirePosition | undefined;
-  for (const u of TMS_DATA.units) {
-    const p = u.positions.find((x) => x.serial === serial || x.serial2 === serial);
-    if (p) { ch = u.ch; pos = p.pos; pd = p; break; }
-  }
+  // 장착·탈착 일자는 교체 원장(v_position_history)이 정본이고,
+  // 측정 회차는 inspections.serial 로 잘린 구간이 정본이다. 둘을 섞지 않는다.
+  const span = primaryMountSpan(serial);
+  const sel = primarySerialSegment(serial);
+  const ch = sel?.seg.ch ?? span?.ch ?? "";
+  const pos = sel?.seg.pos ?? span?.pos ?? "";
   const unit = ch ? TMS_DATA.units.find((u) => u.ch === ch) ?? null : null;
-  const isReplacement = !!pd && pd.serial2 === serial && pd.serial !== serial;
-  const replForPos = ch ? TMS_DATA.repl.filter((r) => r.ch === ch && r.pos === pos) : [];
-  const mountRepl = replForPos.find((r) => r.newSerial === serial) ?? null;
-  const removeRepl = !isReplacement && replForPos.length
-    ? replForPos.reduce((a, b) => (a.date < b.date ? a : b))
-    : null;
 
-  // 측정 회차 (해당 타이어 장착 구간만)
-  let rounds: TireRound[] = [];
-  if (unit) {
-    const tr = (TMS_DATA.tread[ch] || {})[pos];
-    if (tr) {
-      let pts = tr.min
-        .map((t, i) => ({
-          date: (tr.dates[i] ?? unit.dates[i]) as string | null,
-          tread: typeof t === "number" ? t : null,
-          km: typeof unit.km[i] === "number" ? (unit.km[i] as number) : null,
-          hm: typeof unit.hm[i] === "number" ? (unit.hm[i] as number) : null,
+  // 측정 회차 — 그 시리얼이 실제로 달려 있던 구간만. 앞뒤 타이어 값이 섞이지 않는다.
+  const rounds: TireRound[] = sel
+    ? segmentPoints(sel.unit, sel.seg)
+        .filter((p) => p.date)
+        .map((p) => ({
+          date: p.date, tread: p.tread, treadAvg: p.treadAvg,
+          widths: p.widths, km: p.km, hm: p.hm,
         }))
-        .filter((p) => p.date) as TireRound[];
-      pts.sort((a, b) => a.date.localeCompare(b.date));
-      if (isReplacement && mountRepl) pts = pts.filter((p) => p.date >= mountRepl.date);
-      else if (removeRepl) pts = pts.filter((p) => p.date < removeRepl.date);
-      rounds = pts;
-    }
-  }
+    : [];
 
   const c = lifeCalc(serial);
+  // 요약의 세 값이 서로 다른 회차를 가리키지 않도록 한 점에서 뽑는다.
+  const last = latestTreadPointOf(serial);
   const norm = (s: string | null | undefined) => (!s || s === "-" ? null : s);
   return {
     serial,
     ch,
     pos,
     installDate: norm(life?.install),
-    mountDate: mountRepl?.date ?? null,
-    removeDate: removeRepl?.date ?? null,
+    // 최초 장착(seqNo 0)은 '재장착'이 아니므로 재장착일을 비운다.
+    mountDate: span && span.seqNo > 0 ? span.from : null,
+    removeDate: span?.to ?? null,
     scrapDate: norm(life?.scrap),
     damage: life?.damage && life.damage !== "-" ? life.damage : null,
     status: life?.status ?? "",
@@ -443,48 +905,447 @@ export function tireHistory(serial: string): TireHistory | null {
     hr: c?.hr ?? null,
     expectedKm: c?.expectedKm ?? null,
     expectedHm: c?.expectedHm ?? null,
-    latestTread: latestTreadOf(serial),
+    latestTread: last?.tread ?? null,
+    latestTreadAvg: last?.treadAvg ?? null,
+    latestWidths: last?.widths ?? null,
     rounds,
   };
 }
 
-export function getUnitAlerts(u: Unit) {
-  const alerts: { lv: "danger" | "warn"; text: string }[] = [];
+const ALERT_TX = {
+  ko: {
+    scrap: (code: string, life: string) => `폐기 — ${code} / 수명 ${life}시간`,
+    tread: "트레드",
+    treadDanger: "즉시 교체", treadOrder: "교체 타이어 발주", treadWarn: "마모 진행",
+    press: "공기압", rec: "권장",
+    low: "저압", high: "과압", devLow: "공기압 부족", devHigh: "공기압 과다",
+  },
+  id: {
+    scrap: (code: string, life: string) => `Scrap — ${code} / umur ${life} jam`,
+    tread: "Kedalaman alur",
+    treadDanger: "ganti segera", treadOrder: "pesan ban pengganti", treadWarn: "aus berlanjut",
+    press: "Tekanan angin", rec: "standar",
+    low: "tekanan rendah", high: "tekanan berlebih", devLow: "kurang angin", devHigh: "kelebihan angin",
+  },
+  en: {
+    scrap: (code: string, life: string) => `Scrapped — ${code} / life ${life} h`,
+    tread: "Tread",
+    treadDanger: "replace now", treadOrder: "order replacement tire", treadWarn: "wear progressing",
+    press: "Pressure", rec: "rec.",
+    low: "under-inflated", high: "over-inflated", devLow: "low pressure", devHigh: "high pressure",
+  },
+} as const;
+
+/**
+ * 차량 1대의 경보 목록. 대시보드 카운트(statusOf)와 같은 판정을 쓰므로
+ * 카운트를 눌러 연 목록과 숫자가 맞는다 — 공기압 주의(±편차)도 여기 나온다.
+ */
+export function getUnitAlerts(u: Unit, lang: Lang = "id") {
+  const tx = ALERT_TX[lang];
+  const alerts: { lv: "danger" | "order" | "warn"; text: string }[] = [];
   for (let p = 1; p <= 10; p++) {
     const d = headPosData(u, p);
-    const st = statusOf(d, p);
     if (!d) continue;
+    const head = `CH ${u.ch} · ${d.rp} (#${p})`;
 
     const scrap = d.serial
       ? TMS_DATA.life.find((l) => l.serial === d.serial && l.status === "Scrap")
       : null;
 
     if (scrap) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 폐기 — ${codeName(scrap.damage)} / 수명 ${scrap.lifetime}시간`,
-      });
-    } else if (st === "danger" && d.latestTread != null && d.latestTread <= TREAD_DANGER) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${d.latestTread}mm — 교체권장`,
-      });
-    } else if (st === "warn" && d.latestTread != null) {
-      alerts.push({
-        lv: "warn",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 트레드 ${d.latestTread}mm — 마모 진행`,
-      });
+      alerts.push({ lv: "danger", text: `${head} ${tx.scrap(codeName(scrap.damage), String(scrap.lifetime))}` });
+    } else if (d.latestTread != null) {
+      // 트레드 경보는 측정값 자체로 판정한다. st 는 공기압 이상까지 섞인 값이라
+      // 트레드가 정상인데 트레드 경보가 나가는 것을 막는다.
+      const lv = treadLevel(d.latestTread);
+      const what = lv === "danger" ? tx.treadDanger : lv === "order" ? tx.treadOrder : lv === "warn" ? tx.treadWarn : null;
+      if (lv !== "ok" && what) {
+        alerts.push({ lv, text: `${head} ${tx.tread} ${fmtTread(d.latestTread)} — ${what}` });
+      }
     }
 
-    if (
-      typeof d.latestPress === "number" &&
-      d.latestPress < recPsi(p) * 0.85
-    ) {
-      alerts.push({
-        lv: "danger",
-        text: `CH ${u.ch} · ${d.rp} (#${p}) 공기압 ${Math.round(d.latestPress)}psi — 저압 (권장 ${recPsi(p)})`,
-      });
+    if (typeof d.latestPress === "number") {
+      const target = recPsi(p);
+      const j = judgePressure(d.latestPress, target);
+      if (j.level !== "ok") {
+        const what = j.level === "danger"
+          ? (j.cause === "low" ? tx.low : tx.high)
+          : (j.cause === "low" ? tx.devLow : tx.devHigh);
+        const sign = j.devPct > 0 ? "+" : "";
+        alerts.push({
+          lv: j.level,
+          text: `${head} ${tx.press} ${fmtPressure(d.latestPress)} — ${what} (${tx.rec} ${fmtPressure(target)}, ${sign}${fmtPercent(j.devPct)})`,
+        });
+      }
     }
   }
   return alerts;
+}
+
+// ── 원가·CPK (§B-1) ─────────────────────────────────────────────
+
+export interface TireCost {
+  /** 적용 단가 — 구매가가 있으면 그것, 없으면 장착일 기준 cost_params.unit_price */
+  price: number | null;
+  priceSource: "purchase" | "params" | null;
+  currency: string;
+  retreadCount: number;
+  retreadCost: number;
+  total: number | null;
+  /** 실적 CPK = 총비용 ÷ 주행 KM */
+  cpk: number | null;
+  /** 예상 CPK = 총비용 ÷ 예상 KM(0 mm 외삽) */
+  expCpk: number | null;
+}
+
+/** 수명 DB 행의 원가. 단가가 하나도 없으면 total·cpk 가 null — 0 으로 채우지 않는다 */
+export function tireCostOf(serial: string): TireCost | null {
+  const l = TMS_DATA.life.find((x) => x.serial === serial);
+  if (!l) return null;
+  const installDate = l.install && /^\d{4}-\d{2}-\d{2}/.test(l.install) ? l.install.slice(0, 10) : null;
+  const param = costParamAt(TMS_DATA.costParams, installDate, brandOfSerial(serial));
+  const price = l.purchasePrice ?? param?.unitPrice ?? null;
+  const priceSource = l.purchasePrice != null ? "purchase" : param?.unitPrice != null ? "params" : null;
+  const currency = (l.purchasePrice != null ? l.currency : null) ?? param?.currency ?? "IDR";
+  const total = tireTotalCost({ purchasePrice: l.purchasePrice, unitPrice: param?.unitPrice ?? null, retreadCost: l.retreadCost });
+  const c = lifeCalc(serial);
+  // 폐기·미장착은 예상 KM 을 내지 않는 수명 DB 규칙을 그대로 따른다
+  const noExpected = l.status === "Scrap" || l.status === "Not Install";
+  return {
+    price, priceSource, currency,
+    retreadCount: l.retreadCount, retreadCost: l.retreadCost,
+    total,
+    cpk: cpk(total, c?.km),
+    expCpk: noExpected ? null : cpk(total, c?.expectedKm),
+  };
+}
+
+
+// ── 공기압 이력 분석 (§B-2) ─────────────────────────────────────
+
+const POS_NUM: Record<string, number> = Object.fromEntries(
+  Object.entries(HEAD_MAP).map(([n, rp]) => [rp, Number(n)]),
+);
+
+const roundKm = (u: Unit, i: number): number | null => {
+  const v = u.km[i];
+  return typeof v === "number" ? v : null;
+};
+const pressAt = (pd: TirePosition | undefined, i: number): number | null => {
+  const v = pd?.press[i];
+  return typeof v === "number" ? v : null;
+};
+
+/** 한 장착 구간의 회차 (KM 은 계기 리셋 보정이 반영된 값) */
+function segmentPressRounds(u: Unit, seg: TreadSegment): PressRound[] {
+  const n = POS_NUM[seg.pos];
+  if (!n) return [];
+  const pd = u.positions.find((p) => p.pos === seg.pos);
+  const out: PressRound[] = [];
+  for (let i = seg.idxFrom; i <= seg.idxTo; i++) {
+    if (seg.tread[i] === undefined || !u.dates[i]) continue;
+    out.push({ date: u.dates[i] as string, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
+  }
+  return out;
+}
+
+/**
+ * 차량 한 포지션의 회차를 장착 구간별로 끊어 돌려준다 — 교체 전후를 한 줄로 이으면
+ * 새 타이어의 공기압이 옛 타이어 구간에 «유지됐다» 고 잘못 가정하게 된다.
+ * 구간 정보가 없는 포지션은 전 회차를 한 덩어리로 본다.
+ */
+export function positionPressRuns(u: Unit, rp: string): { serial: string; rounds: PressRound[] }[] {
+  const segs = posSegments(u.ch, rp);
+  if (segs.length) return segs.map((seg) => ({ serial: seg.serial, rounds: segmentPressRounds(u, seg) }));
+  const n = POS_NUM[rp];
+  if (!n) return [];
+  const pd = u.positions.find((p) => p.pos === rp);
+  const rounds: PressRound[] = [];
+  u.dates.forEach((d, i) => {
+    if (d) rounds.push({ date: d, press: pressAt(pd, i), rec: recPsi(n), km: roundKm(u, i) });
+  });
+  return [{ serial: pd?.serial ?? "", rounds }];
+}
+
+function serialPressRuns(serial: string): PressRound[][] {
+  return segmentsOfSerial(serial).map(({ unit, seg }) => segmentPressRounds(unit, seg));
+}
+
+/** 타이어 장착 구간 전체 회차 중 정상(기본 ±5%) 회차 비율 */
+export function pressureCompliance(serial: string): Compliance {
+  return pressureComplianceOf(serialPressRuns(serial).flat());
+}
+
+/** 저압 노출 지수(%·km). 측정 회차가 하나도 없으면 null */
+export function underinflationExposure(serial: string): number | null {
+  const runs = serialPressRuns(serial);
+  if (!runs.some((r) => r.some((x) => x.press != null))) return null;
+  return runs.reduce((s, r) => s + exposureSum(exposureIntervals(r)), 0);
+}
+
+export interface VehiclePressureStats {
+  ch: string;
+  compliance: Compliance;
+  /** 포지션별 평균 편차(%, 부호 유지) — HEAD_MAP 의 포지션 이름 키 */
+  posDev: Record<string, number | null>;
+  exposure: number;
+}
+
+export function vehiclePressureStats(u: Unit): VehiclePressureStats {
+  const all: PressRound[] = [];
+  const posDev: Record<string, number | null> = {};
+  let exposure = 0;
+  for (const rp of Object.values(HEAD_MAP)) {
+    const runs = positionPressRuns(u, rp);
+    const rs = runs.flatMap((r) => r.rounds);
+    all.push(...rs);
+    posDev[rp] = meanDeviationPct(rs);
+    for (const r of runs) exposure += exposureSum(exposureIntervals(r.rounds));
+  }
+  return { ch: u.ch, compliance: pressureComplianceOf(all), posDev, exposure };
+}
+
+export interface ExposureRank {
+  serial: string;
+  exposure: number;
+  compliance: Compliance;
+  /** 현재 장착 위치. 탈착된 타이어면 null */
+  at: { ch: string; pos: string } | null;
+}
+
+/** 저압 노출 상위 n 본 (노출 > 0 인 것만) */
+export function topUnderinflated(n = 5): ExposureRank[] {
+  const serials = new Set<string>();
+  for (const byPos of Object.values(TMS_DATA.segments)) {
+    for (const segs of Object.values(byPos)) for (const seg of segs) if (seg.serial) serials.add(seg.serial);
+  }
+  const out: ExposureRank[] = [];
+  for (const serial of serials) {
+    const exposure = underinflationExposure(serial);
+    if (!exposure || exposure <= 0) continue;
+    let at: ExposureRank["at"] = null;
+    for (const u of TMS_DATA.units) {
+      const pd = u.positions.find((p) => p.serial === serial);
+      if (pd) { at = { ch: u.ch, pos: pd.pos }; break; }
+    }
+    out.push({ serial, exposure, compliance: pressureCompliance(serial), at });
+  }
+  return out.sort((a, b) => b.exposure - a.exposure).slice(0, n);
+}
+
+// ── 연료·수명 손실 추정 (§B-3) ─────────────────────────────────
+
+export interface EconMonth {
+  /** YYYY-MM — 저압 회차의 점검일 기준 */
+  month: string;
+  exposure: number;
+  /** 추가 연료(L). 계수 미설정이면 null */
+  fuelL: number | null;
+}
+
+export interface VehicleEconomics {
+  ch: string;
+  exposure: number;
+  /** 추가 연료(L) — 연비·연료 계수 중 하나라도 NULL 이면 null */
+  fuelL: number | null;
+  /** 연료 손실액 (fuelCurrency) — 유가까지 있어야 값 */
+  fuelCost: number | null;
+  fuelCurrency: string;
+  /** 수명 손실(km) */
+  lifeKm: number | null;
+  /** 수명 손실액 = Σ 구간별 수명 손실 km × 그 타이어 CPK. 단가 없는 타이어가 섞이면 null */
+  lifeCost: number | null;
+  lifeCurrency: string | null;
+  /** 저압 노출이 있는데 CPK 가 없어 수명 손실액에서 빠진 타이어 수 */
+  lifeCostMissing: number;
+  monthly: EconMonth[];
+}
+
+/** 타이어 1본 단위 CPK — 예상 CPK 우선, 없으면 실적 CPK */
+function cpkForLoss(serial: string): { v: number; cur: string } | null {
+  const c = tireCostOf(serial);
+  if (!c) return null;
+  const v = c.expCpk ?? c.cpk;
+  return v == null ? null : { v, cur: c.currency };
+}
+
+/** 차량 1대의 저압 노출 → 연료·수명 손실 추정. 계수는 tire_config 설정값(가정값) */
+export function economics(u: Unit): VehicleEconomics {
+  const t = TMS_DATA.tire;
+  const fs = t.fuelSensPer10Pct, base = t.fuelBaseLPerKm, ls = t.lifeSensPer10Pct;
+  let exposure = 0;
+  let fuelL: number | null = 0;
+  let lifeKm: number | null = 0;
+  let lifeCost: number | null = 0;
+  let lifeCurrency: string | null = null;
+  let lifeCostMissing = 0;
+  const months = new Map<string, EconMonth>();
+
+  for (const rp of Object.values(HEAD_MAP)) {
+    for (const run of positionPressRuns(u, rp)) {
+      const iv = exposureIntervals(run.rounds);
+      if (!iv.length) continue;
+      const exp = exposureSum(iv);
+      exposure += exp;
+      const f = extraFuelL(iv, fs, base);
+      fuelL = fuelL == null || f == null ? null : fuelL + f;
+      const lk = lifeLossKm(exp, ls);
+      lifeKm = lifeKm == null || lk == null ? null : lifeKm + lk;
+      if (lk != null && lk > 0) {
+        const c = run.serial ? cpkForLoss(run.serial) : null;
+        if (!c) lifeCostMissing++;
+        else if (lifeCurrency != null && lifeCurrency !== c.cur) lifeCost = null;   // 통화가 섞이면 합치지 않는다
+        else { lifeCurrency = c.cur; if (lifeCost != null) lifeCost += lk * c.v; }
+      }
+      for (const x of iv) {
+        const m = x.date.slice(0, 7);
+        const cur = months.get(m) ?? { month: m, exposure: 0, fuelL: 0 };
+        cur.exposure += x.lowPct * x.km;
+        const fx = extraFuelL([x], fs, base);
+        cur.fuelL = cur.fuelL == null || fx == null ? null : cur.fuelL + fx;
+        months.set(m, cur);
+      }
+    }
+  }
+  if (lifeKm == null || lifeCostMissing > 0) lifeCost = null;
+  // 손실이 0 이면 단가 유무와 무관하게 0 — «저압이 없으면 손실 0» (수용 기준)
+  if (lifeKm === 0) lifeCost = 0;
+  return {
+    ch: u.ch,
+    exposure,
+    fuelL,
+    fuelCost: fuelL === 0 ? 0 : mulOrNull(fuelL, t.fuelPrice),
+    fuelCurrency: t.fuelCurrency || "IDR",
+    lifeKm,
+    lifeCost,
+    lifeCurrency,
+    lifeCostMissing,
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+  };
+}
+
+// ── 경제성 요약 (§B-4) ─────────────────────────────────────────
+
+/** 같은 통화끼리만 더한다. 하나라도 null 이거나 통화가 섞이면 null */
+function sumSameCurrency(xs: { v: number | null; cur: string }[]): { v: number | null; cur: string | null } {
+  if (!xs.length) return { v: null, cur: null };
+  const cur = xs[0].cur;
+  let v = 0;
+  for (const x of xs) {
+    if (x.v == null || x.cur !== cur) return { v: null, cur };
+    v += x.v;
+  }
+  return { v, cur };
+}
+
+export interface EconomicsRow {
+  ch: string;
+  /** 차량 주행 KM (첫 → 마지막 측정, 계기 리셋 보정 반영) */
+  km: number | null;
+  /** 장착 타이어 본수 · 단가가 잡힌 본수 */
+  mounted: number;
+  priced: number;
+  /** 장착 타이어 총비용 합 — 한 본이라도 단가가 없으면 null */
+  totalCost: number | null;
+  currency: string | null;
+  /** 차량 CPK = 장착 본별 CPK 의 합 (10본이 같은 km 를 함께 달리므로 «차량 1 km 당 타이어 원가») */
+  cpk: number | null;
+  expCpk: number | null;
+  /** 목표 수명(target_life_km) 달성 시 CPK = Σ 총비용 ÷ 목표 KM */
+  targetCpk: number | null;
+  /** 예상 KM ≥ 목표 수명인 본수 / 예상 KM 이 나온 본수 */
+  achieved: number;
+  evaluated: number;
+  compliance: Compliance;
+  econ: VehicleEconomics;
+}
+
+export function economicsRow(u: Unit): EconomicsRow {
+  const kms = u.km.filter((v): v is number => typeof v === "number");
+  const km = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
+  const target = targetLifeKm();
+  const tires = u.positions.map((p) => p.serial).filter(Boolean);
+  const costs = tires.map((sr) => ({ sr, c: tireCostOf(sr), l: lifeCalc(sr) }));
+  const cur = (x: (typeof costs)[number]) => x.c?.currency ?? "";
+  const total = sumSameCurrency(costs.map((x) => ({ v: x.c?.total ?? null, cur: cur(x) })));
+  const cpkSum = sumSameCurrency(costs.map((x) => ({ v: x.c?.cpk ?? null, cur: cur(x) })));
+  const expSum = sumSameCurrency(costs.map((x) => ({ v: x.c?.expCpk ?? null, cur: cur(x) })));
+  let achieved = 0, evaluated = 0;
+  for (const x of costs) {
+    if (x.l?.expectedKm == null) continue;
+    evaluated++;
+    if (x.l.expectedKm >= target) achieved++;
+  }
+  return {
+    ch: u.ch,
+    km,
+    mounted: tires.length,
+    priced: costs.filter((x) => x.c?.total != null).length,
+    totalCost: total.v,
+    currency: total.cur,
+    cpk: cpkSum.v,
+    expCpk: expSum.v,
+    targetCpk: total.v != null && target > 0 ? total.v / target : null,
+    achieved, evaluated,
+    compliance: vehiclePressureStats(u).compliance,
+    econ: economics(u),
+  };
+}
+
+export interface FleetEconomics {
+  rows: EconomicsRow[];
+  /** 장착 타이어 본당 실적 CPK 평균 — 통화가 하나일 때만 */
+  avgCpk: number | null;
+  avgCpkCurrency: string | null;
+  compliance: Compliance;
+  fuelCost: number | null;
+  fuelCurrency: string;
+  lifeCost: number | null;
+  lifeCurrency: string | null;
+  monthly: { month: string; exposure: number; fuelL: number | null; fuelCost: number | null }[];
+}
+
+export function fleetEconomics(units: Unit[] = TMS_DATA.units): FleetEconomics {
+  const rows = units.map(economicsRow);
+  const tireCpk: { v: number; cur: string }[] = [];
+  for (const u of units) {
+    for (const p of u.positions) {
+      const c = p.serial ? tireCostOf(p.serial) : null;
+      if (c?.cpk != null) tireCpk.push({ v: c.cpk, cur: c.currency });
+    }
+  }
+  const one = new Set(tireCpk.map((x) => x.cur)).size === 1;
+  const ok = rows.reduce((a, r) => a + r.compliance.ok, 0);
+  const total = rows.reduce((a, r) => a + r.compliance.total, 0);
+  const fuel = rows.map((r) => r.econ.fuelCost);
+  const life = sumSameCurrency(
+    rows.filter((r) => r.econ.lifeCost !== 0).map((r) => ({ v: r.econ.lifeCost, cur: r.econ.lifeCurrency ?? "" })),
+  );
+  const allLifeZero = rows.every((r) => r.econ.lifeCost === 0);
+  const t = TMS_DATA.tire;
+  const price = t.fuelPrice;
+  // 노출이 0 이면 구간 계산은 0 을 돌려주지만, 계수가 비어 있으면 KPI 는 «설정 필요» 여야 한다
+  const fuelSet = rows.length > 0 && t.fuelBaseLPerKm != null && t.fuelSensPer10Pct != null && price != null;
+  const lifeSet = rows.length > 0 && t.lifeSensPer10Pct != null;
+  const months = new Map<string, { month: string; exposure: number; fuelL: number | null; fuelCost: number | null }>();
+  for (const r of rows) {
+    for (const m of r.econ.monthly) {
+      const cur = months.get(m.month) ?? { month: m.month, exposure: 0, fuelL: 0, fuelCost: null };
+      cur.exposure += m.exposure;
+      cur.fuelL = cur.fuelL == null || m.fuelL == null ? null : cur.fuelL + m.fuelL;
+      cur.fuelCost = mulOrNull(cur.fuelL, price);
+      months.set(m.month, cur);
+    }
+  }
+  return {
+    rows,
+    avgCpk: tireCpk.length && one ? tireCpk.reduce((a, x) => a + x.v, 0) / tireCpk.length : null,
+    avgCpkCurrency: tireCpk.length && one ? tireCpk[0].cur : null,
+    compliance: { ok, total, pct: total ? (ok / total) * 100 : null },
+    fuelCost: !fuelSet || fuel.some((v) => v == null) ? null : fuel.reduce<number>((a, v) => a + (v ?? 0), 0),
+    fuelCurrency: t.fuelCurrency || "IDR",
+    lifeCost: !lifeSet ? null : allLifeZero ? 0 : life.v,
+    lifeCurrency: life.cur,
+    monthly: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+  };
 }

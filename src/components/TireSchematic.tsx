@@ -2,7 +2,8 @@
 // 재사용 배치도(Head 10본) — 포지션별 공기압/트레드/시리얼을 신호등 색상으로 렌더.
 // LayoutTab · InspectionTab(점검 이력) 공용.
 import { HEAD_MAP } from "@/data/tmsData";
-import { statusFromValues, fmtTread } from "@/data/tmsUtils";
+import { statusFromValues } from "@/data/tmsUtils";
+import { EMPTY, fmtTread } from "@/lib/format";
 import type { TireStatus } from "@/data/tmsUtils";
 
 export interface SchematicCell {
@@ -12,10 +13,12 @@ export interface SchematicCell {
 }
 
 // 상태 → Tailwind 색상 (LayoutTab의 STATUS_STYLE과 동일)
+// 4단계 신호등 — 녹색 ≥10mm / 황색 5~10mm / 주황 3~5mm(발주) / 적색 <3mm
 const STATUS_STYLE: Record<TireStatus, string> = {
-  ok: "border-green-600 bg-green-50 text-green-700",
-  warn: "border-yellow-500 bg-yellow-50 text-yellow-700",
-  danger: "border-red-500 bg-red-50 text-red-700",
+  ok: "border-level-ok bg-level-ok/10 text-level-ok",
+  warn: "border-level-warn bg-level-warn/10 text-level-warn",
+  order: "border-level-order bg-level-order/10 text-level-order",
+  danger: "border-level-danger bg-level-danger/10 text-level-danger",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
 
@@ -94,7 +97,7 @@ function Cell({
   const press = c?.pressure ?? null;
   const st = statusFromValues(tread, press, pos);
   const parts = rp.split(" ");          // "L2 Out" → ["L2","Out"]
-  const title = `${rp} · ${press ?? "-"}psi / ${tread != null ? fmtTread(tread) : "-"}mm`;
+  const title = `${rp} · ${press ?? EMPTY}psi / ${fmtTread(tread, false)}mm`;
 
   return (
     <button
