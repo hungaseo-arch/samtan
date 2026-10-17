@@ -1,4 +1,5 @@
 // @section: inspection-tab
+import { normalizeSerialOrNull } from "@/lib/serial";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { TMS_DATA, HEAD_MAP, recPsi, odometerLimits } from "@/data/tmsData";
 import { unitByCh } from "@/data/tmsUtils";
@@ -682,7 +683,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
 
       return {
         pos,
-        serial: cell?.serial?.trim() || null,
+        serial: normalizeSerialOrNull(cell?.serial),
         pressure: numOrNull(cell?.pressure ?? ""),
         tread_status: status,
         flag: cell?.flag ?? "OK",

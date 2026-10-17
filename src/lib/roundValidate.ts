@@ -5,6 +5,8 @@
 // error 는 저장 차단, warn 은 사용자가 확인하면 저장된다.
 
 /** 공기압 입력 범위(psi). 밖이면 저장 차단 — 사용자 결정 2026-10-16 (decisions W-3) */
+import { normalizeSerialOrNull } from "@/lib/serial";
+
 export const PSI_INPUT_MIN = 50;
 export const PSI_INPUT_MAX = 150;
 /** 권장 공기압 대비 이 비율을 넘게 벗어나면 확인 후 저장 (W-3) */
@@ -124,7 +126,7 @@ export function validateRound(input: RoundInput, ctx: ValidateContext): RoundIss
       out.push({ level: ctx.precisionLevel ?? "error", code: "tread_precision", pos: r.pos, value: tooFine });
 
     const exp = ctx.expectedSerial[r.pos];
-    const serial = r.serial?.trim() || null;
+    const serial = normalizeSerialOrNull(r.serial);
     const mismatch = !!(exp && serial && serial !== exp);
     if (mismatch) out.push({ level: "warn", code: "serial_mismatch", pos: r.pos, ref: exp, value: serial });
 

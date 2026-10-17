@@ -7,6 +7,7 @@
 //
 // WO-TMS-2026-10-LIFE T-4 — 교체 시 KM·HM 을 맨 위로 올리고 직전 회차 값을 placeholder 로 보여 준다.
 // km_at 이 v_tire_ledger 구간 경계의 1순위 근거라서다(비면 점검 회차 보간). 탈착 사유는 필수.
+import { normalizeSerial } from "@/lib/serial";
 import { useEffect, useMemo, useState } from "react";
 import { X, Loader2, Repeat } from "lucide-react";
 import { toast } from "sonner";
@@ -215,15 +216,15 @@ export default function ReplacementEntryModal({
   const isRot = reason === "ROT";
   const num = (v: string) => (v.trim() === "" ? null : Number(v));
 
-  const existingLife = TMS_DATA.life.find((l) => l.serial === serial.trim());
-  const param = costParamAt(TMS_DATA.costParams, date, brandOfSerial(serial.trim()));
+  const existingLife = TMS_DATA.life.find((l) => l.serial === normalizeSerial(serial));
+  const param = costParamAt(TMS_DATA.costParams, date, brandOfSerial(normalizeSerial(serial)));
   const defaultPrice = existingLife?.purchasePrice ?? param?.unitPrice ?? null;
   const priceSrc = existingLife?.purchasePrice != null ? "life" : param?.unitPrice != null ? "params" : null;
   const priceCurrency = existingLife?.currency ?? param?.currency ?? "IDR";
   const priceShown = priceInput ?? (defaultPrice != null ? String(defaultPrice) : "");
 
   const handleSave = async () => {
-    if (!serial.trim()) { toast.error(tx.err.serial_required); return; }
+    if (!normalizeSerial(serial)) { toast.error(tx.err.serial_required); return; }
     if (!reason) { toast.error(tx.reasonRequired); return; }
     if (km.trim() === "" && !window.confirm(tx.kmEmptyConfirm)) return;
     setBusy(true);
@@ -242,12 +243,12 @@ export default function ReplacementEntryModal({
       const p = num(priceShown);
       if (p != null && Number.isFinite(p) && p >= 0 && p !== existingLife?.purchasePrice) {
         try {
-          await updateLifetimePrice(serial.trim(), p, priceCurrency);
+          await updateLifetimePrice(normalizeSerial(serial), p, priceCurrency);
         } catch (pe) {
           toast.warning(`${tx.priceFail}: ${pe instanceof Error ? pe.message : String(pe)}`);
         }
       }
-      await onSaved(serial.trim());
+      await onSaved(normalizeSerial(serial));
       onClose();
     } catch (e) {
       toast.error(errText(tx, e));
@@ -410,7 +411,7 @@ export default function ReplacementEntryModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={busy || !serial.trim() || !reason}
+            disabled={busy || !normalizeSerial(serial) || !reason}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 hover:bg-primary/90 transition-colors"
           >
             {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />}

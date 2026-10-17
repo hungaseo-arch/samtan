@@ -49,13 +49,13 @@ const TX = {
     loading: "TCO 지표를 불러오는 중…",
     loadFail: "TCO 지표를 불러오지 못했습니다.",
 
-    cpkTitle: "주행거리당 원가 (CPK)",
+    cpkTitle: "주행거리당 원가 (CPK) — 가중평균",
     cpkG: "CPK-G · 구매가 기준",
-    cpkGSub: "구매가 ÷ 누적 주행거리",
+    cpkGSub: "가중평균 · Σ구매가 ÷ Σ누적 주행거리",
     cpkT: "CPK-T · 총소유비용 기준",
-    cpkTSub: "구매가 + 부대비용 + 다운타임 ÷ 누적 주행거리",
+    cpkTSub: "가중평균 · Σ(구매가 + 부대비용 + 다운타임) ÷ Σ누적 주행거리",
     cpkL: "CPK-L · 생애주기 기준",
-    cpkLSub: "총소유비용 − 회수가치 ÷ 누적 주행거리",
+    cpkLSub: "가중평균 · Σ(총소유비용 − 회수가치) ÷ Σ(누적 + 재생 수명)",
     priceUnset: "단가 미확정",
     priceUnsetHelp: "본당 단가가 원가 설정(cost_params)에 입력되어야 산출됩니다.",
     paramsUnset: "파라미터 미확정",
@@ -124,13 +124,13 @@ const TX = {
     loading: "Memuat indikator TCO…",
     loadFail: "Gagal memuat indikator TCO.",
 
-    cpkTitle: "Biaya per Kilometer (CPK)",
+    cpkTitle: "Biaya per Kilometer (CPK) — rata-rata tertimbang",
     cpkG: "CPK-G · dasar harga beli",
-    cpkGSub: "Harga beli ÷ jarak tempuh kumulatif",
+    cpkGSub: "Rata-rata tertimbang · Σharga beli ÷ Σjarak kumulatif",
     cpkT: "CPK-T · dasar biaya kepemilikan total",
-    cpkTSub: "Harga beli + biaya tambahan + waktu henti ÷ jarak tempuh kumulatif",
+    cpkTSub: "Rata-rata tertimbang · Σ(harga beli + biaya tambahan + waktu henti) ÷ Σjarak kumulatif",
     cpkL: "CPK-L · dasar siklus hidup",
-    cpkLSub: "Biaya kepemilikan total − nilai pemulihan ÷ jarak tempuh kumulatif",
+    cpkLSub: "Rata-rata tertimbang · Σ(biaya total − nilai pemulihan) ÷ Σ(kumulatif + umur vulkanisir)",
     priceUnset: "Harga satuan belum pasti",
     priceUnsetHelp: "Perlu harga per ban di pengaturan biaya (cost_params).",
     paramsUnset: "Parameter belum pasti",
@@ -199,13 +199,13 @@ const TX = {
     loading: "Loading TCO indicators…",
     loadFail: "Could not load TCO indicators.",
 
-    cpkTitle: "Cost per Kilometre (CPK)",
+    cpkTitle: "Cost per Kilometre (CPK) — weighted mean",
     cpkG: "CPK-G · purchase price basis",
-    cpkGSub: "Purchase price ÷ cumulative distance",
+    cpkGSub: "Weighted mean · Σpurchase price ÷ Σcumulative distance",
     cpkT: "CPK-T · total cost of ownership basis",
-    cpkTSub: "Purchase + ancillary + downtime ÷ cumulative distance",
+    cpkTSub: "Weighted mean · Σ(purchase + ancillary + downtime) ÷ Σcumulative distance",
     cpkL: "CPK-L · lifecycle basis",
-    cpkLSub: "Total ownership cost − recovery value ÷ cumulative distance",
+    cpkLSub: "Weighted mean · Σ(total cost − recovery value) ÷ Σ(cumulative + retread life)",
     priceUnset: "Unit price not set",
     priceUnsetHelp: "Requires the per-tire price in the cost settings (cost_params).",
     paramsUnset: "Parameters pending",
@@ -468,9 +468,9 @@ export default function TcoTab() {
           `${tx.basisCosted} ${fmtInt(all?.costed_count ?? 0)}`
         } />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_avg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
-          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_avg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
-          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_avg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
         </div>
         {params.data?.unit_price != null && (
           <Note tone="info">

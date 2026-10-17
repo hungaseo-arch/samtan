@@ -22,8 +22,8 @@ const TX = {
   ko: {
     title: "경제성 요약",
     sub: "장착 타이어 원가 · 공기압 준수 · 저압 손실 추정 (추정치)",
-    kCpk: "플릿 평균 CPK",
-    kCpkSub: "장착 타이어 본당 실적 CPK 평균",
+    kCpk: "플릿 CPK (가중평균)",
+    kCpkSub: "장착 타이어 Σ원가 ÷ Σ주행거리",
     kComp: "공기압 준수율",
     kCompSub: (dev: string) => `권장 ±${dev} 이내 측정 회차 비율`,
     kFuel: "누적 연료 손실 추정액",
@@ -81,8 +81,8 @@ const TX = {
   id: {
     title: "Ringkasan ekonomi",
     sub: "Biaya ban terpasang · kepatuhan tekanan angin · estimasi kerugian tekanan rendah (estimasi)",
-    kCpk: "Rata-rata CPK armada",
-    kCpkSub: "rata-rata CPK aktual per ban terpasang",
+    kCpk: "CPK armada (rata-rata tertimbang)",
+    kCpkSub: "Σbiaya ÷ Σjarak ban terpasang",
     kComp: "Kepatuhan tekanan angin",
     kCompSub: (dev: string) => `porsi pemeriksaan dalam ±${dev} rekomendasi`,
     kFuel: "Estimasi kerugian bahan bakar kumulatif",
@@ -140,8 +140,8 @@ const TX = {
   en: {
     title: "Economics summary",
     sub: "Mounted tire cost · pressure compliance · under-inflation loss estimates (estimates)",
-    kCpk: "Fleet average CPK",
-    kCpkSub: "mean actual CPK per mounted tire",
+    kCpk: "Fleet CPK (weighted mean)",
+    kCpkSub: "Σcost ÷ Σdistance of mounted tires",
     kComp: "Pressure compliance",
     kCompSub: (dev: string) => `share of rounds within ±${dev} of recommended`,
     kFuel: "Cumulative fuel loss (est.)",

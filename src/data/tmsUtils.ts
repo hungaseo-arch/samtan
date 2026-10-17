@@ -1459,7 +1459,7 @@ export function economicsRow(u: Unit): EconomicsRow {
 
 export interface FleetEconomics {
   rows: EconomicsRow[];
-  /** 장착 타이어 본당 실적 CPK 평균 — 통화가 하나일 때만 */
+  /** 장착 타이어 가중평균 CPK = Σ총비용 ÷ Σ주행 KM — 통화가 하나일 때만 (M-10, 2026-10-17) */
   avgCpk: number | null;
   avgCpkCurrency: string | null;
   compliance: Compliance;
@@ -1472,13 +1472,16 @@ export interface FleetEconomics {
 
 export function fleetEconomics(units: Unit[] = TMS_DATA.units): FleetEconomics {
   const rows = units.map(economicsRow);
-  const tireCpk: { v: number; cur: string }[] = [];
+  // 가중평균: cpk 가 나온 본만 — 총비용과 주행 KM 을 각각 합한다 (Σ(cpk×km) = Σ총비용)
+  const tireCpk: { total: number; km: number; cur: string }[] = [];
   for (const u of units) {
     for (const p of u.positions) {
       const c = p.serial ? tireCostOf(p.serial) : null;
-      if (c?.cpk != null) tireCpk.push({ v: c.cpk, cur: c.currency });
+      const km = p.serial ? lifeCalc(p.serial)?.km : null;
+      if (c?.cpk != null && c.total != null && km != null && km > 0) tireCpk.push({ total: c.total, km, cur: c.currency });
     }
   }
+  const sumKm = tireCpk.reduce((a, x) => a + x.km, 0);
   const one = new Set(tireCpk.map((x) => x.cur)).size === 1;
   const ok = rows.reduce((a, r) => a + r.compliance.ok, 0);
   const total = rows.reduce((a, r) => a + r.compliance.total, 0);
@@ -1506,7 +1509,7 @@ export function fleetEconomics(units: Unit[] = TMS_DATA.units): FleetEconomics {
   }
   return {
     rows,
-    avgCpk: tireCpk.length && one ? tireCpk.reduce((a, x) => a + x.v, 0) / tireCpk.length : null,
+    avgCpk: tireCpk.length && one && sumKm > 0 ? tireCpk.reduce((a, x) => a + x.total, 0) / sumKm : null,
     avgCpkCurrency: tireCpk.length && one ? tireCpk[0].cur : null,
     compliance: { ok, total, pct: total ? (ok / total) * 100 : null },
     fuelCost: !fuelSet || fuel.some((v) => v == null) ? null : fuel.reduce<number>((a, v) => a + (v ?? 0), 0),

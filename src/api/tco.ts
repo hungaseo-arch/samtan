@@ -107,6 +107,10 @@ export interface TcoFleetRow {
   cpk_gross_avg: number | null;
   cpk_tco_avg: number | null;
   cpk_lifecycle_avg: number | null;
+  /** 가중평균 = Σ비용 ÷ Σ주행거리 — 화면 대표값 (M-10). *_avg 는 본당 단순 평균(참고) */
+  cpk_gross_wavg: number | null;
+  cpk_tco_wavg: number | null;
+  cpk_lifecycle_wavg: number | null;
   /** km 구간이 하나라도 끊긴 개체 수. 분모가 하한값임을 알린다. */
   km_incomplete_count: number;
 }

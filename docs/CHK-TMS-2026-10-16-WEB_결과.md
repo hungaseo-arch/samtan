@@ -85,7 +85,8 @@
 | `PressureHistorySection` 각주 | «80%» 문구가 `COMPLIANCE_WARN_PCT` 와 분리 | 상수에서 생성 |
 | `IntegrityBadge` | «주의» 건수에 info 포함 | warning 만 |
 
-**사용자 결정으로 넘긴 것** → decisions M-8 ~ M-11.
+**사용자 결정 (2026-10-17)** → decisions M-8 ~ M-11 전부 결정됨. M-8 뷰 가드 · M-9 트리거 상시화 · M-10 가중평균 · M-11 정규화.
+마이그레이션 `20261017100000` · `110000` · `120000` 작성, prod 적용은 M-12 승인 대기.
 
 **확인했고 바꾸지 않은 것**
 - W-1 은 DB 트리거(OUTLIER 제외)와 화면 `effectiveTread` 가 같은 값을 낸다 (CH 834 L1 08-23: 최소 5.6 · 평균 8.38). 이중 제외 없음.

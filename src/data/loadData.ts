@@ -2,6 +2,7 @@
 // Supabase에서 전체 데이터를 로드해 TMS_DATA를 in-place로 채운다.
 // (참조 데이터: tire_config·vehicles·vehicle_positions·replacements·lifetimes·damage_codes,
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
+import { normalizeSerial, normalizeSerialOrNull } from "@/lib/serial";
 import { supabase } from "@/lib/supabase";
 import { TMS_DATA, HEAD_MAP, treadThresholds } from "./tmsData";
 import type { Unit, LifeRecord, LedgerSegment, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
@@ -118,8 +119,7 @@ function numOrNull(v: unknown): number | null {
 
 /** 빈 문자열은 '시리얼 없음'으로 본다. DB 의 null 과 같게 취급. */
 function normSerial(s: string | null | undefined): string | null {
-  const v = (s ?? "").trim();
-  return v ? v : null;
+  return normalizeSerialOrNull(s);
 }
 
 /**
@@ -239,7 +239,7 @@ function buildRounds(rows: InspectionRow[]) {
           round.outlier.add(r.pos);
         }
       }
-      round.serial[r.pos] = r.serial ?? null;
+      round.serial[r.pos] = normSerial(r.serial);
       round.seen.add(r.pos);
     }
 
@@ -267,7 +267,7 @@ function buildRounds(rows: InspectionRow[]) {
         dates: sorted.map((r) => r.date),
         min: sorted.map((r) => r.tread[rp] ?? null),
       };
-      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted, pd?.serial?.trim() || null);
+      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted, normSerial(pd?.serial));
     }
   });
 }
@@ -361,14 +361,15 @@ export async function loadData(): Promise<void> {
 
   // repl
   TMS_DATA.repl = (repl.data ?? []).map((r) => ({
-    ch: r.ch, pos: r.pos, date: r.date, newSerial: r.new_serial ?? "",
+    ch: r.ch, pos: r.pos, date: r.date, newSerial: normalizeSerial(r.new_serial),
   }));
 
   // ledger — 시리얼별로 묶어 둔다. seqNo 순은 쿼리에서 이미 보장된다.
   const ledgerBySerial: Record<string, LedgerSegment[]> = {};
   for (const r of ledger.data ?? []) {
-    if (!r.serial) continue;
-    (ledgerBySerial[r.serial] ??= []).push({
+    const ledgerSerial = normSerial(r.serial);
+    if (!ledgerSerial) continue;
+    (ledgerBySerial[ledgerSerial] ??= []).push({
       ch: r.ch,
       pos: r.pos,
       seqNo: r.seq_no,
@@ -390,7 +391,7 @@ export async function loadData(): Promise<void> {
   // life
   TMS_DATA.life = (life.data ?? []).map((r): LifeRecord => ({
     no: r.no,
-    serial: r.serial,
+    serial: normalizeSerial(r.serial),
     scrap: r.scrap ?? "-",
     damage: r.damage ?? null,
     install: r.install ?? null,
@@ -430,7 +431,7 @@ export async function loadData(): Promise<void> {
     if (!chainByKey.has(k)) chainByKey.set(k, []);
     chainByKey.get(k)!.push({
       seqNo: h.seq_no,
-      serial: h.serial,
+      serial: normalizeSerial(h.serial),
       mountedAt: h.mounted_at ?? null,
       source: h.source === "replacement" ? "replacement" : "initial",
     });
@@ -451,8 +452,8 @@ export async function loadData(): Promise<void> {
     meterOffset: meterOffsetOf(v),
     positions: (curByCh.get(v.ch) ?? []).map((c): TirePosition => ({
       pos: c.pos,
-      serial: c.serial ?? "",
-      serialInitial: c.serial_initial ?? "",
+      serial: normalizeSerial(c.serial),
+      serialInitial: normalizeSerial(c.serial_initial),
       replCount: c.repl_count ?? 0,
       mountedAt: c.mounted_at ?? null,
       chain: chainByKey.get(`${c.ch}|${c.pos}`) ?? [],

@@ -12,6 +12,7 @@
 // **NULL 을 지우지 않는다.** patch 에 없는 키는 건드리지 않고, 값이 null 이면
 // 그 칸을 비운다. 사유 미입력 상태로 저장하는 것을 허용해야 하기 때문이다
 // (지시서 T-10 — 미입력 배지로 소급 입력을 유도하되 저장 자체는 막지 않는다).
+import { normalizeSerial } from "@/lib/serial";
 import { supabase } from "@/lib/supabase";
 import type { CasingGrade, TcoCategory } from "@/api/tco";
 
@@ -164,7 +165,7 @@ export async function registerReplacement(e: ReplacementEntry): Promise<string> 
     p_ch: e.ch,
     p_pos: e.pos,
     p_date: e.date,
-    p_new_serial: e.newSerial.trim(),
+    p_new_serial: normalizeSerial(e.newSerial),
     p_reason: e.reason,
     p_tread: e.treadAtRemoval,
     p_km: e.km,
