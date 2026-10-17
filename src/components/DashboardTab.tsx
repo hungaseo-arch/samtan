@@ -3,12 +3,13 @@ import { Fragment, useState } from "react";
 import { TMS_DATA, NEW_TREAD, recPsi, treadThresholds, inspectionIntervalDays } from "@/data/tmsData";
 import {
   getUnitAlerts, validDates, unitInspectionAge, unitStatusCounts,
-  replacementPrepList, PREP_WINDOW_DAYS, PREP_URGENT_DAYS,
+  replacementPrepList, prepNeedsMeasure, PREP_WINDOW_DAYS, PREP_URGENT_DAYS,
 } from "@/data/tmsUtils";
 import { EMPTY, fmtInt, fmtTread, todayInField } from "@/lib/format";
 import { OVERDUE_FACTOR } from "@/lib/inspectionAge";
 import { Truck, Circle, ChevronRight, X, CalendarClock } from "lucide-react";
 import { useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 
 const buildTX = () => ({
   ko: {
@@ -27,7 +28,7 @@ const buildTX = () => ({
     summaryTitle: "시험 현황 요약",
     statusPerUnit: "차량(CH)별 현황",
     unit: "차량",
-    firstInstallDate: "최초 장착일",
+    firstInstallDate: "최초 점검일",
     lastInspectDate: "최근 점검일",
     drivenHm: "주행 HM",
     drivenKm: "주행 KM",
@@ -46,6 +47,8 @@ const buildTX = () => ({
     approvalLine: "결재 라인",
     replaceDanger: "즉시교체",
     cases: "건",
+    tiresAndAlerts: (t: string, a: string) => `타이어 ${t}본 · 알림 ${a}건`,
+    close: "닫기",
     noItems: "해당 항목이 없습니다.",
     danger: "위험",
     prepTitle: "교체 준비 목록",
@@ -57,7 +60,13 @@ const buildTX = () => ({
     pRem: "잔여 KM",
     pDays: "{n}일",
     pOver: "{n}일 경과",
-    pSummary: "30일 내 {a}본 · 60일 내 {b}본",
+    pSummary: "경과 {o}본 · 30일 내 {a}본 · 31~60일 {b}본",
+    mTitle: "측정 필요 {n}본",
+    mSub: "수명 DB 상 장착인데 예상 교체일을 낼 수 없는 타이어입니다. 현장에서 위치와 트레드를 확인하십시오.",
+    mUnlocated: "위치 미상 (탈착·미감시 차량)",
+    mStale: "마지막 측정 {d}",
+    mReason: "사유",
+    mLast: "마지막 위치",
     pNone: "30일 이내 교체 예정 타이어가 없습니다.",
     pFoot: "마모 추세로 산출한 추정일입니다. 예측할 수 없는 타이어(회차 3개 미만·HM Reset 등)는 빠집니다 — 수명 DB 탭의 「30일 이내 교체」 필터와 같은 목록입니다.",
     overdueUnits: "점검 지연 차량",
@@ -83,7 +92,7 @@ const buildTX = () => ({
     summaryTitle: "Ringkasan",
     statusPerUnit: "Status per Unit(CH)",
     unit: "Unit",
-    firstInstallDate: "Tgl pasang awal",
+    firstInstallDate: "Tgl pemeriksaan awal",
     lastInspectDate: "Tgl inspeksi terakhir",
     drivenHm: "HM tempuh",
     drivenKm: "KM tempuh",
@@ -102,6 +111,8 @@ const buildTX = () => ({
     approvalLine: "Jalur Persetujuan",
     replaceDanger: "Ganti segera",
     cases: "item",
+    tiresAndAlerts: (t: string, a: string) => `${t} ban · ${a} peringatan`,
+    close: "Tutup",
     noItems: "Tidak ada item.",
     danger: "Bahaya",
     prepTitle: "Daftar Persiapan Penggantian",
@@ -113,7 +124,13 @@ const buildTX = () => ({
     pRem: "Sisa KM",
     pDays: "{n} hari",
     pOver: "lewat {n} hari",
-    pSummary: "≤ 30 hari {a} ban · ≤ 60 hari {b} ban",
+    pSummary: "Lewat {o} ban · ≤ 30 hari {a} ban · 31–60 hari {b} ban",
+    mTitle: "Perlu diukur {n} ban",
+    mSub: "Di DB umur ban tercatat terpasang, tetapi tanggal Penggantian tidak dapat diperkirakan. Cek posisi dan Kedalaman alur di lapangan.",
+    mUnlocated: "Posisi tidak diketahui (dilepas / Unit tidak dipantau)",
+    mStale: "Pemeriksaan terakhir {d}",
+    mReason: "Alasan",
+    mLast: "Posisi terakhir",
     pNone: "Tidak ada ban yang dijadwalkan ganti dalam 30 hari.",
     pFoot: "Tanggal perkiraan dari tren Aus. Ban yang tidak dapat diprediksi (kurang dari 3 Pemeriksaan, HM Reset, dll.) tidak termasuk — sama dengan filter «Ganti ≤ 30 hari» di tab DB umur ban.",
     overdueUnits: "Unit terlambat Pemeriksaan",
@@ -139,7 +156,7 @@ const buildTX = () => ({
     summaryTitle: "Test status summary",
     statusPerUnit: "Status by vehicle (CH)",
     unit: "Vehicle",
-    firstInstallDate: "First install date",
+    firstInstallDate: "First inspection date",
     lastInspectDate: "Last inspection date",
     drivenHm: "HM run",
     drivenKm: "KM run",
@@ -158,6 +175,8 @@ const buildTX = () => ({
     approvalLine: "Approval line",
     replaceDanger: "Replace now",
     cases: "cases",
+    tiresAndAlerts: (t: string, a: string) => `${t} tires · ${a} alerts`,
+    close: "Close",
     noItems: "No matching items.",
     danger: "Danger",
     prepTitle: "Replacement Prep List",
@@ -169,7 +188,13 @@ const buildTX = () => ({
     pRem: "Remaining KM",
     pDays: "{n} d",
     pOver: "{n} d overdue",
-    pSummary: "{a} tires within 30 days · {b} within 60 days",
+    pSummary: "{o} overdue · {a} within 30 days · {b} in 31–60 days",
+    mTitle: "Needs measuring: {n} tires",
+    mSub: "Listed as installed in the Lifetime DB, but no replacement date can be projected. Check position and tread on site.",
+    mUnlocated: "Location unknown (removed / unmonitored unit)",
+    mStale: "Last measured {d}",
+    mReason: "Reason",
+    mLast: "Last position",
     pNone: "No tires are projected for replacement within 30 days.",
     pFoot: "Estimated from the wear trend. Tires that cannot be projected (fewer than 3 inspections, HM Reset, etc.) are left out — same list as the “Replace ≤ 30 days” filter in the Lifetime DB tab.",
     overdueUnits: "Overdue inspection",
@@ -252,12 +277,19 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
   // 교체 준비 목록 (§A-2) — 60일 창으로 한 번 뽑고 30일분을 표에, 두 건수를 요약에 쓴다.
   const prep60 = replacementPrepList(PREP_WINDOW_DAYS * 2, today);
   const prep30 = prep60.filter((x) => x.daysLeft <= PREP_WINDOW_DAYS);
+  // 경과(이미 지남) / 0~30일 / 31~60일 — 겹치지 않게 센다 (DASH-02)
+  const prepOver = prep30.filter((x) => x.daysLeft < 0).length;
+  const prepIn30 = prep30.length - prepOver;
+  const prepIn60 = prep60.length - prep30.length;
+  const needMeasure = prepNeedsMeasure(today);
 
   // 주의·교체권장 카운트 클릭 → 해당 차량 알림 모달
   const [alertModal, setAlertModal] = useState<{ ch: string; lv: "warn" | "order" | "danger" } | null>(null);
   const alertItems = alertModal
     ? getUnitAlerts(TMS_DATA.units.find((u) => u.ch === alertModal.ch)!, lang).filter((a) => a.lv === alertModal.lv)
     : [];
+  const alertTires = new Set(alertItems.map((a) => a.pos)).size;
+  const alertRef = useDialog(!!alertModal, () => setAlertModal(null));
 
   return (
     <div className="stagger-in space-y-6">
@@ -400,7 +432,7 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
           <CalendarClock className="w-4 h-4 text-primary" />
           <span className="text-sm font-bold">{tx.prepTitle}</span>
           <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
-            {tx.pSummary.replace("{a}", fmtInt(prep30.length)).replace("{b}", fmtInt(prep60.length))}
+            {tx.pSummary.replace("{o}", fmtInt(prepOver)).replace("{a}", fmtInt(prepIn30)).replace("{b}", fmtInt(prepIn60))}
           </span>
         </div>
         <p className="text-xs text-muted-foreground mb-3">{tx.prepSub}</p>
@@ -444,6 +476,37 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
           </div>
         )}
         <p className="mt-3 text-[11px] text-muted-foreground">{tx.pFoot}</p>
+
+        {needMeasure.length > 0 && (
+          <div className="mt-4 border-t border-border pt-3">
+            <div className="text-sm font-bold">{tx.mTitle.replace("{n}", fmtInt(needMeasure.length))}</div>
+            <p className="text-xs text-muted-foreground mb-2">{tx.mSub}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-150 text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border text-xs text-muted-foreground">
+                    <th className="px-2 py-2 text-left font-semibold">{tx.pSerial}</th>
+                    <th className="px-2 py-2 text-left font-semibold">{tx.mLast}</th>
+                    <th className="px-2 py-2 text-left font-semibold">{tx.mReason}</th>
+                    <th className="px-2 py-2 text-right font-semibold">{tx.pTread}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {needMeasure.map((x) => (
+                    <tr key={x.serial} className="border-b border-border/30">
+                      <td className="px-2 py-1.5 font-mono text-xs">{x.serial}</td>
+                      <td className="px-2 py-1.5 font-mono">CH {x.ch} · {x.pos}</td>
+                      <td className="px-2 py-1.5 text-xs">
+                        {x.reason === "unlocated" ? tx.mUnlocated : tx.mStale.replace("{d}", x.latestDate ?? EMPTY)}
+                      </td>
+                      <td className="px-2 py-1.5 font-mono text-right">{fmtTread(x.latestTread)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 결재 라인 ── */}
@@ -479,18 +542,23 @@ export default function DashboardTab({ onVehicleClick }: { onVehicleClick?: (ch:
             onClick={() => setAlertModal(null)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+              ref={alertRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="dash-alert-title"
+              tabIndex={-1}
+              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl outline-none"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-primary">CH {alertModal.ch}</span>
+                  <span id="dash-alert-title" className="font-mono font-bold text-primary">CH {alertModal.ch}</span>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${STATUS_COLOR[alertModal.lv]}`}>
                     {alertModal.lv === "danger" ? tx.replaceDanger : alertModal.lv === "order" ? tx.orderTire : tx.caution}
                   </span>
-                  <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{alertItems.length}{tx.cases}</span>
+                  <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{tx.tiresAndAlerts(fmtInt(alertTires), fmtInt(alertItems.length))}</span>
                 </div>
-                <button onClick={() => setAlertModal(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                <button type="button" aria-label={tx.close} onClick={() => setAlertModal(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>

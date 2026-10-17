@@ -65,3 +65,15 @@ describe("lifeProjection", () => {
     expect(p.reason).toBe("few_rounds");
   });
 });
+
+describe("projectReplacement — 이미 기준선 이하 (R-3 · LIFE-02)", () => {
+  it("0 mm 면 잔여 0 km · 측정일이 예상 교체일 (회차 부족이어도)", () => {
+    const p = projectReplacement(SAMPLE.slice(0, 2), 0, 300, 5, "2026-09-27");
+    expect(p).toMatchObject({ remainingKm: 0, remainingDays: 0, projectedDate: "2026-09-27", reason: null });
+  });
+  it("정확히 기준선이면 즉시 교체", () => {
+    const p = projectReplacement(SAMPLE, 5, 300, 5);
+    expect(p.remainingKm).toBe(0);
+    expect(p.projectedDate).toBe(SAMPLE[SAMPLE.length - 1].date);
+  });
+});

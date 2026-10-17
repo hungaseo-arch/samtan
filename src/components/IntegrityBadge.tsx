@@ -25,6 +25,7 @@ const TX = {
     severityWarning: "주의",
     severityInfo: "참고",
     dqSuffix: "데이터 품질 경고 {n}건",
+    total: "합계",
     keys: {
       missing_lifetime: "장착 중인데 수명 DB에 없음",
       serial2_out_of_sync: "캐시 시리얼(serial2) 불일치",
@@ -52,6 +53,7 @@ const TX = {
     severityWarning: "Perhatian",
     severityInfo: "Info",
     dqSuffix: "{n} peringatan kualitas data",
+    total: "Total",
     keys: {
       missing_lifetime: "Terpasang tapi tidak ada di DB umur",
       serial2_out_of_sync: "Serial cache (serial2) tidak sinkron",
@@ -79,6 +81,7 @@ const TX = {
     severityWarning: "Warning",
     severityInfo: "Info",
     dqSuffix: "{n} data quality warnings",
+    total: "Total",
     keys: {
       missing_lifetime: "Mounted but missing from lifetime DB",
       serial2_out_of_sync: "Cached serial (serial2) out of sync",
@@ -173,8 +176,12 @@ export default function IntegrityBadge() {
     ),
   }));
 
-  const dqCnt = dqChecks.reduce((s, c) => s + c.cnt, 0);
   const listed = [...data.filter((c) => (c.cnt ?? 0) > 0), ...dqChecks];
+  // 배지의 경고 건수 = 패널에 펼친 error 외 항목의 합 (LAY-04).
+  // 예전에는 v_data_quality 만 세서 정합성 경고분만큼 패널 합계와 어긋났다 (521 vs 530).
+  const warnCnt = listed
+    .filter((c) => c.severity === "warning") // «주의» 건수 — info 는 세지 않는다
+    .reduce((s, c) => s + (c.cnt ?? 0), 0);
 
   return (
     <div className="ml-auto relative">
@@ -189,9 +196,9 @@ export default function IntegrityBadge() {
       >
         {ok ? <ShieldCheck className="w-3.5 h-3.5" /> : <ShieldAlert className="w-3.5 h-3.5" />}
         {ok ? tx.consistent : tx.issues.replace("{n}", fmtInt(errorCnt))}
-        {dqCnt > 0 && (
+        {warnCnt > 0 && (
           <span className="font-normal text-muted-foreground">
-            · {tx.dqSuffix.replace("{n}", fmtInt(dqCnt))}
+            · {tx.dqSuffix.replace("{n}", fmtInt(warnCnt))}
           </span>
         )}
         {open ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
@@ -203,6 +210,14 @@ export default function IntegrityBadge() {
             <p className="text-xs text-muted-foreground">{tx.noIssue}</p>
           ) : (
             <ul className="space-y-2">
+              {/* 합계 줄 — 배지 숫자와 같은 집계 (LAY-04) */}
+              <li className="flex items-center text-xs font-semibold border-b border-border pb-1.5">
+                <span>{tx.total}</span>
+                <span className="ml-auto font-mono">
+                  {errorCnt > 0 && `${tx.severityError} ${fmtInt(errorCnt)} · `}
+                  {tx.severityWarning} {fmtInt(warnCnt)}
+                </span>
+              </li>
               {listed.map((c) => (
                 <li key={c.check_key} className="text-xs">
                   <div className="flex items-center gap-1.5">

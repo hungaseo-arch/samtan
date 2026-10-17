@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { AlertTriangle, Download, Info } from "lucide-react";
 import { useLang } from "@/i18n";
-import { TMS_DATA, targetLifeKm } from "@/data/tmsData";
+import { TMS_DATA, targetLifeKm, pressureThresholds } from "@/data/tmsData";
 import { fleetEconomics, type EconomicsRow } from "@/data/tmsUtils";
 import { toIdr } from "@/lib/economics";
 import {
@@ -25,7 +25,7 @@ const TX = {
     kCpk: "플릿 평균 CPK",
     kCpkSub: "장착 타이어 본당 실적 CPK 평균",
     kComp: "공기압 준수율",
-    kCompSub: "권장 ±5% 이내 측정 회차 비율",
+    kCompSub: (dev: string) => `권장 ±${dev} 이내 측정 회차 비율`,
     kFuel: "누적 연료 손실 추정액",
     kFuelSub: "저압 노출 × 연료 민감도 × 기준 연비 × 유가",
     kLife: "누적 수명 손실 추정액",
@@ -42,6 +42,8 @@ const TX = {
     cExp: "예상 CPK",
     cComp: "준수율",
     cExpo: "저압 노출 (%·km)",
+    kmMissing: "주행거리 미입력",
+    kmMissingHint: "KM 이 2회차 이상 기록되지 않아 저압 노출·손실을 계산할 수 없습니다. 0 이 아니라 미입력이며 합계에서 뺍니다.",
     cFuelL: "연료 손실",
     cFuel: "연료 손실액",
     cLife: "수명 손실",
@@ -82,7 +84,7 @@ const TX = {
     kCpk: "Rata-rata CPK armada",
     kCpkSub: "rata-rata CPK aktual per ban terpasang",
     kComp: "Kepatuhan tekanan angin",
-    kCompSub: "porsi pemeriksaan dalam ±5% rekomendasi",
+    kCompSub: (dev: string) => `porsi pemeriksaan dalam ±${dev} rekomendasi`,
     kFuel: "Estimasi kerugian bahan bakar kumulatif",
     kFuelSub: "paparan tekanan rendah × sensitivitas BBM × konsumsi dasar × harga BBM",
     kLife: "Estimasi kerugian umur kumulatif",
@@ -99,6 +101,8 @@ const TX = {
     cExp: "CPK prediksi",
     cComp: "Kepatuhan",
     cExpo: "Paparan tekanan rendah (%·km)",
+    kmMissing: "KM belum diisi",
+    kmMissingHint: "KM belum tercatat di 2 sesi atau lebih, jadi paparan tekanan rendah dan kerugian tidak dapat dihitung. Ini belum diisi, bukan 0, dan tidak dihitung dalam total.",
     cFuelL: "Kerugian BBM",
     cFuel: "Nilai kerugian BBM",
     cLife: "Kerugian umur",
@@ -139,7 +143,7 @@ const TX = {
     kCpk: "Fleet average CPK",
     kCpkSub: "mean actual CPK per mounted tire",
     kComp: "Pressure compliance",
-    kCompSub: "share of rounds within ±5% of recommended",
+    kCompSub: (dev: string) => `share of rounds within ±${dev} of recommended`,
     kFuel: "Cumulative fuel loss (est.)",
     kFuelSub: "under-inflation exposure × fuel sensitivity × base consumption × fuel price",
     kLife: "Cumulative life loss (est.)",
@@ -156,6 +160,8 @@ const TX = {
     cExp: "Projected CPK",
     cComp: "Compliance",
     cExpo: "Under-inflation exposure (%·km)",
+    kmMissing: "Distance not entered",
+    kmMissingHint: "KM is not recorded in 2 or more rounds, so under-inflation exposure and losses cannot be calculated. This is missing, not 0, and is left out of the totals.",
     cFuelL: "Fuel loss",
     cFuel: "Fuel loss cost",
     cLife: "Life loss",
@@ -230,7 +236,7 @@ export default function EconomicsSection() {
     const wb = XLSX.utils.book_new();
     const vehicle = f.rows.map((r) => ({
       [tx.cCh]: r.ch,
-      [tx.cKm]: r.km != null ? Math.round(r.km) : null,
+      [tx.cKm]: r.km != null ? Math.round(r.km) : r.econ.kmMissing ? tx.kmMissing : null,
       [tx.cTires]: `${r.priced}/${r.mounted}`,
       [tx.cTotal]: money(r.totalCost, r.currency),
       [tx.cCpk]: fmtCpk(r.cpk, r.currency ?? undefined),
@@ -238,7 +244,8 @@ export default function EconomicsSection() {
       [tx.cTarget]: fmtCpk(r.targetCpk, r.currency ?? undefined),
       [tx.cAchieved]: `${r.achieved}/${r.evaluated}`,
       [tx.cComp]: fmtPercent(r.compliance.pct),
-      [tx.cExpo]: Math.round(r.econ.exposure),
+      // 화면(ratio 열)과 같은 조건 — 공기압 회차가 없으면 노출 KM도 비운다
+      [tx.cExpo]: r.econ.kmMissing || !r.compliance.total ? null : Math.round(r.econ.exposure),
       [tx.cFuelL]: fmtLitre(r.econ.fuelL),
       [tx.cFuel]: money(r.econ.fuelCost, r.econ.fuelCurrency),
       [tx.cLife]: fmtDistanceKm(r.econ.lifeKm),
@@ -289,7 +296,7 @@ export default function EconomicsSection() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label={tx.kCpk} sub={tx.kCpkSub} tx={tx}
           value={f.avgCpk != null ? fmtCpk(f.avgCpk, f.avgCpkCurrency ?? undefined) : null} />
-        <KpiCard label={tx.kComp} sub={tx.kCompSub} tx={tx}
+        <KpiCard label={tx.kComp} sub={tx.kCompSub(fmtPercent(pressureThresholds().devWarn * 100))} tx={tx}
           value={f.compliance.pct != null ? fmtPercent(f.compliance.pct) : null}
           extra={f.compliance.total ? `${fmtInt(f.compliance.ok)} / ${fmtInt(f.compliance.total)}` : undefined} />
         <KpiCard label={tx.kFuel} sub={tx.kFuelSub} tx={tx}
@@ -310,7 +317,7 @@ export default function EconomicsSection() {
             </tr>
           </thead>
           <tbody>
-            {f.rows.map((r) => <VehicleRow key={r.ch} r={r} />)}
+            {f.rows.map((r) => <VehicleRow key={r.ch} r={r} tx={tx} />)}
           </tbody>
         </table>
       </div>
@@ -390,18 +397,24 @@ export default function EconomicsSection() {
 const HEAD = "px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground whitespace-nowrap";
 const NUM = "px-3 py-1.5 text-right font-mono whitespace-nowrap";
 
-function VehicleRow({ r }: { r: EconomicsRow }) {
+function VehicleRow({ r, tx }: { r: EconomicsRow; tx: Tx }) {
   const cur = r.currency ?? undefined;
   return (
     <tr className="border-t border-border/60">
       <td className="px-3 py-1.5 font-mono font-semibold whitespace-nowrap">{r.ch}</td>
-      <td className={NUM}>{fmtDistanceKm(r.km)}</td>
+      <td className={NUM}>
+        {r.km == null && r.econ.kmMissing ? (
+          <span title={tx.kmMissingHint}>
+            {EMPTY} <span className="text-[10px] font-sans text-muted-foreground">{tx.kmMissing}</span>
+          </span>
+        ) : fmtDistanceKm(r.km)}
+      </td>
       <td className={NUM}>{fmtInt(r.priced)}/{fmtInt(r.mounted)}</td>
       <td className={NUM}>{money(r.totalCost, r.currency)}</td>
       <td className={NUM}>{fmtCpk(r.cpk, cur)}</td>
       <td className={NUM}>{fmtCpk(r.expCpk, cur)}</td>
       <td className={NUM}>{fmtPercent(r.compliance.pct)}</td>
-      <td className={NUM}>{r.compliance.total ? fmtInt(r.econ.exposure) : EMPTY}</td>
+      <td className={NUM}>{r.compliance.total && !r.econ.kmMissing ? fmtInt(r.econ.exposure) : EMPTY}</td>
       <td className={NUM}>{fmtLitre(r.econ.fuelL)}</td>
       <td className={NUM}>{money(r.econ.fuelCost, r.econ.fuelCurrency)}</td>
       <td className={NUM}>{fmtDistanceKm(r.econ.lifeKm)}</td>

@@ -1,9 +1,9 @@
 // @section: pressure-history
 // 공기압관리 탭 «공기압 이력 분석» (지시서 2026-10-16 §B-2).
 //
-// 차량별 준수율 · 포지션별 평균 편차 · 저압 노출 상위 5본. 준수율 80% 미만 차량은 노랑.
+// 차량별 준수율 · 포지션별 평균 편차 · 저압 노출 상위 5본. 준수율 ${COMPLIANCE_WARN_PCT}% 미만 차량은 노랑.
 import { TMS_DATA, HEAD_MAP, pressureThresholds } from "@/data/tmsData";
-import { topUnderinflated, vehiclePressureStats } from "@/data/tmsUtils";
+import { topUnderinflated, unitKmMissing, vehiclePressureStats } from "@/data/tmsUtils";
 import { judgePressure } from "@/lib/pressureJudge";
 import { EMPTY, fmtInt, fmtPercent, fmtVehicle } from "@/lib/format";
 import { useLang } from "@/i18n";
@@ -19,6 +19,7 @@ const TX = {
     colCompliance: "준수율",
     colRounds: "정상/측정",
     colExposure: "저압 노출",
+    kmMissing: "주행거리 미입력",
     topTitle: "저압 노출 상위 5본",
     colRank: "순위",
     colSerial: "시리얼",
@@ -27,7 +28,7 @@ const TX = {
     fleet: "전체",
     none: "저압 노출이 기록된 타이어가 없습니다.",
     foot: (warn: string) =>
-      `준수율 = 정상(권장 대비 ±${warn} 이내) 회차 ÷ 측정 회차. 80% 미만 차량은 노랑. 평균 편차는 부호 유지(− 저압).`,
+      `준수율 = 정상(권장 대비 ±${warn} 이내) 회차 ÷ 측정 회차. ${COMPLIANCE_WARN_PCT}% 미만 차량은 노랑. 평균 편차는 부호 유지(− 저압).`,
     footExposure:
       "저압 노출(%·km) = Σ 저압 회차의 (권장 − 실측)/권장 × 다음 회차까지 주행 KM. 가정: 각 회차의 공기압이 다음 회차까지 그대로 유지됐다. 정상 범위 안의 소폭 저압·다음 회차 KM 이 없는 회차는 넣지 않습니다.",
   },
@@ -38,6 +39,7 @@ const TX = {
     colCompliance: "Kepatuhan",
     colRounds: "Normal/diukur",
     colExposure: "Paparan tekanan rendah",
+    kmMissing: "KM belum diisi",
     topTitle: "5 ban dengan paparan tekanan rendah tertinggi",
     colRank: "No",
     colSerial: "Serial",
@@ -46,7 +48,7 @@ const TX = {
     fleet: "Total",
     none: "Belum ada ban dengan paparan tekanan rendah.",
     foot: (warn: string) =>
-      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah 80% berwarna kuning. Deviasi rata-rata bertanda (− = rendah).`,
+      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah ${COMPLIANCE_WARN_PCT}% berwarna kuning. Deviasi rata-rata bertanda (− = rendah).`,
     footExposure:
       "Paparan tekanan rendah (%·km) = Σ (rekomendasi − aktual)/rekomendasi pada pemeriksaan bertekanan rendah × KM sampai pemeriksaan berikutnya. Asumsi: tekanan tiap pemeriksaan bertahan sampai pemeriksaan berikutnya. Kekurangan kecil dalam rentang normal dan pemeriksaan tanpa KM berikutnya tidak dihitung.",
   },
@@ -57,6 +59,7 @@ const TX = {
     colCompliance: "Compliance",
     colRounds: "Normal/measured",
     colExposure: "Under-inflation exposure",
+    kmMissing: "Distance not entered",
     topTitle: "Top 5 tires by under-inflation exposure",
     colRank: "#",
     colSerial: "Serial",
@@ -65,7 +68,7 @@ const TX = {
     fleet: "Fleet",
     none: "No tire has recorded under-inflation exposure.",
     foot: (warn: string) =>
-      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below 80% are yellow. Average deviation is signed (− = low).`,
+      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below ${COMPLIANCE_WARN_PCT}% are yellow. Average deviation is signed (− = low).`,
     footExposure:
       "Under-inflation exposure (%·km) = Σ (recommended − actual)/recommended on low rounds × KM to the next round. Assumption: each round's pressure held until the next round. Small shortfalls within the normal range and rounds without a next KM are excluded.",
   },
@@ -82,7 +85,8 @@ export default function PressureHistorySection() {
   const { lang } = useLang();
   const tx = TX[lang];
   const positions = Object.values(HEAD_MAP);
-  const stats = TMS_DATA.units.map(vehiclePressureStats);
+  // KM 이 없는 차량은 노출이 0 이 아니라 «주행거리 미입력» 이다 (TCO-04)
+  const stats = TMS_DATA.units.map((u) => ({ ...vehiclePressureStats(u), kmMissing: unitKmMissing(u) }));
   const top = topUnderinflated(5);
   const fleetOk = stats.reduce((s, x) => s + x.compliance.ok, 0);
   const fleetTotal = stats.reduce((s, x) => s + x.compliance.total, 0);
@@ -120,7 +124,11 @@ export default function PressureHistorySection() {
                   <td className="px-2 py-1.5 font-mono font-semibold whitespace-nowrap">{fmtVehicle(s.ch)}</td>
                   <td className={`${num} ${lowCls(s.compliance.pct)}`}>{s.compliance.pct == null ? EMPTY : fmtPercent(s.compliance.pct)}</td>
                   <td className={`${num} text-muted-foreground`}>{fmtInt(s.compliance.ok)}/{fmtInt(s.compliance.total)}</td>
-                  <td className={num}>{s.compliance.total ? fmtInt(s.exposure) : EMPTY}</td>
+                  <td className={num}>
+                    {s.kmMissing ? (
+                      <>{EMPTY} <span className="text-[10px] font-sans text-muted-foreground">{tx.kmMissing}</span></>
+                    ) : s.compliance.total ? fmtInt(s.exposure) : EMPTY}
+                  </td>
                   {positions.map((p) => (
                     <td key={p} className={`${num} ${devCls(s.posDev[p])}`}>{fmtDev(s.posDev[p])}</td>
                   ))}

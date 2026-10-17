@@ -30,7 +30,7 @@ import ReplacementEntryModal from "@/components/ReplacementEntryModal";
 import RoundIssueList from "@/components/RoundIssueList";
 import { issueConfirmText, issueText } from "@/lib/roundIssueText";
 import InspectionBulkUpload from "@/components/InspectionBulkUpload";
-import { validateRound, hasError } from "@/lib/roundValidate";
+import { validateRound, hasError, PSI_INPUT_MAX, PSI_INPUT_MIN, TREAD_INPUT_MAX } from "@/lib/roundValidate";
 import { validateContextFor } from "@/data/roundContext";
 import { useLang } from "@/i18n";
 
@@ -111,7 +111,8 @@ const TX = {
     viewTable: "표",
     statusOk: "정상",
     statusWarn: "주의",
-    statusDanger: "교체권장",
+    statusOrder: "발주",
+    statusDanger: "즉시 교체",
     refresh: "새로고침",
     loadingMsg: "불러오는 중…",
     emptyMsg: "저장된 점검 데이터가 없습니다. 위에서 입력 후 저장하세요.",
@@ -125,6 +126,8 @@ const TX = {
     errLoad: "불러오기 실패",
     errEnterDate: "점검일을 입력하세요.",
     errEnterValue: "공기압 또는 트레드 값을 1개 이상 입력하세요.",
+    draftRestored: "저장하지 않은 입력을 불러왔습니다 — 임시 저장",
+    leaveWarn: "저장하지 않은 점검 입력이 있습니다.",
     saveOkPrefix: "CH",
     saveOkMid: "점검결과",
     saveOkSuffix: "건 저장 완료",
@@ -210,7 +213,8 @@ const TX = {
     viewTable: "Tabel",
     statusOk: "Normal",
     statusWarn: "Perhatian",
-    statusDanger: "Rekomendasi ganti",
+    statusOrder: "Pesan ban",
+    statusDanger: "Ganti segera",
     refresh: "Muat ulang",
     loadingMsg: "Memuat…",
     emptyMsg: "Tidak ada data inspeksi tersimpan. Masukkan dan simpan di atas.",
@@ -224,6 +228,8 @@ const TX = {
     errLoad: "Gagal memuat",
     errEnterDate: "Masukkan tgl inspeksi.",
     errEnterValue: "Masukkan minimal 1 nilai tekanan atau tapak.",
+    draftRestored: "Input yang belum disimpan dimuat kembali — draf",
+    leaveWarn: "Ada input Pemeriksaan yang belum disimpan.",
     saveOkPrefix: "CH",
     saveOkMid: "hasil inspeksi",
     saveOkSuffix: "data tersimpan",
@@ -309,7 +315,8 @@ const TX = {
     viewTable: "Table",
     statusOk: "Normal",
     statusWarn: "Caution",
-    statusDanger: "Replace recommended",
+    statusOrder: "Order tire",
+    statusDanger: "Replace now",
     refresh: "Refresh",
     loadingMsg: "Loading…",
     emptyMsg: "No saved inspection data. Enter values above and save.",
@@ -323,6 +330,8 @@ const TX = {
     errLoad: "Failed to load",
     errEnterDate: "Enter the inspection date.",
     errEnterValue: "Enter at least one pressure or tread value.",
+    draftRestored: "Restored unsaved input — draft",
+    leaveWarn: "There is unsaved inspection input.",
     saveOkPrefix: "CH",
     saveOkMid: "inspection results",
     saveOkSuffix: "records saved",
@@ -387,6 +396,26 @@ function numOrNull(v: string): number | null {
  */
 type ZeroStatus = Exclude<TreadStatus, "measured">;
 
+/**
+ * 입력 임시 저장 (CHK-TMS-2026-10-16-WEB INP) — 탭 이동·새로고침에 입력이 사라지지 않게
+ * 차량별로 이 단말의 localStorage 에만 둔다. 서버에는 가지 않는다.
+ * 사생활 모드·저장소 차단에서는 조용히 건너뛴다 (입력 자체는 계속 된다).
+ */
+const DRAFT_PREFIX = "tms.inspDraft.v1.";
+interface Draft { date: string; hm: string; km: string; driver: string; cells: Record<string, FormCell> }
+function readDraft(ch: string): Draft | null {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + ch);
+    return raw ? (JSON.parse(raw) as Draft) : null;
+  } catch { return null; }
+}
+function writeDraft(ch: string, d: Draft | null) {
+  try {
+    if (d) localStorage.setItem(DRAFT_PREFIX + ch, JSON.stringify(d));
+    else localStorage.removeItem(DRAFT_PREFIX + ch);
+  } catch { /* 저장소 차단 — 임시 저장 없이 계속 */ }
+}
+
 export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: () => void | Promise<void>; onSerialClick?: (serial: string) => void }) {
   const { lang, t } = useLang();
   const tx = TX[lang];
@@ -411,6 +440,9 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   const [replSerial, setReplSerial] = useState<string | undefined>(undefined); // 교체 미등록 경고에서 연 경우 입력 시리얼
   const [bulkOpen, setBulkOpen] = useState(false); // 엑셀 일괄 업로드 (§A-8)
   const [detail, setDetail] = useState<number | null>(null); // 배치도 타이어 상세 모달(포지션 번호)
+  // 임시 저장을 쓸 차량. 차량을 바꾼 직후 한 렌더 동안은 이전 차량의 입력이 남아 있어
+  // 새 차량 키로 덮어쓰지 않도록, 복원이 끝난 뒤에만 selCh 와 같아진다.
+  const [draftCh, setDraftCh] = useState<string | null>(null);
 
   const [history, setHistory] = useState<InspectionRow[]>([]);
   /** `${inspection_date}|${pos}` → 폭 4점. 이력 표의 그루브 열 소스 (v3 §D-1). */
@@ -465,7 +497,18 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
   useEffect(() => {
     resetForm();
     loadHistory();
-  }, [selCh, resetForm, loadHistory]);
+    const d = readDraft(selCh);
+    // 계기값·운전자는 차량마다 다르다 — 임시 저장이 없으면 비운다
+    setHm(d?.hm ?? ""); setKm(d?.km ?? ""); setDriver(d?.driver ?? "");
+    if (d) {
+      if (d.date) setDate(d.date);
+      setCells((c) => ({ ...c, ...d.cells }));
+      setFormOpen(true);
+      toast.info(tx.draftRestored);
+    }
+    setDraftCh(selCh);
+    // tx 는 언어 전환 때 복원을 다시 돌리지 않도록 뺀다
+  }, [selCh, resetForm, loadHistory]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setCell = <K extends keyof FormCell>(pos: string, field: K, value: FormCell[K]) =>
     setCells((c) => ({ ...c, [pos]: { ...c[pos], [field]: value } }));
@@ -547,6 +590,22 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     (p) => cells[p] && (cells[p].pressure.trim() !== "" || (previews[p]?.filled ?? 0) > 0),
   ).length;
 
+  /** 저장하지 않은 측정값이 있다 — 공기압·트레드 중 하나라도 */
+  const dirty = filledCount > 0;
+
+  useEffect(() => {
+    if (draftCh !== selCh) return;
+    writeDraft(selCh, dirty ? { date, hm, km, driver, cells } : null);
+  }, [draftCh, selCh, dirty, date, hm, km, driver, cells]);
+
+  // 새로고침·창 닫기 경고. 임시 저장이 있어도 다른 단말에선 안 보이니 한 번 더 막는다.
+  useEffect(() => {
+    if (!dirty) return;
+    const onLeave = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = tx.leaveWarn; };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty, tx]);
+
   // 진행 배지도 신호로 쓴다 — 0본은 무채색, 진행 중은 황색, 10본 완료는 녹색.
   const filledCls =
     filledCount === 0
@@ -566,6 +625,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
     if (!date) return [];
     return validateRound(
       {
+        date,
         hm: numOrNull(hm),
         km: numOrNull(km),
         rows: POS_ORDER.map((pos) => ({
@@ -573,6 +633,8 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
           serial: cells[pos]?.serial ?? null,
           pressure: numOrNull(cells[pos]?.pressure ?? ""),
           tread: previews[pos]?.filled === POINT_FIELDS.length ? (previews[pos]?.stats?.min ?? null) : null,
+          points: POINT_FIELDS.map((f) => numOrNull(cells[pos]?.[f.key] ?? "")),
+          recPsi: targetPsi(pos),
         })),
       },
       validateContextFor(history, selCh, date),
@@ -748,7 +810,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground font-semibold mr-1">{tx.unitLabel}</span>
           {TMS_DATA.units.map((u) => (
-            <button
+            <button type="button"
               key={u.ch}
               onClick={() => setSelCh(u.ch)}
               className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all ${
@@ -772,17 +834,17 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                 autoFocus
                 className="w-24 px-2 py-1.5 rounded-lg border border-border text-xs font-mono"
               />
-              <button
+              <button type="button"
                 onClick={handleAddVehicle}
                 disabled={addBusy || !newCh.trim()}
                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
               >
                 {addBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}{tx.addBtn}
               </button>
-              <button onClick={() => { setAdding(false); setNewCh(""); }} className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground">{tx.addCancel}</button>
+              <button type="button" onClick={() => { setAdding(false); setNewCh(""); }} className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground">{tx.addCancel}</button>
             </span>
           ) : (
-            <button
+            <button type="button"
               onClick={() => setAdding(true)}
               className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-dashed border-border text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
             >
@@ -790,7 +852,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             </button>
           ))}
           {canWrite && (
-            <button
+            <button type="button"
               onClick={() => setBulkOpen(true)}
               className="ml-auto inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:border-primary/50 hover:text-primary transition-all"
             >
@@ -840,7 +902,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
           {/* 회차 메타 */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <Field label={tx.inspDate}>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={INPUT_CLS} />
+              <input type="date" value={date} max={todayInField()} onChange={(e) => setDate(e.target.value)} className={INPUT_CLS} />
             </Field>
             <Field label={tx.hmLabel}>
               <input type="number" inputMode="decimal" value={hm} onChange={(e) => setHm(e.target.value)} placeholder={tx.hmPh} className={INPUT_CLS} />
@@ -930,7 +992,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                     <td className="px-2 py-2.5 font-mono text-xs text-muted-foreground">{targetPsi(pos)}</td>
                     <td className="px-2 py-1.5">
                       <input
-                        type="number" inputMode="decimal"
+                        type="number" inputMode="decimal" min={PSI_INPUT_MIN} max={PSI_INPUT_MAX}
                         value={cells[pos]?.pressure ?? ""}
                         onChange={(e) => setCell(pos, "pressure", e.target.value)}
                         placeholder={tx.psiPh}
@@ -944,7 +1006,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                         className={`px-1 py-1.5 ${i === 0 ? "border-l border-border/60" : ""} ${i === 3 ? "border-r border-border/60" : ""}`}
                       >
                         <input
-                          type="number" inputMode="decimal" step="0.1"
+                          type="number" inputMode="decimal" step="0.1" min={0} max={TREAD_INPUT_MAX}
                           value={cells[pos]?.[f.key] ?? ""}
                           onChange={(e) => setCell(pos, f.key, e.target.value)}
                           placeholder={tx.mmPh}
@@ -1034,7 +1096,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
           )}
 
           <div className="flex items-center gap-3 mt-4">
-            <button
+            <button type="button"
               onClick={handleSave}
               disabled={saving || partialPositions.length > 0 || hasError(issues)}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
@@ -1042,7 +1104,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {tx.save}
             </button>
-            <button
+            <button type="button"
               onClick={resetForm}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-muted/30 transition-colors"
             >
@@ -1073,6 +1135,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
 
                   <div className="mt-4 flex flex-col gap-2">
                     <button
+                      type="button"
                       onClick={() => { setZeroAsk(null); void persist("worn_out"); }}
                       className="rounded-lg border border-border px-4 py-2.5 text-left hover:bg-muted/30 transition-colors"
                     >
@@ -1080,6 +1143,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                       <span className="block text-xs text-muted-foreground">{tx.zeroWornDesc}</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => { setZeroAsk(null); void persist("not_measured"); }}
                       className="rounded-lg border border-border px-4 py-2.5 text-left hover:bg-muted/30 transition-colors"
                     >
@@ -1087,6 +1151,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                       <span className="block text-xs text-muted-foreground">{tx.zeroNotMeasuredDesc}</span>
                     </button>
                     <button
+                      type="button"
                       onClick={() => { setZeroAsk(null); void persist("scrapped"); }}
                       className="rounded-lg border border-border px-4 py-2.5 text-left hover:bg-muted/30 transition-colors"
                     >
@@ -1119,6 +1184,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
             <div className="ml-auto flex items-center gap-2">
               <div className="flex items-center rounded-lg border border-border overflow-hidden" role="group">
                 <button
+                  type="button"
                   onClick={() => setHistView("layout")}
                   aria-pressed={histView === "layout"}
                   className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${
@@ -1128,6 +1194,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                   <LayoutGrid className="w-3.5 h-3.5" /> {tx.viewLayout}
                 </button>
                 <button
+                  type="button"
                   onClick={() => setHistView("table")}
                   aria-pressed={histView === "table"}
                   className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold transition-colors ${
@@ -1138,6 +1205,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                 </button>
               </div>
               <button
+                type="button"
                 onClick={loadHistory}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -1168,6 +1236,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
               <div className="flex flex-wrap items-center gap-2">
                 {dates.map((d) => (
                   <button
+                    type="button"
                     key={d}
                     onClick={() => setSelDate(d)}
                     className={`px-4 py-1.5 rounded-lg text-sm font-mono font-bold border transition-all ${
@@ -1218,6 +1287,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                     <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded-full">{rows.length}{tx.countSuffix}</span>
                     {canDelete && (
                       <button
+                        type="button"
                         onClick={() => handleDelete(d)}
                         className="text-muted-foreground hover:text-destructive transition-colors p-1"
                         title={tx.deleteTitle}
@@ -1289,6 +1359,7 @@ export default function InspectionTab({ onSaved, onSerialClick }: { onSaved?: ()
                         {[
                           { cls: "bg-level-ok/15 border-level-ok", label: tx.statusOk },
                           { cls: "bg-level-warn/15 border-level-warn", label: tx.statusWarn },
+                          { cls: "bg-level-order/15 border-level-order", label: tx.statusOrder },
                           { cls: "bg-level-danger/15 border-level-danger", label: tx.statusDanger },
                         ].map((l) => (
                           <span key={l.label} className="flex items-center gap-1.5">
