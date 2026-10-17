@@ -65,3 +65,28 @@
 - 트레드 증가 경고는 기존 1 mm 초과 규칙을 유지했다(보고서 제안 +0.5 mm 로 바꾸지 않음 — 결정 범위 밖).
 - LAY-05(경고 1건 이상이면 주황 배지)는 하지 않았다 — CH 849 KM 결측만으로 배지가 상시 주황이 되는 것을 피하려고 품질 경고를 일부러 색에서 뺀 기존 설계(`IntegrityBadge.tsx` 주석)와 충돌한다.
 - 미착수: DASH-04 · DASH-09·10 · LAY-03·05·06·08·10·12·13 · LOAD-* · REV-* · REPL-03·04·06 · LIFE-05~13 · INP-06·07·09·10·12 · TRD-02~09 · PRS-03~09 · WEAR-02~07 · TCO-05~10 · COM-05·06·09~12.
+
+## 4. 사후 점검 (2026-10-17) — 마모 분석 · 원가 분석 집중
+
+개선 반영본을 다시 훑었다. 코드에서 고친 것과, 정의·DB 가 걸려 사용자 결정으로 넘긴 것을 나눈다.
+
+**고친 것 (코드)**
+| 위치 | 결함 | 조치 |
+|---|---|---|
+| `irregularWear.ts` → 배치도·수명 DB·추이 편마모 배지 | W-1 이상점(0 하나)을 뺀 회차에 원시 4점을 그대로 넣어 Δ≈9 mm «위험» 배지와 거짓 숄더 태그가 붙었다. prod 에서 현재 최신 회차 4본(CH 834 L1 · 835 R1 · 849 R1 · 849 L3 In)이 그렇게 떠 있었다 | `irregularOfWidths` 가 `effectiveTread` 로 이상점을 확인하고 3점 회차는 판정하지 않음. 테스트 추가 |
+| `WearAnalysisTab` 평균 블록 | «결측 의심» 차량을 평균 트레드에서만 빼고 총마모·마모율·예상 KM 평균에는 넣었다 | 최신 회차 지표 4개 모두 제외. 마모율 막대도 같은 기준. 안내 문구 3개 로케일 수정 |
+| `WearAnalysisTab` 추이 차트 | X 축 = KM 일 때 KM 결측 회차가 `x: null` 로 들어가 점이 0 에 찍혔다 | KM 축이면 KM 없는 회차 제외 |
+| `WearAnalysisTab` id 문구 | `mm/1.000 km` · `0,80` · `1,00` — 금지된 `1.234,56` 형식 | `mm/1,000 km` · `0.80` · `1.00` |
+| `TcoTab` 탈거 기준 선택 | 3 · 5 mm 상수 — `tire_config` 와 어긋날 수 있음 | `treadThresholds()` 의 critical·order 로 |
+| `TcoTab` CPK 카드 | 통화 미표기 | `tco_params.currency` 전달 |
+| `EconomicsSection` 준수율 부제 | «±5%» 고정 문구 — `pressureThresholds().devWarn` 과 별개 | 임계에서 생성 (3 로케일) |
+| `EconomicsSection` 엑셀 | 노출 KM 조건이 화면(공기압 회차 없으면 공란)과 달랐다 | 화면과 같은 조건 |
+| `tmsUtils.economicsRow` | 주행계 역행으로 KM 차가 음수면 그대로 노출 KM 로 썼다 | 음수 → 결측 |
+| `PressureHistorySection` 각주 | «80%» 문구가 `COMPLIANCE_WARN_PCT` 와 분리 | 상수에서 생성 |
+| `IntegrityBadge` | «주의» 건수에 info 포함 | warning 만 |
+
+**사용자 결정으로 넘긴 것** → decisions M-8 ~ M-11.
+
+**확인했고 바꾸지 않은 것**
+- W-1 은 DB 트리거(OUTLIER 제외)와 화면 `effectiveTread` 가 같은 값을 낸다 (CH 834 L1 08-23: 최소 5.6 · 평균 8.38). 이중 제외 없음.
+- OUTLIER 7점 중 6점이 L(Kiri) 점 — 측정 순서 첫 칸 빈칸=0 패턴으로 보인다. 현장 확인 항목 2 와 같이 볼 것.

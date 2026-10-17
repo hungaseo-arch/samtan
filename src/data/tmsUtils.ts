@@ -1425,7 +1425,9 @@ export interface EconomicsRow {
 
 export function economicsRow(u: Unit): EconomicsRow {
   const kms = u.km.filter((v): v is number => typeof v === "number");
-  const km = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
+  // 주행계 역행(재설정·오입력)으로 음수가 되면 노출 KM 으로 쓸 수 없다 → 결측 처리
+  const kmRaw = kms.length >= 2 ? kms[kms.length - 1] - kms[0] : null;
+  const km = kmRaw != null && kmRaw >= 0 ? kmRaw : null;
   const target = targetLifeKm();
   const tires = u.positions.map((p) => p.serial).filter(Boolean);
   const costs = tires.map((sr) => ({ sr, c: tireCostOf(sr), l: lifeCalc(sr) }));

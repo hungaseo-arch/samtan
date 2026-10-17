@@ -71,7 +71,7 @@ function posStats(
   const expectedKm = serial ? lifeCalc(serial)?.expectedKm ?? null : null;
   // 최신 회차에 0 점이 섞였는데 평균은 0 이 아니다 — 빈칸이 0 으로 저장됐을 수 있다 (R-2 · WEAR-01).
   // 0 하나(W-1)는 20261016190000 이 OUTLIER 로 빼므로, 남는 것은 중앙 2점 0 등 현장 확인 대상(M-6)이다.
-  // 값은 DB 그대로 보여 주고 «결측 의심» 배지만 붙인다. «평균» 에서는 최소·CV·S/C 에서 뺀다.
+  // 값은 DB 그대로 보여 주고 «결측 의심» 배지만 붙인다. «평균» 에서는 최신 회차에서 나온 지표를 전부 뺀다 — 초기 트레드·시험거리만 남긴다.
   const zeroSuspect = latest != null && latest.tread_min === 0 && (latest.tread_avg ?? 0) > 0;
   return { measured, segNo, segRows, segment, latestPattern, latest, initialAvg, totalWear, expectedKm, zeroSuspect };
 }
@@ -148,7 +148,7 @@ const TX = {
     noSegment: "이 포지션에는 아직 세그먼트 대표값이 없습니다. 같은 시리얼로 측정점 3회차 이상이 쌓이면 산출됩니다.",
     noPattern: "편마모 판정 보류 — 중앙 마모량이 판정 최소치에 못 미칩니다.",
     missingBadge: "결측 의심",
-    missingHint: "최신 회차 4점 중 0 이 있는데 평균은 0 이 아닙니다. 빈칸이 0 으로 저장됐을 수 있어 현장 확인 중입니다. «평균» 의 최소·CV·S/C 에서는 뺍니다.",
+    missingHint: "최신 회차 4점 중 0 이 있는데 평균은 0 이 아닙니다. 빈칸이 0 으로 저장됐을 수 있어 현장 확인 중입니다. «평균» 에서는 이 차량의 최신 회차 지표(현재 트레드·최소·총마모·마모율·CV·S/C·예상 주행거리)를 뺍니다.",
     cvNoCriteria: "CV 합격 기준은 아직 정하지 않았습니다. 플릿 중앙값 대비 위치만 참고하십시오 (설계서 §10).",
     r2Low: "R² 가 0.80 미만입니다. 대표값 신뢰도가 낮습니다.",
     glossary: "용어 설명",
@@ -189,7 +189,7 @@ const TX = {
     axisKm: "Jarak tempuh (km)",
     axisDate: "Tgl inspeksi",
     axisMm: "mm",
-    axisRate: "mm/1.000 km",
+    axisRate: "mm/1,000 km",
     axisPct: "%",
     round: "Sesi",
     fleetMedian: "Median armada",
@@ -199,12 +199,12 @@ const TX = {
     noSegment: "Belum ada nilai representatif segmen untuk posisi ini. Diperlukan minimal 3 sesi pengukuran dengan serial yang sama.",
     noPattern: "Penilaian keausan ditunda — keausan tengah belum mencapai batas minimum.",
     missingBadge: "Diduga kosong",
-    missingHint: "Ada nilai 0 di antara 4 titik sesi terbaru, tetapi rata-rata bukan 0. Kolom kosong mungkin tersimpan sebagai 0 dan sedang dicek di lapangan. Tidak dihitung dalam min·CV·S/C «Rata-rata».",
+    missingHint: "Ada nilai 0 di antara 4 titik sesi terbaru, tetapi rata-rata bukan 0. Kolom kosong mungkin tersimpan sebagai 0 dan sedang dicek di lapangan. Indikator sesi terbaru unit ini (tapak saat ini·min·total aus·laju aus·CV·S/C·perkiraan jarak) tidak dihitung dalam «Rata-rata».",
     cvNoCriteria: "Kriteria lulus CV belum ditetapkan. Gunakan hanya sebagai posisi relatif terhadap median armada.",
-    r2Low: "R² di bawah 0,80. Keandalan nilai representatif rendah.",
+    r2Low: "R² di bawah 0.80. Keandalan nilai representatif rendah.",
     glossary: "Penjelasan istilah",
     gCv: "Simpangan baku sampel (n−1) dari 4 titik lebar (L·C1·C2·R) ÷ rata-rata × 100. Menunjukkan seberapa merata satu ban aus. Makin rendah makin merata; makin tinggi berarti hanya satu sisi arah lebar yang aus. Kriteria lulus belum ditetapkan, jadi dibaca hanya sebagai posisi relatif terhadap median armada.",
-    gSc: "Keausan bahu (L·R) ÷ keausan tengah (C1·C2). Keausan dihitung dari selisih terhadap tapak ban baru. Mendekati 1,00 berarti merata; di atas 1 berarti bahu aus lebih dulu (umumnya tekanan angin kurang atau muatan berlebih); di bawah 1 berarti tengah aus lebih dulu (umumnya tekanan angin berlebih). Batas penilaian dan keausan minimum untuk menunda penilaian mengikuti nilai di tire_config.",
+    gSc: "Keausan bahu (L·R) ÷ keausan tengah (C1·C2). Keausan dihitung dari selisih terhadap tapak ban baru. Mendekati 1.00 berarti merata; di atas 1 berarti bahu aus lebih dulu (umumnya tekanan angin kurang atau muatan berlebih); di bawah 1 berarti tengah aus lebih dulu (umumnya tekanan angin berlebih). Batas penilaian dan keausan minimum untuk menunda penilaian mengikuti nilai di tire_config.",
     legacyTitle: "Statistik tidak tersedia",
     avgNote: (n: number) => `Rata-rata aritmetika nilai ban terpasang (segmen terbaru) dari ${n} unit. Unit tanpa nilai tidak dihitung.`,
     avgCount: (n: number, total: number) => `Rata-rata ${n}/${total} unit`,
@@ -250,7 +250,7 @@ const TX = {
     noSegment: "No segment representative value yet for this position. It appears once 3+ measured rounds accumulate on the same serial.",
     noPattern: "Wear pattern on hold — center wear is below the minimum decision threshold.",
     missingBadge: "Possibly missing",
-    missingHint: "The latest round has a 0 among its 4 points while the average is not 0. A blank may have been saved as 0; field check pending. Left out of the «Average» min, CV and S/C.",
+    missingHint: "The latest round has a 0 among its 4 points while the average is not 0. A blank may have been saved as 0; field check pending. This unit's latest-round figures (current tread, min, total wear, wear rate, CV, S/C, expected km) are left out of the «Average».",
     cvNoCriteria: "No CV pass criteria have been set. Read it only as a position relative to the fleet median (design §10).",
     r2Low: "R² is below 0.80. The representative value has low confidence.",
     glossary: "Glossary",
@@ -349,18 +349,20 @@ export default function WearAnalysisTab() {
   const avg = {
     testDist: meanOf(perCh.map((x) => x.st.segment?.test_distance_km)),
     initial: meanOf(perCh.map((x) => x.st.initialAvg)),
-    current: meanOf(perCh.map((x) => x.st.latest?.tread_avg)),
+    // 결측 의심(0 포함) 차량은 최신 회차에서 나온 지표를 전부 뺀다 — tread_avg 가 ~5 mm 낮게 들어가면
+    // 현재·총마모·마모율(OLS)·예상 주행거리가 함께 왜곡되는데 배지는 세 장에만 붙어 나머지가 깨끗해 보였다 (2026-10-17 점검)
+    current: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.latest?.tread_avg))),
     min: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.latest?.tread_min))),
-    totalWear: meanOf(perCh.map((x) => x.st.totalWear)),
-    rate: meanOf(perCh.map((x) => x.st.segment?.wear_rate_km_ols)),
-    expKm: meanOf(perCh.map((x) => x.st.expectedKm)),
+    totalWear: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.totalWear))),
+    rate: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.segment?.wear_rate_km_ols))),
+    expKm: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.expectedKm))),
     cv: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.latest?.tread_cv))),
     sc: meanOf(perCh.map((x) => (x.st.zeroSuspect ? null : x.st.latestPattern?.sc_ratio))),
   };
 
   // ── «평균» 차트 3·4 — 선택 포지션을 차량끼리 비교
   const avgRateData = perCh
-    .filter((x) => x.st.segment?.wear_rate_km_ols != null)
+    .filter((x) => x.st.segment?.wear_rate_km_ols != null && !x.st.zeroSuspect)
     .map((x) => ({ label: `CH ${x.ch}`, rate: x.st.segment!.wear_rate_km_ols as number, isSel: false }))
     .sort((a, b) => a.rate - b.rate);
   const avgCvData = perCh
@@ -369,10 +371,11 @@ export default function WearAnalysisTab() {
     .sort((a, b) => a.cv - b.cv);
   // ── 차트 1. 트레드 추이 — 세그먼트마다 계열 키를 바꿔 선을 끊는다 (v2 §A-3 승계)
   const trendData = useMemo(() => {
-    return measured.map((r) => {
+    // km 축에서 KM 없는 회차를 0 km 에 찍으면 곡선이 뒤로 꺾인다 — 그 회차는 km 축 차트에서 뺀다 (날짜 축은 그대로)
+    return measured.filter((r) => xAxis !== "km" || r.km != null).map((r) => {
       const max = r.tread_min != null && r.tread_range != null ? r.tread_min + r.tread_range : null;
       return {
-        x: xAxis === "km" ? (r.km ?? 0) : r.inspection_date.slice(5),
+        x: xAxis === "km" ? (r.km as number) : r.inspection_date.slice(5),
         date: r.inspection_date,
         seg_no: r.seg_no,
         // 계열 키에 seg_no 를 넣어야 교체 전후 타이어가 한 선으로 이어지지 않는다.

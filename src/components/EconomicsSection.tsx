@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { AlertTriangle, Download, Info } from "lucide-react";
 import { useLang } from "@/i18n";
-import { TMS_DATA, targetLifeKm } from "@/data/tmsData";
+import { TMS_DATA, targetLifeKm, pressureThresholds } from "@/data/tmsData";
 import { fleetEconomics, type EconomicsRow } from "@/data/tmsUtils";
 import { toIdr } from "@/lib/economics";
 import {
@@ -25,7 +25,7 @@ const TX = {
     kCpk: "플릿 평균 CPK",
     kCpkSub: "장착 타이어 본당 실적 CPK 평균",
     kComp: "공기압 준수율",
-    kCompSub: "권장 ±5% 이내 측정 회차 비율",
+    kCompSub: (dev: string) => `권장 ±${dev} 이내 측정 회차 비율`,
     kFuel: "누적 연료 손실 추정액",
     kFuelSub: "저압 노출 × 연료 민감도 × 기준 연비 × 유가",
     kLife: "누적 수명 손실 추정액",
@@ -84,7 +84,7 @@ const TX = {
     kCpk: "Rata-rata CPK armada",
     kCpkSub: "rata-rata CPK aktual per ban terpasang",
     kComp: "Kepatuhan tekanan angin",
-    kCompSub: "porsi pemeriksaan dalam ±5% rekomendasi",
+    kCompSub: (dev: string) => `porsi pemeriksaan dalam ±${dev} rekomendasi`,
     kFuel: "Estimasi kerugian bahan bakar kumulatif",
     kFuelSub: "paparan tekanan rendah × sensitivitas BBM × konsumsi dasar × harga BBM",
     kLife: "Estimasi kerugian umur kumulatif",
@@ -143,7 +143,7 @@ const TX = {
     kCpk: "Fleet average CPK",
     kCpkSub: "mean actual CPK per mounted tire",
     kComp: "Pressure compliance",
-    kCompSub: "share of rounds within ±5% of recommended",
+    kCompSub: (dev: string) => `share of rounds within ±${dev} of recommended`,
     kFuel: "Cumulative fuel loss (est.)",
     kFuelSub: "under-inflation exposure × fuel sensitivity × base consumption × fuel price",
     kLife: "Cumulative life loss (est.)",
@@ -244,7 +244,8 @@ export default function EconomicsSection() {
       [tx.cTarget]: fmtCpk(r.targetCpk, r.currency ?? undefined),
       [tx.cAchieved]: `${r.achieved}/${r.evaluated}`,
       [tx.cComp]: fmtPercent(r.compliance.pct),
-      [tx.cExpo]: r.econ.kmMissing ? null : Math.round(r.econ.exposure),
+      // 화면(ratio 열)과 같은 조건 — 공기압 회차가 없으면 노출 KM도 비운다
+      [tx.cExpo]: r.econ.kmMissing || !r.compliance.total ? null : Math.round(r.econ.exposure),
       [tx.cFuelL]: fmtLitre(r.econ.fuelL),
       [tx.cFuel]: money(r.econ.fuelCost, r.econ.fuelCurrency),
       [tx.cLife]: fmtDistanceKm(r.econ.lifeKm),
@@ -295,7 +296,7 @@ export default function EconomicsSection() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label={tx.kCpk} sub={tx.kCpkSub} tx={tx}
           value={f.avgCpk != null ? fmtCpk(f.avgCpk, f.avgCpkCurrency ?? undefined) : null} />
-        <KpiCard label={tx.kComp} sub={tx.kCompSub} tx={tx}
+        <KpiCard label={tx.kComp} sub={tx.kCompSub(fmtPercent(pressureThresholds().devWarn * 100))} tx={tx}
           value={f.compliance.pct != null ? fmtPercent(f.compliance.pct) : null}
           extra={f.compliance.total ? `${fmtInt(f.compliance.ok)} / ${fmtInt(f.compliance.total)}` : undefined} />
         <KpiCard label={tx.kFuel} sub={tx.kFuelSub} tx={tx}

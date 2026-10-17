@@ -180,7 +180,7 @@ export default function IntegrityBadge() {
   // 배지의 경고 건수 = 패널에 펼친 error 외 항목의 합 (LAY-04).
   // 예전에는 v_data_quality 만 세서 정합성 경고분만큼 패널 합계와 어긋났다 (521 vs 530).
   const warnCnt = listed
-    .filter((c) => c.severity !== "error")
+    .filter((c) => c.severity === "warning") // «주의» 건수 — info 는 세지 않는다
     .reduce((s, c) => s + (c.cnt ?? 0), 0);
 
   return (

@@ -611,6 +611,10 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | ~~M-5~~ | 마이그레이션 prod 적용 (`20261016140000` · `150000` · `160000` 백필) | **적용 (2026-10-16).** `supabase migration list --linked` 에서 원격 이력 3건 확인 |
 | M-6 | 트레드 C1·C2 동시 0 (숄더 L·R 은 2~8 mm) — 72행 · 36본 (2026-07-26 이후) | **확인 필요.** W-1 규칙(0 하나)에 걸리지 않아 0.0 mm 적색으로 판정된다. 중앙 미측정(빈칸=0)인지 실제 중앙 소진인지 현장 확인. 목록 `docs/트레드0-현장확인-20261016.md` |
 | ~~M-7~~ | `20261016170000_tire_config_stale_days.sql` · `20261016180000_ck_pressure_50_150.sql` · `20261016190000_tread_points_single_zero_outlier.sql` prod 적용 | **적용 (2026-10-16, 사용자 승인 후 `supabase db push`).** `--dry-run` 대상은 이 3건뿐. 적용 직전 공기압 50 ~ 150 밖 0건 · 기존 OUTLIER 0건 확인. 적용 후 확인: `stale_days` = 30 · `ck_pressure` = `pressure IS NULL OR 50 ~ 150` · OUTLIER 7점(7회차) · 트리거 재계산(CH 834 L1 08-23 평균 6.28 → 8.38 mm, 7회차 모두 최소 > 0) |
+| M-8 | `v_wear_pattern.lateral_pattern` — `outboard_avg` NULL(O/I 비 계산 불가)이면 CASE 가 ELSE 로 떨어져 `'even'` 반환 | **마이그레이션 필요 (승인 대기).** `'insufficient'` 로 고쳐야 한다. 현재 UI 에 표시되지 않아(`api/wear.ts` 타입만) 화면 오류는 없음. 뷰 정의 `20260826154000_wear_pattern_views.sql` |
+| M-9 | W-1 단일 0 OUTLIER 규칙이 DB 에는 일회성 백필(`20261016190000`)로만 존재 — 새 회차는 자동 표시되지 않는다 | **결정 필요.** 마모 분석(DB 뷰)과 배치도(`effectiveTread`)가 새 회차에서 갈릴 수 있다. 선택지: ① `inspection_tread_points` 트리거로 규칙 상시화(마이그레이션) ② 입력 RPC 에서 표시 ③ 문서로만 남김 |
+| M-10 | CPK 정의가 두 가지 — 원가 탭 CPK-G 카드 = `v_tco_fleet.cpk_gross_avg`(본당 단순 평균 IDR 2,628.16/km, 가중 562.43) / 경제성 섹션 = 현재 장착 본 평균. 결과 보고 §3-5 의 941.77 · 516.04 와도 다름. 재생 시나리오 식은 `v_tco_unit.cpk_lifecycle` 과 다르고 `casing_value` 입력은 받되 쓰지 않음 | **정의 결정 필요.** 대표값(단순/가중) · 모집단(전체/현재 장착) · 재생 식을 하나로 정하면 코드 통일 |
+| M-11 | 시리얼 매칭이 trim 만(`normSerial`) — 대소문자·공백 차이면 다른 타이어로 갈라짐. «측정 대기» 는 현재 구간 없음과 값 전부 NULL 을 구분하지 않음 | **확인 필요.** prod 에서 어긋난 시리얼은 아직 없음. 정규화(대문자·내부 공백 제거)를 넣을지, 입력 단계에서 막을지 |
 
 ---
 
