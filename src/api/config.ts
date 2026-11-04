@@ -8,6 +8,7 @@
 // 경계 순서(critical < order < caution, warn < danger)는 DB check 제약도 지키지만
 // 여기서 먼저 걸러 친절한 오류를 낸다.
 import { supabase } from "@/lib/supabase";
+import { LIFE_END_BASES, type LifeEndBasis } from "@/data/tmsData";
 
 /** 관리자가 조정할 수 있는 판정 기준. 비율 값은 0~1 소수(0.85 = 85%). */
 export interface JudgeConfig {
@@ -74,6 +75,22 @@ export async function updateJudgeConfig(c: JudgeConfig): Promise<void> {
     .select("id");
   if (error) throw error;
   // RLS 가 막으면 오류 없이 0행이 돌아온다 — 저장된 척하지 않는다.
+  if (!data || data.length === 0) throw new Error("tire_config not updated (no permission?)");
+}
+
+/**
+ * 예상 수명 외삽 기준 저장 (WO-TMS-2026-11-LIFE-KM T-3) — DB check 제약
+ * tire_config_life_end_basis_check 와 같은 값만 받는다. 저장 후 호출부가 loadData() 로 갱신할 것.
+ * ⚠ 호출부는 반드시 canWrite/canDelete로 게이팅 + RLS가 최종 방어선
+ */
+export async function updateLifeEndBasis(b: LifeEndBasis): Promise<void> {
+  if (!LIFE_END_BASES.includes(b)) throw new Error(`invalid life_end_basis: ${b}`);
+  const { data, error } = await supabase
+    .from("tire_config")
+    .update({ life_end_basis: b })
+    .eq("id", 1)
+    .select("id");
+  if (error) throw error;
   if (!data || data.length === 0) throw new Error("tire_config not updated (no permission?)");
 }
 

@@ -12,8 +12,9 @@ import { toast } from "sonner";
 import { useLang } from "@/i18n";
 import {
   treadThresholds, recPsi, pressureThresholds, inspectionIntervalDays, targetLifeKm, odometerLimits, staleDays,
+  lifeEndBasis, LIFE_END_BASES, type LifeEndBasis,
 } from "@/data/tmsData";
-import { updateJudgeConfig, validateJudgeConfig, type JudgeConfig } from "@/api/config";
+import { updateJudgeConfig, updateLifeEndBasis, validateJudgeConfig, type JudgeConfig } from "@/api/config";
 
 const TX = {
   ko: {
@@ -23,7 +24,7 @@ const TX = {
     gPsi: "권장 공기압 (psi)",
     gPsiJudge: "공기압 판정 (%)",
     gOps: "운영 기준",
-    tread_critical: "적색 위험 — 즉시 교체",
+    tread_critical: "적색 위험 — 권장 교체",
     tread_order: "주황 발주 — 교체 타이어 발주",
     tread_caution: "황색 주의 — 교체 예정 등재",
     rec_psi_steer: "조향축 (L1·R1)",
@@ -41,6 +42,10 @@ const TX = {
     odo_daily_hm_max: "일평균 가동 상한 (hr/일, 최대 24)",
     hintOdo: "직전 점검 회차 대비로 판정합니다. 넘으면 입력 폼이 경고하고 결과 요약이 «데이터 확인 필요»로 표시됩니다.",
     hintInterval: "경과일이 주기의 1.5배를 넘으면 점검 지연으로 표시합니다.",
+    gLife: "수명 종료 기준 (예상 KM·HM·CPK)",
+    life_end_basis: "0mm 외삽 기준",
+    basis: { min: "최소 0mm — 4점 중 최소값 (현행)", three_zero: "3점 0mm — 4점 중 두 번째 큰 값", four_zero: "4점 0mm — 4점 중 최대값" },
+    hintLife: "수명 DB 의 예상 KM·HM 과 예상 CPK 가 이 기준으로 바뀝니다. 3점·4점 기준은 4점 측정 회차만 쓰고(이상점 제외), 2회차 미만이면 비웁니다. 발주 예상일은 이 기준과 무관합니다.",
     save: "저장", reset: "되돌리기",
     saved: "판정 기준을 저장했습니다", saveFail: "저장 실패: ",
     invalid: "값을 확인하세요 — 위험 < 발주 < 주의, 주의 편차 < 위험 편차 순이어야 합니다.",
@@ -53,7 +58,7 @@ const TX = {
     gPsi: "Tekanan angin standar (psi)",
     gPsiJudge: "Penilaian tekanan angin (%)",
     gOps: "Standar operasional",
-    tread_critical: "Merah bahaya — ganti segera",
+    tread_critical: "Merah bahaya — disarankan ganti",
     tread_order: "Oranye pesan — pesan ban pengganti",
     tread_caution: "Kuning waspada — masuk daftar penggantian",
     rec_psi_steer: "Sumbu kemudi (L1·R1)",
@@ -71,6 +76,10 @@ const TX = {
     odo_daily_hm_max: "Batas jam operasi harian (jam/hari, maks 24)",
     hintOdo: "Dibandingkan dengan Pemeriksaan sebelumnya. Jika terlampaui, formulir memberi peringatan dan ringkasan hasil menampilkan «Perlu cek data».",
     hintInterval: "Jika selang hari melebihi 1,5 kali siklus, ditandai Pemeriksaan terlambat.",
+    gLife: "Kriteria akhir umur (prediksi KM·HM·CPK)",
+    life_end_basis: "Dasar ekstrapolasi 0mm",
+    basis: { min: "Min 0mm — nilai terkecil dari 4 titik (saat ini)", three_zero: "3 titik 0mm — nilai terbesar kedua dari 4 titik", four_zero: "4 titik 0mm — nilai terbesar dari 4 titik" },
+    hintLife: "Prediksi KM·HM dan CPK prediksi di DB Umur Ban berubah mengikuti kriteria ini. Kriteria 3·4 titik hanya memakai sesi ukur 4 titik (tanpa titik pencilan) dan kosong jika kurang dari 2 sesi. Prakiraan tanggal pesan tidak terpengaruh.",
     save: "Simpan", reset: "Kembalikan",
     saved: "Kriteria penilaian disimpan", saveFail: "Gagal menyimpan: ",
     invalid: "Periksa nilai — harus bahaya < pesan < waspada, dan toleransi < batas bahaya.",
@@ -83,7 +92,7 @@ const TX = {
     gPsi: "Recommended pressure (psi)",
     gPsiJudge: "Pressure judgement (%)",
     gOps: "Operations",
-    tread_critical: "Red danger — replace now",
+    tread_critical: "Red danger — recommended replace",
     tread_order: "Orange order — order replacement tire",
     tread_caution: "Yellow caution — add to replacement list",
     rec_psi_steer: "Steer axle (L1·R1)",
@@ -101,6 +110,10 @@ const TX = {
     odo_daily_hm_max: "Max daily hours (hr/day, up to 24)",
     hintOdo: "Judged against the previous inspection round. When exceeded, the form warns and the result summary shows «Check data».",
     hintInterval: "Marked as overdue when days since the last inspection exceed 1.5× the interval.",
+    gLife: "End-of-life basis (est. KM·HM·CPK)",
+    life_end_basis: "0mm extrapolation basis",
+    basis: { min: "Min 0mm — smallest of the 4 points (current)", three_zero: "3-point 0mm — second-largest of the 4 points", four_zero: "4-point 0mm — largest of the 4 points" },
+    hintLife: "Est. KM·HM and est. CPK in the Tire Lifetime DB follow this basis. The 3- and 4-point bases use only rounds with all 4 points (outliers excluded) and stay empty with fewer than 2 such rounds. The projected order date is not affected.",
     save: "Save", reset: "Revert",
     saved: "Criteria saved", saveFail: "Save failed: ",
     invalid: "Check the values — danger < order < caution, and tolerance < danger deviation.",
@@ -160,21 +173,29 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
   const [initial, setInitial] = useState<Draft>(currentDraft);
   const [draft, setDraft] = useState<Draft>(initial);
   const [busy, setBusy] = useState(false);
+  // 수명 종료 기준은 숫자 판정값이 아니라 선택값이라 따로 둔다 (T-3)
+  const [basisInit, setBasisInit] = useState<LifeEndBasis>(lifeEndBasis);
+  const [basis, setBasis] = useState<LifeEndBasis>(basisInit);
 
   const bad = useMemo(() => new Set(validateJudgeConfig(toConfig(draft))), [draft]);
-  const dirty = (Object.keys(draft) as (keyof JudgeConfig)[]).some((k) => draft[k] !== initial[k]);
+  const judgeDirty = (Object.keys(draft) as (keyof JudgeConfig)[]).some((k) => draft[k] !== initial[k]);
+  const dirty = judgeDirty || basis !== basisInit;
 
   const handleSave = async () => {
     if (bad.size > 0) { toast.error(tx.invalid); return; }
     if (!window.confirm(tx.confirm)) return;
     setBusy(true);
     try {
-      await updateJudgeConfig(toConfig(draft));
+      if (judgeDirty) await updateJudgeConfig(toConfig(draft));
+      if (basis !== basisInit) await updateLifeEndBasis(basis);
       await onSaved?.();
       // 다시 읽은 TMS_DATA 기준으로 화면을 맞춘다 (DB 가 값을 바꿨을 가능성까지 반영)
       const next = currentDraft();
       setInitial(next);
       setDraft(next);
+      const nb = lifeEndBasis();
+      setBasisInit(nb);
+      setBasis(nb);
       toast.success(tx.saved);
     } catch (e) {
       toast.error(tx.saveFail + (e instanceof Error ? e.message : String(e)));
@@ -221,13 +242,29 @@ export default function SettingsPanel({ onSaved }: { onSaved?: () => void | Prom
             )}
           </fieldset>
         ))}
+        <fieldset className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+          <legend className="px-1 text-xs font-bold">{tx.gLife}</legend>
+          <label className="flex items-center justify-between gap-3 text-xs">
+            <span className="min-w-0">{tx.life_end_basis}</span>
+            <select
+              value={basis}
+              onChange={(e) => setBasis(e.target.value as LifeEndBasis)}
+              className="shrink-0 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+            >
+              {LIFE_END_BASES.map((b) => (
+                <option key={b} value={b}>{tx.basis[b]}</option>
+              ))}
+            </select>
+          </label>
+          <p className="text-[11px] text-muted-foreground">{tx.hintLife}</p>
+        </fieldset>
       </div>
 
       {bad.size > 0 && <p className="text-xs text-destructive">{tx.invalid}</p>}
 
       <div className="flex justify-end gap-2">
         <button
-          onClick={() => setDraft(initial)}
+          onClick={() => { setDraft(initial); setBasis(basisInit); }}
           disabled={busy || !dirty}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-bold disabled:opacity-50 hover:bg-muted/40 transition-colors"
         >
