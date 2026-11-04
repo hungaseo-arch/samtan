@@ -1,7 +1,7 @@
 // @section: tms-utils
-import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm, KM_USABLE, odometerLimits, staleDays } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, NEW_TREAD, recPsi, treadLevel, treadThresholds, inspectionIntervalDays, meterUnresolved, targetLifeKm, KM_USABLE, odometerLimits, staleDays, lifeEndBasis } from "./tmsData";
 import { brandOfSerial, costParamAt, cpk, extraFuelL, lifeLossKm, mulOrNull, tireTotalCost } from "@/lib/economics";
-import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
+import type { Unit, TirePosition, TreadLevel, LedgerSegment, SerialChainEntry, TreadSegment, TreadWidths, LifeEndBasis } from "./tmsData";
 import { EMPTY, fmtTread, fmtPressure, fmtPercent, todayInField } from "@/lib/format";
 import { pressureJudge, judgePressure } from "@/lib/pressureJudge";
 import { projectReplacement, dailyKm, daysBetween, type Projection } from "@/lib/lifeProjection";
@@ -463,8 +463,8 @@ export interface LifeCalc {
   pos: string;
   km: number | null;         // 주행 KM = 최신 km − 최초 km
   hr: number | null;         // 주행 HR = 최신 HM − 최초 HM
-  expectedKm: number | null; // 예상 KM = 주행 KM + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 KM)
-  expectedHm: number | null; // 예상 HM = 주행 HR + 회귀 마모율 기준 0mm 잔여 외삽 (≥ 주행 HR)
+  expectedKm: number | null; // 예상 KM = 수명 종료 기준 점열의 0mm 외삽 (≥ 주행 KM)
+  expectedHm: number | null; // 예상 HM = 같은 기준의 HM 축 외삽 (≥ 주행 HR)
   /** 예상 교체 시점 — tread_order(발주) 기준 (§A-2). 0 mm 외삽인 expectedKm 과 다르다 */
   projection: Projection;
   /**
@@ -477,33 +477,12 @@ export interface LifeCalc {
   mounted: boolean;
   /** 최근 트레드 측정일 — 오래된 값 판정용 */
   latestDate: string | null;
-}
-
-/**
- * (x=누적 주행, y=트레드) 점들의 선형회귀 마모율로 현재 트레드 → limit(0mm) 잔여 주행을 외삽하고,
- * 이미 주행한 양(driven)에 가산해 총 예상수명을 산출.
- * → 예상수명은 항상 주행량(driven) 이상이 된다. 마모(음의 기울기)·유효 데이터일 때만 반환.
- */
-function projectExpected(pairs: { x: number; y: number }[], driven: number | null, limit: number): number | null {
-  if (driven == null || driven <= 0 || pairs.length < 2) return null;
-  const n = pairs.length;
-  const x0 = pairs[0].x;
-  const xs = pairs.map((p) => p.x - x0);
-  const ys = pairs.map((p) => p.y);
-  const xbar = xs.reduce((s, v) => s + v, 0) / n;
-  const ybar = ys.reduce((s, v) => s + v, 0) / n;
-  let num = 0, den = 0;
-  for (let i = 0; i < n; i++) {
-    num += (xs[i] - xbar) * (ys[i] - ybar);
-    den += (xs[i] - xbar) ** 2;
-  }
-  if (den <= 0) return null;
-  const slope = num / den;            // 단위당 마모(음수)
-  if (slope >= 0) return null;        // 마모 추세가 아니면 외삽 불가
-  const wearRate = -slope;            // 단위당 마모량(양수)
-  const latestTread = pairs[pairs.length - 1].y;
-  const remaining = (latestTread - limit) / wearRate; // 0mm까지 잔여 (이미 한계 이하면 음수)
-  return Math.round(driven + Math.max(0, remaining));
+  /** expectedKm·expectedHm 이 쓴 수명 종료 기준 (tire_config.life_end_basis) */
+  basis: LifeEndBasis;
+  /** 세 기준 모두의 예상값 — 비교표·기본값 결정용 (T-3) */
+  expectedByBasis: ExpectedByBasis;
+  /** 4점 측정 회차가 2개 미만 — three_zero·four_zero 예상값을 낼 수 없다 («4점 측정 부족») */
+  fourPointShort: boolean;
 }
 
 /**
@@ -654,23 +633,86 @@ function sampleAt(
 }
 
 /**
+ * 회차 4점(L·C1·C2·R) → 수명 종료 기준별 대표값 (WO-TMS-2026-11-LIFE-KM T-3).
+ * 4점이 다 있어야 한다 — 하나라도 없으면 null. OUTLIER(W-1 단일 0) 회차는 그 0 하나를 빼고 순위를 낸다.
+ *   four_zero  = 최대값 (4점이 모두 0 이 되는 시점을 대표)
+ *   three_zero = 두 번째로 큰 값 (3점이 0 이 되는 시점을 대표)
+ */
+export function widthRankValues(
+  w: TreadWidths | null | undefined,
+  outlier: boolean,
+): { fourZero: number; threeZero: number } | null {
+  if (!w) return null;
+  const pts = [w.l, w.c1, w.c2, w.r];
+  if (pts.some((v) => v == null || !Number.isFinite(v))) return null;
+  const xs = [...(pts as number[])];
+  if (outlier) {
+    const zi = xs.indexOf(0);
+    if (zi >= 0) xs.splice(zi, 1);
+  }
+  xs.sort((a, b) => b - a);
+  if (xs.length < 2) return null;
+  return { fourZero: xs[0], threeZero: xs[1] };
+}
+
+/**
+ * 회귀 점열의 마지막 점에서 limit(mm)까지 외삽한 총 예상량 (x 축 = 장착 원점 누적 km·hm).
+ * = max(실주행 driven, 마지막 측정점 x + 잔여). 마지막 측정 이후 탈착까지 달린 거리를 잔여에
+ * 다시 더하지 않는다 — 마지막 회차가 탈착보다 앞선 폐기 타이어에서 과대가 된다.
+ * 마모(음의 기울기)·유효 데이터일 때만 반환.
+ */
+function projectTotal(pairs: { x: number; y: number }[], driven: number | null, limit: number): number | null {
+  if (driven == null || driven <= 0 || pairs.length < 2) return null;
+  const n = pairs.length;
+  const xbar = pairs.reduce((sum, p) => sum + p.x, 0) / n;
+  const ybar = pairs.reduce((sum, p) => sum + p.y, 0) / n;
+  let num = 0, den = 0;
+  for (const p of pairs) {
+    num += (p.x - xbar) * (p.y - ybar);
+    den += (p.x - xbar) ** 2;
+  }
+  if (den <= 0) return null;
+  const slope = num / den;            // 단위당 마모(음수)
+  if (slope >= 0) return null;        // 마모 추세가 아니면 외삽 불가
+  const last = pairs[n - 1];
+  const remaining = Math.max(0, (last.y - limit) / -slope);
+  return Math.round(Math.max(driven, last.x + remaining));
+}
+
+/** 회귀 점열 정리 — 4점 평균이 늘어나거나 km 이 줄어드는 점을 떨어낸다 (T-2). */
+function monotoneByAvg<T extends { avg: number; km: number }>(pts: T[]): T[] {
+  const out: T[] = [];
+  for (const p of pts) {
+    const last = out[out.length - 1];
+    if (!last) { out.push(p); continue; }
+    if (p.avg <= last.avg && p.km > last.km) out.push(p);
+  }
+  return out;
+}
+
+/** 수명 종료 기준별 예상값 */
+export type ExpectedByBasis = Record<LifeEndBasis, { km: number | null; hm: number | null }>;
+
+/**
  * 시리얼로 타이어를 찾아 km/hr 수명과 예상 KM을 계산.
  *
  * - **주행 KM·HR 은 원장(`v_tire_ledger`) 이 정본이다.** 장착·탈착 시점의 차량 km 는
  *   그 타이어가 측정된 회차 밖(교체 당일)에 있어서 점검 점열의 차이로는 잡히지 않는다.
- *   `km_flag = 'OK'` 인 구간을 합산하며, 한 시리얼이 차량·포지션을 옮겨 다닌 경우도
- *   구간마다 더해진다.
- * - 구간 경계 km 는 원장이 교체 km_at → 앞뒤 회차 날짜 보간으로 낸다 (WO-TMS-2026-10-LIFE T-1).
- *   `APPROX`(뒤 회차가 없어 앞 회차 값)도 거리로 합산한다.
- * - 산출 가능한 구간이 하나도 없으면(최초 장착분은 `mounted_at` 이 없어 전부 `NO_KM`)
- *   종전대로 측정 점열의 최신 − 최초 로 되돌아간다. 이 값은 하한값이다 (`kmIsLowerBound`).
+ *   `km_flag = 'OK'·'APPROX'` 구간을 합산하며, 한 시리얼이 차량·포지션을 옮겨 다닌 경우도
+ *   구간마다 더해진다. 최초 장착분은 첫 측정이 신품이면 원장이 그 회차를 시작점으로 잡는다
+ *   (`FIRST_NEW_INSPECTION`, WO-TMS-2026-11-LIFE-KM T-1) — 이때는 하한값이 아니다.
+ * - 산출 가능한 구간이 하나도 없으면 측정 회차의 km 로 되돌아간다 (`kmIsLowerBound`).
+ *   **거리는 트레드 값과 무관하게** km 있는 모든 회차로 재고, 끝은 원장 `km_end`(탈착 경계)까지
+ *   늘린다. 장착 중이면 마지막 회차 (T-2 — 종전에는 최소 트레드 0 회차를 빼 거리가 멈췄다).
  * - **마모 점열은 구간 근거가 inspections.serial 이다** (원장의 장착일이 아니라).
- *   측정값이 그 타이어의 것임을 회차 단위로 보장하므로 앞뒤 타이어가 섞이지 않는다.
  *   차량이 바뀌면 km 가 리셋되므로 구간별 누적 오프셋으로 이어 붙인다.
- * - tread = 0 회차는 제외하고, 마모가 단조로운 점만 남겨 음수 마모율을 차단한다.
- * - 예상수명: 트레드 vs 누적 km 선형회귀 기울기로 limit(mm) 도달 km 외삽.
- *   신품(22mm) 기준 회차가 점열에 없으면 **예상값만** 비운다 — 전체 수명을 대표하지
- *   못하기 때문이다. 주행 실적은 원장에서 나오므로 이 가드와 무관하다.
+ * - 회귀 점열은 최소 트레드 0 회차도 남긴다 — 센터 0 은 수명 종료가 아니라 주행 중이다
+ *   (WO §1-2). 단조 마모 필터는 **4점 평균** 기준이다 (최소가 0 이어도 평균은 계속 준다).
+ * - 예상 KM·HM: 수명 종료 기준(`tire_config.life_end_basis`)별 점열 → 0 mm 회귀 외삽.
+ *   min = 최소값, three_zero = 4점 중 두 번째 큰 값, four_zero = 최대값. 4점 기준은 4점 회차만,
+ *   2개 미만이면 비운다 (`fourPointShort`). 세 기준 모두 `expectedByBasis` 에 남긴다.
+ *   신품(22mm) 기준 회차가 점열에 없으면 예상값만 비운다.
+ * - 발주 예상(`projection`, tread_order 기준)은 종전 점열(최소 트레드 > 0 · 최소값 단조)을 그대로 쓴다.
  *
  * 데이터 부족 시 null 반환.
  */
@@ -681,27 +723,28 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   const sels = segmentsOfSerial(serial);
   if (!sels.length) return null;
   // 표시 위치는 지금 달려 있는 곳(v_current_tire)이 정본이다 (R-1 · LIFE-03).
-  // 탈착됐거나 미감시 차량으로 옮겨 갔으면 마지막 측정 구간의 위치를 쓰고 mounted = false.
   const mount = currentMountOf(serial);
   const primary = sels.find((x) => x.seg.isCurrent) ?? sels[sels.length - 1];
   const ch = mount?.unit.ch ?? primary.seg.ch;
   const pos = mount?.pos ?? primary.seg.pos;
 
   // ② 구간별로 점열을 만들고 **누적** km·hm 축으로 이어 붙인다.
-  //    차량이 바뀌면 주행계·가동계가 리셋되므로 구간 안에서의 증분만 쓴다.
-  //    구간 원점은 원장의 장착 시점(km_start)이다 — 첫 측정 회차가 아니다.
-  //    첫 측정까지의 주행이 빠지면 구간 경계에서 누적값이 겹쳐 점이 하나 사라진다.
+  //    구간 원점은 원장의 시작 경계(km_start)다 — 첫 측정 회차가 아니다.
+  //    최초 장착분이 FIRST_NEW_INSPECTION 이면 mountedAt 은 null 이어도 km_start 가 있다.
   const segs = ledgerOf(serial);
   const used = new Set<number>();
-  type P = { tread: number; km: number; hm: number | null; date: string };
+  type P = {
+    tread: number; avg: number; km: number; hm: number | null; date: string;
+    widths: TreadWidths | null; outlier: boolean;
+  };
   const pts: P[] = [];
   let kmBase = 0;
   let hmBase = 0;
+  let fallbackKm = 0;       // 원장 OK 구간이 없을 때의 거리 — 트레드 무관
   for (const sel of sels) {
-    const raw = segmentPoints(sel.unit, sel.seg)
-      .filter((p) => p.tread != null && p.km != null && (p.tread as number) > 0)
-      .map((p) => ({ tread: p.tread as number, km: p.km as number, hm: p.hm, date: p.date }));
-    if (!raw.length) continue;
+    const all = segmentPoints(sel.unit, sel.seg);
+    const withKm = all.filter((p): p is SegPoint & { km: number } => p.km != null);
+    if (!withKm.length) continue;
 
     const gi = segs.findIndex(
       (g, i) => !used.has(i) && g.ch === sel.seg.ch && g.pos === sel.seg.pos,
@@ -710,41 +753,53 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     if (gi >= 0) used.add(gi);
     const measurable = g != null && KM_USABLE.includes(g.kmFlag) && g.segmentKm != null;
 
-    // 원점은 원장의 km_start(보간값) — 없으면(뷰 미적용) 종전 규칙(장착일 이하 마지막 회차)
-    const kmOrigin = measurable && g.mountedAt
-      ? g.kmStart ?? kmAt(g.ch, g.mountedAt) ?? raw[0].km
-      : raw[0].km;
-    const hmOrigin = (measurable && g.mountedAt ? g.hmStart ?? hmAt(g.ch, g.mountedAt) : null)
-      ?? raw.find((p) => p.hm != null)?.hm ?? null;
+    // 원점은 원장의 km_start(보간·추론값) — 없으면(뷰 미적용) 종전 규칙(장착일 이하 마지막 회차)
+    const kmOrigin = measurable
+      ? g.kmStart ?? (g.mountedAt ? kmAt(g.ch, g.mountedAt) : null) ?? withKm[0].km
+      : withKm[0].km;
+    const hmOrigin = (measurable ? g.hmStart ?? (g.mountedAt ? hmAt(g.ch, g.mountedAt) : null) : null)
+      ?? withKm.find((p) => p.hm != null)?.hm ?? null;
 
-    for (const p of raw) {
+    const seg = sel.seg;
+    for (const p of withKm) {
+      if (p.tread == null) continue;
       pts.push({
-        ...p,
+        tread: p.tread,
+        avg: p.treadAvg ?? p.tread,
         km: kmBase + (p.km - kmOrigin),
         hm: p.hm != null && hmOrigin != null ? hmBase + (p.hm - hmOrigin) : null,
+        date: p.date,
+        widths: p.widths,
+        outlier: !!seg.outlier[p.i],
       });
     }
+    // 폴백 거리: 첫 회차(또는 원장 시작) → 원장 km_end(탈착 경계). 장착 중이거나 km_end 가 없으면 마지막 회차.
+    const lastKm = withKm[withKm.length - 1].km;
+    const endKm = g?.kmEnd != null && g.kmEnd >= lastKm ? g.kmEnd : lastKm;
+    const span = Math.max(0, endKm - kmOrigin);
+    fallbackKm += span;
     // 다음 구간은 이 구간이 실제로 달린 만큼 뒤에서 시작한다.
-    kmBase += measurable ? (g.segmentKm as number) : raw[raw.length - 1].km - raw[0].km;
+    kmBase += measurable ? (g.segmentKm as number) : span;
     const hmEnd = measurable && g.removedAt ? g.hmEnd ?? hmAt(g.ch, g.removedAt) : null;
     hmBase += hmEnd != null && hmOrigin != null
       ? hmEnd - hmOrigin
-      : (pts[pts.length - 1].hm ?? hmBase) - hmBase;
+      : (pts[pts.length - 1]?.hm ?? hmBase) - hmBase;
   }
+  if (!pts.length) return null;
 
-  // ③ 마모 단조 · 누적 km 증가 구간만
-  const wear = monotoneWear(pts);
-  if (wear.length < 2) return null;
+  // ③ 회귀 점열 — 4점 평균 단조 · 누적 km 증가. 최소 0 회차도 남긴다 (T-2)
+  const reg = monotoneByAvg(pts);
+  //    발주 예상(⑦)용 종전 점열 — 이번 범위가 아니라 바꾸지 않는다 (T-3 단서)
+  const legacyWear = monotoneWear(pts.filter((p) => p.tread > 0));
+  if (reg.length < 2 && legacyWear.length < 2) return null;
 
-  // ④ 주행 KM — 원장의 산출 가능 구간(OK·APPROX) 합. 없으면 측정 점열의 증분.
-  //    점열 증분은 첫 점검 이전 주행이 빠진 하한값이다 (T-2 — kmIsLowerBound).
+  // ④ 주행 KM — 원장의 산출 가능 구간(OK·APPROX) 합. 없으면 측정 회차 폴백(하한값).
   const ok = segs.filter((g) => KM_USABLE.includes(g.kmFlag) && g.segmentKm != null);
   const ledgerKm = ok.reduce((sum, g) => sum + (g.segmentKm as number), 0);
-  const spanKm = wear[wear.length - 1].km - wear[0].km;
-  const km = ok.length ? (ledgerKm > 0 ? ledgerKm : null) : (spanKm > 0 ? spanKm : null);
+  const km = ok.length ? (ledgerKm > 0 ? ledgerKm : null) : (fallbackKm > 0 ? fallbackKm : null);
   const kmIsLowerBound = !ok.length || segs.some((g) => !KM_USABLE.includes(g.kmFlag));
 
-  // ⑤ 주행 HR — 같은 구간의 HM 차. 원장에 HM 이 없어 구간 경계일로 되짚는다.
+  // ⑤ 주행 HR — 같은 구간의 HM 차. FIRST_NEW_INSPECTION 구간은 원장 hm_start 가 그 회차 값이다.
   let hr: number | null = null;
   if (ok.length) {
     let sum = 0;
@@ -758,21 +813,36 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
     }
     hr = any ? sum : null;
   } else {
-    const first = wear.find((p) => p.hm != null)?.hm ?? null;
-    const last = [...wear].reverse().find((p) => p.hm != null)?.hm ?? null;
+    const first = pts.find((p) => p.hm != null)?.hm ?? null;
+    const last = [...pts].reverse().find((p) => p.hm != null)?.hm ?? null;
     hr = first != null && last != null && last - first > 0 ? last - first : null;
   }
 
-  // ⑥ 예상 KM / 예상 HM — 회귀 마모율로 현재 트레드 → limit 잔여 외삽 + 주행량.
-  //    신품 기준 회차가 없으면 전체 수명을 대표하지 못하므로 예상값만 비운다.
-  const fromNew = wear[0].tread >= NEW_TREAD;
-  const expectedKm = fromNew
-    ? projectExpected(wear.map((p) => ({ x: p.km, y: p.tread })), km, limit)
-    : null;
-  const hmPairs = wear.filter((p) => p.hm != null).map((p) => ({ x: p.hm as number, y: p.tread }));
-  const expectedHm = fromNew && hmPairs.length >= 2
-    ? projectExpected(hmPairs, hr, limit)
-    : null;
+  // ⑥ 예상 KM / 예상 HM — 기준별 점열 → limit(0 mm) 외삽. 신품 기준 회차가 없으면 비운다.
+  const fromNew = reg.length > 0 && reg[0].tread >= NEW_TREAD;
+  const ranked = reg.flatMap((p) => {
+    const v = widthRankValues(p.widths, p.outlier);
+    return v ? [{ ...p, ...v }] : [];
+  });
+  const fourPointShort = ranked.length < 2;
+  const project = (rows: { km: number; hm: number | null; y: number }[]) => ({
+    km: fromNew ? projectTotal(rows.map((p) => ({ x: p.km, y: p.y })), km, limit) : null,
+    hm: fromNew
+      ? projectTotal(rows.filter((p) => p.hm != null).map((p) => ({ x: p.hm as number, y: p.y })), hr, limit)
+      : null,
+  });
+  const expectedByBasis: ExpectedByBasis = {
+    min: project(reg.map((p) => ({ km: p.km, hm: p.hm, y: p.tread }))),
+    three_zero: fourPointShort
+      ? { km: null, hm: null }
+      : project(ranked.map((p) => ({ km: p.km, hm: p.hm, y: p.threeZero }))),
+    four_zero: fourPointShort
+      ? { km: null, hm: null }
+      : project(ranked.map((p) => ({ km: p.km, hm: p.hm, y: p.fourZero }))),
+  };
+  const basis = lifeEndBasis();
+  const expectedKm = expectedByBasis[basis].km;
+  const expectedHm = expectedByBasis[basis].hm;
 
   // ⑦ 예상 교체 시점 (§A-2) — 발주 기준선(tread_order)까지. 신품 기준 회차는 요구하지 않는다:
   //    마모율은 최근 추세만으로 충분하고, 교체 준비는 중고 장착 타이어에도 필요하다.
@@ -787,8 +857,8 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   const lp = latestTreadPointOf(serial);
   const latest = lp?.tread ?? null;
   const projection = projectReplacement(
-    wear,
-    latest ?? wear[wear.length - 1].tread,
+    legacyWear,
+    latest ?? legacyWear[legacyWear.length - 1]?.tread ?? pts[pts.length - 1].tread,
     dailyKm(rounds),
     treadThresholds().order,
     latest != null ? lp!.date : null,
@@ -800,6 +870,7 @@ export function lifeCalc(serial: string, limit = 0): LifeCalc | null {
   return {
     ch, pos, km, hr, expectedKm, expectedHm, projection, kmIsLowerBound,
     mounted: mount != null, latestDate: lp?.date ?? null,
+    basis, expectedByBasis, fourPointShort,
   };
 }
 

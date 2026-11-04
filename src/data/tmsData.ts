@@ -33,6 +33,17 @@ const FALLBACK_ODO_DAILY_HM_MAX = 24;
 // «오래된 값» 기준일 (CHK-TMS-2026-10-16-WEB R-2, 사용자 결정 2026-10-16) — 정본은 tire_config.stale_days
 const FALLBACK_STALE_DAYS = 30;
 
+/**
+ * 예상 수명(0 mm) 외삽 기준 — 정본은 tire_config.life_end_basis (WO-TMS-2026-11-LIFE-KM T-3,
+ * 쎄오님 결정 2026-11-04). 기본값 'min' 은 비교 보고 후 쎄오님 결정 전까지 유지한다.
+ *   min        4점 최소값 점열 → 0 mm (현행)
+ *   three_zero 4점 중 두 번째로 큰 값 점열 → 0 mm (= 3점 0 mm)
+ *   four_zero  4점 최대값 점열 → 0 mm (= 4점 모두 0 mm)
+ */
+export type LifeEndBasis = "min" | "three_zero" | "four_zero";
+export const LIFE_END_BASES: readonly LifeEndBasis[] = ["min", "three_zero", "four_zero"];
+const FALLBACK_LIFE_END_BASIS: LifeEndBasis = "min";
+
 /** 트레드 4단계 신호등. 녹색 ≥10 / 황색 5~10 / 주황 3~5 / 적색 <3 (기본값 기준) */
 export type TreadLevel = "ok" | "warn" | "order" | "danger";
 
@@ -98,6 +109,12 @@ export function targetLifeKm(): number {
  */
 export function staleDays(): number {
   return TMS_DATA.tire.staleDays ?? FALLBACK_STALE_DAYS;
+}
+
+/** 예상 수명 외삽 기준. 컬럼이 없거나(마이그레이션 전) 값이 이상하면 현행 'min'. */
+export function lifeEndBasis(): LifeEndBasis {
+  const b = TMS_DATA.tire.lifeEndBasis;
+  return b && LIFE_END_BASES.includes(b) ? b : FALLBACK_LIFE_END_BASIS;
 }
 
 /** 주행계(KM·HM) 회차 간 이상치 판정 경계 — v_odometer_anomaly 와 같은 값 */
@@ -307,6 +324,8 @@ export interface TireConfig {
   odoSpeedKmhMax: number | null;
   odoDailyHmMax: number | null;
   staleDays: number | null;
+  /** 예상 수명 외삽 기준 (20261104110000). 미적용 환경은 null → 'min' */
+  lifeEndBasis: LifeEndBasis | null;
   // 경제성 (§B-1·B-3). 전부 확정 전 NULL — 화면은 «설정 필요» 를 띄운다
   fxUsdIdr: number | null;
   fuelBaseLPerKm: number | null;
@@ -342,10 +361,21 @@ export interface LedgerSegment {
   hmEnd: number | null;
   /** km_start 산출 방식. 미적용 환경·산출 불가는 null */
   kmMethod: KmMethod | null;
+  /**
+   * 구간 시작일 — mountedAt 이 있으면 그 값, 최초 장착분이 FIRST_NEW_INSPECTION 으로 추론되면
+   * 첫 신품 측정 회차 일자 (20261104100000). mountedAt 원값은 바뀌지 않는다.
+   */
+  mountedAtEffective: string | null;
+  /** 시작점이 FIRST_NEW_INSPECTION 추론값이다 */
+  startInferred: boolean;
 }
 
 export type KmFlag = "OK" | "APPROX" | "NO_KM" | "KM_DECREASE";
-export type KmMethod = "REPLACEMENT" | "INSPECTION" | "INTERPOLATED" | "PREV_ROUND";
+/**
+ * FIRST_NEW_INSPECTION — 최초 장착분(장착일 없음)인데 그 포지션의 첫 측정이 신품(4점 평균 ≥ new_tread)이라
+ * 그 회차 km 를 시작점으로 쓴 구간 (WO-TMS-2026-11-LIFE-KM T-1 · decisions L-5). 하한값이 아니다.
+ */
+export type KmMethod = "REPLACEMENT" | "INSPECTION" | "INTERPOLATED" | "PREV_ROUND" | "FIRST_NEW_INSPECTION";
 /** 주행거리로 합산하는 구간 — 원장 합계(v_tire_ledger_total.cumulative_km)와 같은 기준 */
 export const KM_USABLE: readonly KmFlag[] = ["OK", "APPROX"];
 
@@ -382,6 +412,7 @@ export const TMS_DATA: TmsData = {
     psiLowRatio: null, psiDevWarn: null, psiDevDanger: null,
     inspectionIntervalDays: null, targetLifeKm: null,
     odoDailyKmMax: null, odoSpeedKmhMax: null, odoDailyHmMax: null, staleDays: null,
+    lifeEndBasis: null,
     fxUsdIdr: null, fuelBaseLPerKm: null, fuelPrice: null, fuelCurrency: "IDR",
     fuelSensPer10Pct: null, lifeSensPer10Pct: null,
   },
