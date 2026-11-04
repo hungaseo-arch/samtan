@@ -3,6 +3,27 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르고 날짜는 WIB 기준입니다.
 버전 태그는 아직 쓰지 않으므로 배포 단위 대신 **작업 묶음(Phase · Task)** 으로 나눕니다.
 
+## [Unreleased] — 2026-11-04 · WO-TMS-2026-11-LIFE-KM 수명 DB 주행 KM 과소 산출 수정
+
+결과 보고 `docs/WO-TMS-2026-11-LIFE-KM_결과.md`. 브랜치 `fix/life-km-first-mount`. 마이그레이션 3건은 **prod 적용 대기** (decisions M-13).
+
+### Fixed
+- 최초 장착분 주행 KM (T-1 · C-1) — `v_tire_ledger` 가 장착일 없는 seq 0 구간을 첫 신품 측정 회차부터 잡는다
+  (`km_method = FIRST_NEW_INSPECTION`, decisions L-5 — L-4 대체). `mounted_at` 원값 유지, `mounted_at_effective` · `start_inferred` 추가.
+  `v_tire_ledger_total` · `v_tco_*` · `v_removal_analysis` 는 본문 변경 없이 반영.
+- 수명 DB 거리 계산 (T-2 · C-2 · C-3) — 거리는 트레드 값과 무관하게 재고(최소 트레드 0 회차 포함), 폴백 끝을 탈착 경계 `km_end` 까지.
+  구간 원점은 `mountedAt` 이 없어도 원장 `km_start`. 회귀 점열의 단조 필터는 4점 평균 기준.
+
+### Added
+- 수명 종료 기준 `tire_config.life_end_basis` (T-3, L-8) — `min`(기본·현행) / `three_zero` / `four_zero`. 관리 › 판정 기준에서 선택.
+  수명 DB 예상 KM·HM 열 머리·각주·«4점 측정 부족» 표시, 엑셀에 세 기준 비교 열. 예상 CPK 도 같은 기준.
+- pgTAP `t106_life_km_first_mount_test.sql`, vitest `lifeCalc.firstMount.test.ts`.
+
+### Changed
+- 3 mm 표시명 «즉시 교체» → «권장 교체» / «Disarankan ganti» / «Recommended replace» (T-4, L-6). 내부 키·임계값 불변.
+- `v_data_quality.zero_tread_unverified` — 숄더 잔존 · 센터 0 은 WARN, 그 외 ERROR (T-4, L-9). params 에 `shoulder_min` · `center_min`.
+- 예상 수명 외삽 총량 = max(실주행, 마지막 측정점 누적 + 잔여) — 마지막 회차 이후 탈착까지 거리를 잔여에 이중 가산하던 것 정정.
+
 ## [Unreleased] — 2026-10-16 · CHK-TMS-2026-10-16-WEB 웹사이트 개선
 
 결과 보고 `docs/CHK-TMS-2026-10-16-WEB_결과.md`. 마이그레이션 3건은 **prod 적용 완료 2026-10-16** (decisions M-7).
