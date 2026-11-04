@@ -19,21 +19,21 @@ const TX = {
     latestPress: "최근 공기압", latestTread: "최근 트레드", newPrefix: "신품 ",
     remark: "비고", scrap: "폐기", lifetime: "수명 ", lifetimeHours: "시간",
     treadTrend: "트레드 추이 (mm)", pressTrend: "공기압 추이 (psi)", noData: "데이터 없음",
-    statusOk: "정상", statusWarn: "주의", statusOrder: "발주", statusDanger: "즉시 교체", statusNone: "시험 외",
+    statusOk: "정상", statusWarn: "주의", statusOrder: "발주", statusDanger: "권장 교체", statusNone: "시험 외",
   },
   id: {
     recPress: "Tekanan rekomendasi", serial: "Serial", serialHint: "Klik → lihat DB umur",
     latestPress: "Tekanan terkini", latestTread: "Tapak terkini", newPrefix: "baru ",
     remark: "Catatan", scrap: "Afkir", lifetime: "umur ", lifetimeHours: "jam",
     treadTrend: "Tren tapak (mm)", pressTrend: "Tren tekanan (psi)", noData: "Tidak ada data",
-    statusOk: "Normal", statusWarn: "Perhatian", statusOrder: "Pesan ban", statusDanger: "Ganti segera", statusNone: "Non-uji",
+    statusOk: "Normal", statusWarn: "Perhatian", statusOrder: "Pesan ban", statusDanger: "Disarankan ganti", statusNone: "Non-uji",
   },
   en: {
     recPress: "Recommended pressure", serial: "Serial", serialHint: "Click → view lifetime DB",
     latestPress: "Latest pressure", latestTread: "Latest tread", newPrefix: "new ",
     remark: "Remark", scrap: "Scrap", lifetime: "lifetime ", lifetimeHours: "hours",
     treadTrend: "Tread trend (mm)", pressTrend: "Pressure trend (psi)", noData: "No data",
-    statusOk: "Normal", statusWarn: "Caution", statusOrder: "Order tire", statusDanger: "Replace now", statusNone: "Not tested",
+    statusOk: "Normal", statusWarn: "Caution", statusOrder: "Order tire", statusDanger: "Recommended replace", statusNone: "Not tested",
   },
 } as const;
 

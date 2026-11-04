@@ -45,10 +45,18 @@ const RATE = {
 type Builder = (p: Params, lang: Lang) => string;
 
 const BUILDERS: Record<string, Record<Lang, Builder>> = {
+  // 20261104120000: 숄더·센터 최소값이 params 에 붙는다. 숄더 > 0 · 센터 0 이면 수명 종료가 아니다
+  // (WO-TMS-2026-11-LIFE-KM §1-2) — 뷰 severity 는 WARN. 키가 없으면(마이그레이션 전) 종전 문구.
   zero_tread_unverified: {
-    ko: (p) => `트레드 0 · 중앙 평균 ${fmtTread(num(p, "center_avg"))} · 상태 ${str(p, "status")}`,
-    id: (p) => `Tapak 0 · rata-rata tengah ${fmtTread(num(p, "center_avg"))} · status ${str(p, "status")}`,
-    en: (p) => `Tread 0 · center avg ${fmtTread(num(p, "center_avg"))} · status ${str(p, "status")}`,
+    ko: (p) => num(p, "shoulder_min") != null
+      ? `트레드 0 · 숄더 최소 ${fmtTread(num(p, "shoulder_min"))} · 센터 최소 ${fmtTread(num(p, "center_min"))} · 상태 ${str(p, "status")}`
+      : `트레드 0 · 중앙 평균 ${fmtTread(num(p, "center_avg"))} · 상태 ${str(p, "status")}`,
+    id: (p) => num(p, "shoulder_min") != null
+      ? `Tapak 0 · bahu min ${fmtTread(num(p, "shoulder_min"))} · tengah min ${fmtTread(num(p, "center_min"))} · status ${str(p, "status")}`
+      : `Tapak 0 · rata-rata tengah ${fmtTread(num(p, "center_avg"))} · status ${str(p, "status")}`,
+    en: (p) => num(p, "shoulder_min") != null
+      ? `Tread 0 · shoulder min ${fmtTread(num(p, "shoulder_min"))} · centre min ${fmtTread(num(p, "center_min"))} · status ${str(p, "status")}`
+      : `Tread 0 · center avg ${fmtTread(num(p, "center_avg"))} · status ${str(p, "status")}`,
   },
   km_missing: {
     ko: (p) => (p.kind === "null" ? "주행거리 미입력" : "주행거리 0"),
