@@ -596,7 +596,7 @@ CH 847 이 늘면서 `CLAUDE.md` §프로젝트의 "차량 6대"도 7대로 고�
 | **W-3** (R-4) | 공기압 입력 범위 | **50 ~ 150 psi 밖은 저장 차단, 권장값 ±15% 밖은 확인 후 저장.** DB `ck_pressure` 도 50 ~ 150 으로 맞춘다 (`20261016180000`). 위 «하한 60 psi 사용자 확인» 건은 이 결정으로 해소 |
 | **W-4** (R-4) | 트레드 입력 범위 | **0 ~ 23 mm, 소수 1자리.** 화면 입력은 소수 2자리를 차단, 일괄 업로드는 경고만 — 현장 기록지·기존 DB 값이 소수 2자리라 막으면 업로드 자체가 안 된다 (판단) |
 
-### L-5 ~ L-9. WO-TMS-2026-11-LIFE-KM 수명 DB 주행 KM 과소 산출 — **구현 (2026-11-04) · prod 적용 대기 (M-13)**
+### L-5 ~ L-9. WO-TMS-2026-11-LIFE-KM 수명 DB 주행 KM 과소 산출 — **구현 (2026-11-04) · prod 적용 (2026-11-08, M-13)**
 
 결과 보고 `docs/WO-TMS-2026-11-LIFE-KM_결과.md`.
 
@@ -605,7 +605,7 @@ CH 847 이 늘면서 `CLAUDE.md` §프로젝트의 "차량 6대"도 7대로 고�
 | **L-5** (L-4 대체) | 최초 장착분(seq 0 · `mounted_at` NULL) NO_KM 이 «구조적 하한값» 인가 | **첫 측정이 신품(`tread_avg >= tire_config.new_tread`)인 seq 0 구간은 하한값이 아니다. 시작점 = 그 시리얼이 같은 ch·pos 에서 처음 측정된 회차** (km·hm = 그 회차 차량 값, 같은 날 최대 · 0 이하 미측정). `km_method = FIRST_NEW_INSPECTION`, 끝 경계·`km_flag` 판정식은 종전 그대로. 첫 측정이 신품 미만이거나 그 회차 km 가 없으면 NO_KM 유지(진짜 하한값). `mounted_at` 원값은 바꾸지 않고 `mounted_at_effective` · `start_inferred` 를 뷰 맨 뒤에 추가. 근거: 폐기된 seq 0 타이어는 전부 첫 측정 4점 22.0 mm — 재현 DA1BFBPH02687D(CH 834 L2 Out) 04-02 708,667.8 km(22.0) → 09-05 탈착 764,018.9 km, 종전 수명 DB 29,698 km(= 최소 트레드 > 0 마지막 회차 07-05 738,366.2 − 708,667.8), 실제 55,351.1 km. 신품 판정은 쎄오님 회신 없음 → WO 원안 `>= 22.0` (M-1 원안). `20261104100000_v_tire_ledger_first_mount.sql` |
 | **L-6** (사용자 확정 §1-1) | 3 mm(`tread_critical`) 의 뜻 | **«권장 교체» 기준이다. «즉시 교체» 가 아니다.** 표시명만 «권장 교체 / Disarankan ganti / Recommended replace» 로 바꾸고 내부 키(`danger`)·임계값·색은 그대로 |
 | **L-7** (사용자 확정 §1-2) | 수명 종료의 정의 | **수명 종료 = 숄더 완전 마모 또는 센터 카카스 노출.** 센터 홈 깊이 0 mm(숄더 고무 잔존)는 수명 종료가 아니다 → 최소 트레드 0 회차도 주행 중인 회차이며 거리 계산에서 빼지 않는다 (`lifeCalc` T-2). 카카스 노출은 폐기 사유(`removal_code`)로 기록하므로 `replacements.carcass_exposed` 는 추가하지 않는다 (쎄오님 결정 2026-11-04 M-2) |
-| **L-8** (쎄오님 결정 2026-11-04) | 예상 수명(0 mm 외삽) 기준 | 숄더 평균안 폐기. `tire_config.life_end_basis` = `min`(4점 최소, 현행) · `three_zero`(4점 중 두 번째 큰 값 = 3점 0 mm) · `four_zero`(4점 최대 = 4점 0 mm). 4점 회차만 · OUTLIER 제외 후 순위 · 4점 회차 2개 미만이면 비움. **기본값 `min` 유지** — 비교표(결과 보고 §5) 확인 후 쎄오님이 정함 (M-14). 예상 CPK 도 같은 기준. 발주 예상일은 무관. 평균 행은 하한값 제외 평균 유지 (M-4). `20261104110000_tire_config_life_end_basis.sql` |
+| **L-8** (쎄오님 결정 2026-11-04) | 예상 수명(0 mm 외삽) 기준 | 숄더 평균안 폐기. `tire_config.life_end_basis` = `min`(4점 최소, 현행) · `three_zero`(4점 중 두 번째 큰 값 = 3점 0 mm) · `four_zero`(4점 최대 = 4점 0 mm). 4점 회차만 · OUTLIER 제외 후 순위 · 4점 회차 2개 미만이면 비움. **기본값 `min` 유지** — 비교표(결과 보고 §5) 확인 후 쎄오님이 정함 (M-14). 예상 CPK 도 같은 기준. 발주 예상일은 무관. 평균 행은 하한값 제외 평균 유지 (M-4). `20261104110000_tire_config_life_end_basis.sql` **기본값 `min` 확정 (쎄오님 결정 2026-11-08, M-14)** — 근거: 폐기 17본 실주행 대비 평균 오차 min +0.3% · three_zero +7.4% · four_zero +14.0% (결과 보고 `WO-TMS-2026-11-STEP1_결과.md` §5; 17본이 전부 WO 폐기라 min 은 정의상 근접). four_zero 는 고객 리포트에서 «잠재 수명(참고)» 용도로만 검토. |
 | **L-9** (쎄오님 결정 2026-11-04 M-3) | `v_data_quality.zero_tread_unverified` 심각도 | **센터 0 mm 는 경고(WARN)만.** 숄더(L·R) 유효 점 최소 > 0 · 센터(C1·C2) 최소 = 0 → WARN, 그 외 ERROR. 품질 배지는 원래 severity 와 무관하게 «주의» 로 세므로 화면 건수는 불변. `20261104120000_dq_zero_tread_center_warn.sql` |
 
 ---
@@ -627,11 +627,33 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | M-9 | W-1 단일 0 OUTLIER 규칙이 DB 에는 일회성 백필(`20261016190000`)로만 존재 — 새 회차는 자동 표시되지 않는다 | **① 트리거 상시화 (2026-10-17)** → `20261017110000_single_zero_outlier_trigger.sql`. `apply_single_zero_outlier()` 를 `recalc_inspection_tread_stats()` 맨 앞에서 호출(재귀는 `pg_trigger_depth` 로 1단). 규칙 해제 시 자동 지정분(flag_note 표식)만 복원. 기존 7행은 변경 없음. **prod 적용 대기 (M-12)** |
 | M-10 | CPK 정의가 두 가지 — 원가 탭 CPK-G 카드 = `v_tco_fleet.cpk_gross_avg`(본당 단순 평균 IDR 2,628.16/km, 가중 562.43) / 경제성 섹션 = 현재 장착 본 평균. 결과 보고 §3-5 의 941.77 · 516.04 와도 다름. 재생 시나리오 식은 `v_tco_unit.cpk_lifecycle` 과 다르고 `casing_value` 입력은 받되 쓰지 않음 | **가중평균 (2026-10-17)** = Σ비용 ÷ Σ주행거리. `20261017120000_v_tco_fleet_weighted.sql` 이 `cpk_*_wavg` 3열(+`v_tco_unit.lifecycle_km`) 추가, 단순 평균 열은 참고로 유지. 원가 탭 카드·경제성 KPI 가 가중평균을 쓰고 문구에 «가중평균» 표기(3 로케일). prod 읽기 조회: CPK-G 가중 562.43 (단순 2,628.16). 재생 시나리오 식·`casing_value` 는 그대로(별건). **prod 적용 대기 (M-12)** |
 | M-11 | 시리얼 매칭이 trim 만(`normSerial`) — 대소문자·공백 차이면 다른 타이어로 갈라짐. «측정 대기» 는 현재 구간 없음과 값 전부 NULL 을 구분하지 않음 | **정규화 (2026-10-17)** — `src/lib/serial.ts` `normalizeSerial`(대문자·공백 제거). 적재(`loadData` 전 출처)·입력(점검·일괄 업로드·교체 등록) 공용. prod 읽기 조회: 5개 테이블 모두 비정규 0건 → 백필 불필요 |
-| M-12 | `20261017100000` · `110000` · `120000` prod 적용 | **승인 대기.** `--dry-run` 대상 3건. 로컬 Docker 미실행으로 pgTAP 은 못 돌렸고, 뷰 본문은 prod 읽기 조회로 검증(가중 CPK 562.43 · lateral NULL 7행 · W-1 매치 7 = OUTLIER 7) |
-| M-13 | `20261104100000` · `110000` · `120000` prod 적용 (WO-TMS-2026-11-LIFE-KM) | **승인 대기.** M-12 3건 뒤에 쌓인다. 로컬 PGlite(WASM Postgres)에서 마이그레이션 전체 + 신규 3건 2회 적용 · pgTAP t106 22/22 통과. prod 읽기 검증(§4 17본 ±1 km)은 publishable 키가 RLS(익명 차단)로 막혀 **미실행** |
-| M-14 | 수명 종료 기준 기본값 (`life_end_basis`) | **쎄오님 결정 대기.** 비교표(결과 보고 §5)는 prod 읽기가 막혀 **미작성** — 로그인 세션으로 수명 DB 엑셀(«[비교]» 3열)을 내려받거나 읽기 권한 확보 후 산출. 그 전까지 `min` |
-| M-15 | M-1 신품 판정 22.0 vs 21.5 허용 시 달라지는 본수 | **미산출** (prod 읽기 불가). 산출 SQL 은 결과 보고 §6 |
-| M-16 | `20261016150000` 이 `v_tire_ledger` 에 `grant select … to anon` 을 다시 걸었다 (20260906100000 익명 차단 이후) | **확인 필요.** `security_invoker` 라 하위 테이블 권한에서 막혀 실제 노출은 없음(익명 조회 시 `permission denied for view v_tire_mount_history` 확인). 20261104100000 은 `authenticated` 에만 grant — 기존 anon 권한 회수(`revoke`)는 승인 후 별도 마이그레이션 |
+| ~~M-12~~ | `20261017100000` · `110000` · `120000` prod 적용 | **적용 (2026-11-08, 쎄오님 터미널 `supabase db push --remote --yes`).** 원격 이력 63 → 66건. 검증(읽기 전용): `cpk_gross_wavg` = 562.43 · `v_wear_pattern` lateral `even`(oi NULL) 7 → 0 · OUTLIER 7 불변 · `apply_single_zero_outlier` 존재·recalc 가 호출 · 세 뷰 `security_invoker=on`. 트리거의 prod 동작은 쓰기 테스트 금지라 PGlite t107 29건으로만 검증. 상세 `docs/WO-TMS-2026-11-STEP1_결과.md` §2 |
+| ~~M-13~~ | `20261104100000` · `110000` · `120000` prod 적용 (WO-TMS-2026-11-LIFE-KM) | **적용 (2026-11-08, 쎄오님 터미널 `supabase db push --remote --yes`).** 원격 이력 66 → 69건. 검증: `life_end_basis` = `min` · `v_tire_ledger`·`v_data_quality` `security_invoker=on` · `FIRST_NEW_INSPECTION` 60본 · `zero_tread_unverified` ERROR 98 → ERROR 16 + WARN 82 · 의존 뷰 오류 없음 · 17본 prod 대조 17/17 (차이 0.0 km, 평균 57,121 km). 상세 `docs/WO-TMS-2026-11-STEP1_결과.md` §3~4 |
+| ~~M-14~~ | 수명 종료 기준 기본값 (`life_end_basis`) | **`min` 확정 (쎄오님 결정 2026-11-08, DB 값 변경 없음).** 폐기 17본 실주행 대비 평균 오차 min +0.3% · three_zero +7.4% · four_zero +14.0% — 17본이 전부 WO 폐기·최소 0 mm 폐기라 min 은 정의상 근접(검증이 아니라 사실 확인). four_zero 는 고객 리포트에서 «잠재 수명(참고)» 용도로만 검토. 비교표 `docs/WO-TMS-2026-11-STEP1_결과.md` §5 · 부록 A |
+| ~~M-15~~ | M-1 신품 판정 22.0 vs 21.5 허용 시 달라지는 본수 | **22.0 유지, 종결 (쎄오님 결정 2026-11-08).** prod: 후보 70본 중 22.0 이상 70 · 21.5 이상 70 · 차이 0본 |
+| M-16 | `20261016150000` 이 `v_tire_ledger` 에 `grant select … to anon` 을 다시 걸었다 (20260906100000 익명 차단 이후) | **확인 필요.** `security_invoker` 라 하위 테이블 권한에서 막혀 실제 노출은 없음(익명 조회 시 `permission denied for view v_tire_mount_history` 확인). 20261104100000 은 `authenticated` 에만 grant — 기존 anon 권한 회수(`revoke`)는 승인 후 별도 마이그레이션 **2026-11-08 조사 (읽기 전용): anon SELECT 권한이 `v_tire_ledger` 1건이 아니라 `public` 의 6개 객체** — `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern`. 쎄오님 결정(2026-11-08 «회수 진행»)은 `v_tire_ledger` 1건 기준이었으므로 **회수 범위 확인 대기** (WO-STEP1-FOLLOWUP §3-1). 마이그레이션 `20261108100000` 은 범위 확정 전 작성하지 않음. |
+
+### 쎄오님 결정 2026-11-08 (WO-TMS-2026-11-STEP1-FOLLOWUP §0)
+
+| # | 항목 | 결정 | 상태 |
+|---|---|---|---|
+| 1 | M-14 수명 종료 기준 기본값 | `min` 확정 (DB 값 변경 없음) | 해소 |
+| 2 | LIFE-KM §9-4 회귀에 최소 0 회차 포함 | 사후 승인 (G2 로 반영된 현행 유지) | 해소 |
+| 3 | LIFE-KM §9-5 외삽 총량 `max(주행, 마지막 측정점 + 잔여)` | 사후 승인 | 해소 |
+| 4 | M-15 신품 판정 22.0 vs 21.5 | 22.0 유지, 종결 | 해소 |
+| 5 | LIFE-KM §9-6 첫 회차 `tread_avg` NULL 처리 | 보류. 먼저 조사 — **NULL 본수 0** (결과 보고 부록 B: 미적용 10본은 전부 CH 849 첫 회차 km 없음) | 판단 대기 |
+| 6 | M-16 `v_tire_ledger` anon grant | 회수 진행 — 조사 결과 대상이 6개 객체라 **범위 확인 대기** | 진행 중 |
+| 7 | config.toml CLI 3.0 구 키 | 정리 진행 | 진행 중 |
+| 8 | 머지된 원격 브랜치 | 삭제 진행 (`feat/web-improvements-20261016` · `fix/life-km-first-mount`) | 진행 중 |
+
+### 현장 확인 필요 (2026-11-08)
+
+데이터 입력·장착 현황이 코드로 확정되지 않는 항목. 값은 고치지 않았고 확인만 요청한다.
+
+1. **삼탄 7대 밖 Install 15본** — 수명 DB 에 `Install` 로 있으나 CH 824·832·834·835·839·847·849 가 아니다. 위치는 `lifetimes.note` 에만 있다 (850 · 852 · 813 · 842 · 838 · 859 계열, 예: «850 R2i»). 원장·점검 이력 없음, `DA1BFBPH02426D` 는 note 도 없음. 목록 `docs/WO-TMS-2026-11-STEP1_결과.md` 부록 A 의 `†` 행.
+2. **같은 위치 다중 장착 3곳** (장착 중 원장 마지막 위치 기준) — CH 824 R3 Out (`DA12511H03130D` · `DA1BFBPH02432D`) · CH 835 R3 In (`DA1BFANH07570D` · `DA12511H03161D`) · CH 849 R3 Out (`DA1BFANH04814D` · `DA1BFBPH02435D` · `DA1BFBPH02653D`). 교체 등록 누락 또는 위치 오기 의심.
+3. **CH 847 예상 KM 과대 (M-1 연동 의심, 원인 미확인)** — 10본 모두 주행 KM 69,895.1 인데 `min` 예상이 82,538 ~ 303,141 km (`DA1BFANH10236D` L1 303,141 · `DA1BFANH05040D` R1 194,676 이 특히 큼). 07-12 회차 KM 급증(M-1) 정정 전까지 CH 847 예상값은 «데이터 확인 필요».
+4. **CH 849 첫 회차(2026-05-03) 차량 km 없음** — 10본이 시작점 추론에서 빠져 NO_KM (결과 보고 부록 B). 원본 점검표에서 km 를 확인할 수 있으면 `FIRST_NEW_INSPECTION` 이 적용된다.
 
 ---
 
