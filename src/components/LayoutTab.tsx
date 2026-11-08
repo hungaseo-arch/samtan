@@ -1,12 +1,15 @@
 // @section: layout-tab
 import { useState } from "react";
-import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
+import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD, treadThresholds } from "@/data/tmsData";
 import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs, currentSegmentLatestWidths } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
-import { EMPTY, fmtTread } from "@/lib/format";
+import { EMPTY, fmtPressure, fmtTread } from "@/lib/format";
 import { MousePointerClick, X } from "lucide-react";
-import { useLang } from "@/i18n";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import SerialChain from "./SerialChain";
+import PosLatestRows from "./PosLatestRows";
+import { awaitingLabel } from "./posLatestText";
 import IntegrityBadge from "./IntegrityBadge";
 import IrregularWearBadge from "./IrregularWearBadge";
 
@@ -120,6 +123,8 @@ const STATUS_STYLE: Record<TireStatus, string> = {
   danger: "border-level-danger bg-level-danger/10 text-level-danger",
   none: "border-border/40 bg-muted/20 text-muted-foreground opacity-40 border-dashed cursor-default",
 };
+/** 교체 뒤 측정 전 — «시험 외» 와 달리 누를 수 있고 흐리게 만들지 않는다 (R-1) */
+const AWAITING_STYLE = "border-border border-dashed bg-muted/40 text-muted-foreground";
 const STATUS_LABEL: Record<keyof typeof TX, Record<TireStatus, string>> = {
   ko: { ok: TX.ko.statusOk, warn: TX.ko.statusWarn, order: TX.ko.statusOrder, danger: TX.ko.statusDanger, none: TX.ko.statusNone },
   id: { ok: TX.id.statusOk, warn: TX.id.statusWarn, order: TX.id.statusOrder, danger: TX.id.statusDanger, none: TX.id.statusNone },
@@ -175,6 +180,10 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
   const modalData = modal
     ? { u: unitByCh(modal.ch), pos: modal.pos, d: headPosData(unitByCh(modal.ch), modal.pos), st: statusOf(headPosData(unitByCh(modal.ch), modal.pos), modal.pos) }
     : null;
+
+  // Esc · 포커스 (COM-03)
+  const modalRef = useDialog(!!(modal && modalData), () => setModal(null));
+  const closeLabel = DICT[lang]["common.close"];
 
   return (
     <div className="space-y-4">
@@ -279,6 +288,7 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
           {[
             { cls: "bg-level-ok/15 border-level-ok", label: tx.statusOk },
             { cls: "bg-level-warn/15 border-level-warn", label: tx.statusWarn },
+            { cls: "bg-level-order/15 border-level-order", label: tx.statusOrder },
             { cls: "bg-level-danger/15 border-level-danger", label: tx.statusDanger },
             { cls: "bg-muted/20 border-border/50 border-dashed opacity-50", label: tx.legendNone },
           ].map((l) => (
@@ -301,7 +311,8 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
             onClick={() => setModal(null)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
+              ref={modalRef} role="dialog" aria-modal="true" aria-label={`CH ${modal.ch} · ${HEAD_MAP[modal.pos]}`} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -313,9 +324,9 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold px-2 py-1 rounded-full border ${STATUS_STYLE[modalData.st]}`}>
-                    {STATUS_LABEL[lang][modalData.st]}
+                    {modalData.st === "none" && modalData.d?.awaiting ? awaitingLabel(lang) : STATUS_LABEL[lang][modalData.st]}
                   </span>
-                  <button onClick={() => setModal(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                  <button type="button" aria-label={closeLabel} onClick={() => setModal(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>
@@ -333,8 +344,7 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                       hint={tx.serialHint}
                     />
                   </div>
-                  <Row label={tx.latestPress} value={modalData.d.latestPress != null ? `${Math.round(modalData.d.latestPress)} psi (${modalData.d.latestPressDate})` : EMPTY} mono />
-                  <Row label={tx.latestTread} value={modalData.d.latestTread != null ? `${fmtTread(modalData.d.latestTread, false)} mm (${modalData.d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
+                  <PosLatestRows d={modalData.d} />
                   {/* 4점 그루브 (§A-7) — 최근 트레드 회차에 4점이 있을 때만. 없으면 기존 화면 그대로. */}
                   {(() => {
                     const w = currentSegmentLatestWidths(modalData.d!.segments);
@@ -360,7 +370,7 @@ export default function LayoutTab({ onSerialClick, focusCh }: { onSerialClick?: 
                     <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.treadTrend}</p>
                     <MiniChart
                       pairs={currentSegmentPairs(modalData.u, modalData.d.segments, "tread")}
-                      min={0} max={NEW_TREAD} danger={5} warn={8} decimals={1}
+                      min={0} max={NEW_TREAD} danger={treadThresholds().order} warn={treadThresholds().caution} decimals={1}
                     />
                   </div>
                   <div className="mt-2">
@@ -411,13 +421,13 @@ function TireCell({ pos, isHead, u, onClick }: {
   return (
     <button
       onClick={onClick}
-      title={`${label} · ${d?.latestPress ?? "-"}psi / ${d?.latestTread ?? "-"}mm`}
+      title={`${label} · ${fmtPressure(d?.latestPress)} / ${fmtTread(d?.latestTread)}`}
       aria-label={label}
       className={`group relative w-10 h-6 rounded border-2 flex flex-col items-center justify-center
         shadow-sm transition-all cursor-pointer
         hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-95
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-1
-        ${STATUS_STYLE[st]}`}
+        ${st === "none" && d?.awaiting ? AWAITING_STYLE : STATUS_STYLE[st]}`}
     >
       <span className="text-[10px] font-black leading-none">{parts[0]}</span>
       {parts[1] && <span className="text-[8px] font-bold leading-none opacity-80">{parts.slice(1).join(" ")}</span>}

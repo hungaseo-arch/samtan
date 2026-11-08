@@ -30,6 +30,8 @@ const FALLBACK_TARGET_LIFE_KM = 75000;
 const FALLBACK_ODO_DAILY_KM_MAX = 800;
 const FALLBACK_ODO_SPEED_KMH_MAX = 60;
 const FALLBACK_ODO_DAILY_HM_MAX = 24;
+// «오래된 값» 기준일 (CHK-TMS-2026-10-16-WEB R-2, 사용자 결정 2026-10-16) — 정본은 tire_config.stale_days
+const FALLBACK_STALE_DAYS = 30;
 
 /** 트레드 4단계 신호등. 녹색 ≥10 / 황색 5~10 / 주황 3~5 / 적색 <3 (기본값 기준) */
 export type TreadLevel = "ok" | "warn" | "order" | "danger";
@@ -88,6 +90,14 @@ export function inspectionIntervalDays(): number {
 /** 타이어 목표 수명(km) — 경제성 목표 대비 기준. */
 export function targetLifeKm(): number {
   return TMS_DATA.tire.targetLifeKm ?? FALLBACK_TARGET_LIFE_KM;
+}
+
+/**
+ * «오래된 값» 기준일. 측정일이 오늘(WITA)로부터 이 일수를 넘으면 오래된 값이다.
+ * 공기압은 판정·알림에서 빠지고, 트레드는 정상 판정만 «오래된 값» 으로 낮춘다.
+ */
+export function staleDays(): number {
+  return TMS_DATA.tire.staleDays ?? FALLBACK_STALE_DAYS;
 }
 
 /** 주행계(KM·HM) 회차 간 이상치 판정 경계 — v_odometer_anomaly 와 같은 값 */
@@ -203,11 +213,19 @@ export interface TreadSegment {
    * tread(최소값)·treadAvg(평균)는 전부 이 넷에서 나온 값이다.
    */
   widths: (TreadWidths | null | undefined)[];
+  /**
+   * 회차별 «이상점 제외» 여부 (R-2). true 면 4점 중 0 하나를 빼고 tread·treadAvg 를 다시 냈다.
+   * 원본 DB 값은 그대로이며 화면은 배지로 알린다.
+   */
+  outlier: boolean[];
   /** 회차별 공기압. 빈칸/미측정 구분은 tread 와 같다. */
   press: (number | "N/A" | null | undefined)[];
   /** 이 구간이 교체로 시작됐다면 그 교체일(replacements 매칭). 최초 구간은 null */
   replacedAt: string | null;
-  /** 이 포지션의 마지막 구간 = 현재 장착 중 */
+  /**
+   * 현재 장착 중인 타이어의 구간. 마지막 구간이면서 시리얼이 v_current_tire 와 같아야 한다.
+   * 교체 뒤 측정이 아직 없으면 그 포지션에는 isCurrent 구간이 없다 (R-1).
+   */
   isCurrent: boolean;
 }
 
@@ -288,6 +306,7 @@ export interface TireConfig {
   odoDailyKmMax: number | null;
   odoSpeedKmhMax: number | null;
   odoDailyHmMax: number | null;
+  staleDays: number | null;
   // 경제성 (§B-1·B-3). 전부 확정 전 NULL — 화면은 «설정 필요» 를 띄운다
   fxUsdIdr: number | null;
   fuelBaseLPerKm: number | null;
@@ -362,7 +381,7 @@ export const TMS_DATA: TmsData = {
     scRatioUpper: null, scRatioLower: null, wearMinMm: null,
     psiLowRatio: null, psiDevWarn: null, psiDevDanger: null,
     inspectionIntervalDays: null, targetLifeKm: null,
-    odoDailyKmMax: null, odoSpeedKmhMax: null, odoDailyHmMax: null,
+    odoDailyKmMax: null, odoSpeedKmhMax: null, odoDailyHmMax: null, staleDays: null,
     fxUsdIdr: null, fuelBaseLPerKm: null, fuelPrice: null, fuelCurrency: "IDR",
     fuelSensPer10Pct: null, lifeSensPer10Pct: null,
   },

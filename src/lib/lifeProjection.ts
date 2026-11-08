@@ -100,21 +100,32 @@ export const MIN_ROUNDS = 3;
  * @param latestTread 최근 트레드 — 점열 마지막과 다를 수 있다(0 mm 회차는 점열에서 빠진다)
  * @param kmPerDay    차량 일평균 주행 km (없으면 mm/일 경로)
  * @param limit       기준 트레드 (tread_order)
+ * @param latestDate  latestTread 의 측정일 — 이미 기준선 아래면 이 날이 예상 교체일이다
  */
 export function projectReplacement(
   pts: { km: number; date: string; tread: number }[],
   latestTread: number,
   kmPerDay: number | null,
   limit: number,
+  latestDate?: string | null,
 ): Projection {
   const none = (reason: ProjectionReason): Projection => ({
     wearRateKm: null, wearRateDay: null, remainingKm: null, remainingDays: null, projectedDate: null, reason,
   });
+  const lastDate = latestDate ?? pts[pts.length - 1]?.date ?? null;
+  // 이미 발주 기준선 이하 — 추세와 무관하게 즉시 교체 대상이다 (R-3 · LIFE-02).
+  // 0 mm 타이어에 «잔여 km» 가 나오던 문제: 0 회차가 점열에서 빠져 앞 회차 값으로 외삽했다.
+  if (latestTread <= limit && lastDate) {
+    return {
+      wearRateKm: pts.length >= 2 ? wearRatePer1000Km(pts) : null,
+      wearRateDay: pts.length >= 2 ? wearRatePerDay(pts) : null,
+      remainingKm: 0, remainingDays: 0, projectedDate: lastDate, reason: null,
+    };
+  }
   if (pts.length < MIN_ROUNDS) return none("few_rounds");
 
   const wearRateKm = wearRatePer1000Km(pts);
   const wearRateDay = wearRatePerDay(pts);
-  const lastDate = pts[pts.length - 1].date;
 
   const remainingKm = wearRateKm != null ? remainingKmTo(latestTread, wearRateKm, limit) : null;
   let remainingDays: number | null = null;
@@ -124,7 +135,7 @@ export function projectReplacement(
   if (remainingDays == null) return { ...none("no_trend"), wearRateKm, wearRateDay, remainingKm };
   return {
     wearRateKm, wearRateDay, remainingKm, remainingDays,
-    projectedDate: addDays(lastDate, remainingDays),
+    projectedDate: addDays(lastDate as string, remainingDays),
     reason: null,
   };
 }

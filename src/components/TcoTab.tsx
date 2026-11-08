@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { AlertTriangle, ChevronDown, Info, Loader2, Layers } from "lucide-react";
 import { HEX } from "@/lib/chartColors";
+import { treadThresholds } from "@/data/tmsData";
 import EconomicsSection from "./EconomicsSection";
 
 /** 사유별 분포의 기본 필터. 제품 책임분이 이 화면의 첫 질문이다 (지시서 T-9 3번). */
@@ -36,21 +37,25 @@ const CATEGORIES: TcoCategory[] = [
   "PRODUCT", "OPERATION", "MAINTENANCE", "SURFACE", "MANUFACTURE",
 ];
 
-/** 탈착 기준 트레드 후보 (지시서 T-9 5번). 5.0 mm 는 발주 트리거이지 폐기선이 아니다. */
-const REMOVAL_THRESHOLDS = [3.0, 5.0] as const;
+/** 탈착 기준 트레드 후보 (지시서 T-9 5번) = tire_config 의 위험·발주 임계. 5.0 mm 는 발주 트리거이지 폐기선이 아니다.
+ *  상수로 박지 않는다 — 관리자가 tire_config 를 바꾸면 선택지도 따라가야 한다 (CLAUDE.md 임계치 규칙). */
+function removalThresholds(): number[] {
+  const t = treadThresholds();
+  return [t.critical, t.order];
+}
 
 const TX = {
   ko: {
     loading: "TCO 지표를 불러오는 중…",
     loadFail: "TCO 지표를 불러오지 못했습니다.",
 
-    cpkTitle: "주행거리당 원가 (CPK)",
+    cpkTitle: "주행거리당 원가 (CPK) — 가중평균",
     cpkG: "CPK-G · 구매가 기준",
-    cpkGSub: "구매가 ÷ 누적 주행거리",
+    cpkGSub: "가중평균 · Σ구매가 ÷ Σ누적 주행거리",
     cpkT: "CPK-T · 총소유비용 기준",
-    cpkTSub: "구매가 + 부대비용 + 다운타임 ÷ 누적 주행거리",
+    cpkTSub: "가중평균 · Σ(구매가 + 부대비용 + 다운타임) ÷ Σ누적 주행거리",
     cpkL: "CPK-L · 생애주기 기준",
-    cpkLSub: "총소유비용 − 회수가치 ÷ 누적 주행거리",
+    cpkLSub: "가중평균 · Σ(총소유비용 − 회수가치) ÷ Σ(누적 + 재생 수명)",
     priceUnset: "단가 미확정",
     priceUnsetHelp: "본당 단가가 원가 설정(cost_params)에 입력되어야 산출됩니다.",
     paramsUnset: "파라미터 미확정",
@@ -119,13 +124,13 @@ const TX = {
     loading: "Memuat indikator TCO…",
     loadFail: "Gagal memuat indikator TCO.",
 
-    cpkTitle: "Biaya per Kilometer (CPK)",
+    cpkTitle: "Biaya per Kilometer (CPK) — rata-rata tertimbang",
     cpkG: "CPK-G · dasar harga beli",
-    cpkGSub: "Harga beli ÷ jarak tempuh kumulatif",
+    cpkGSub: "Rata-rata tertimbang · Σharga beli ÷ Σjarak kumulatif",
     cpkT: "CPK-T · dasar biaya kepemilikan total",
-    cpkTSub: "Harga beli + biaya tambahan + waktu henti ÷ jarak tempuh kumulatif",
+    cpkTSub: "Rata-rata tertimbang · Σ(harga beli + biaya tambahan + waktu henti) ÷ Σjarak kumulatif",
     cpkL: "CPK-L · dasar siklus hidup",
-    cpkLSub: "Biaya kepemilikan total − nilai pemulihan ÷ jarak tempuh kumulatif",
+    cpkLSub: "Rata-rata tertimbang · Σ(biaya total − nilai pemulihan) ÷ Σ(kumulatif + umur vulkanisir)",
     priceUnset: "Harga satuan belum pasti",
     priceUnsetHelp: "Perlu harga per ban di pengaturan biaya (cost_params).",
     paramsUnset: "Parameter belum pasti",
@@ -194,13 +199,13 @@ const TX = {
     loading: "Loading TCO indicators…",
     loadFail: "Could not load TCO indicators.",
 
-    cpkTitle: "Cost per Kilometre (CPK)",
+    cpkTitle: "Cost per Kilometre (CPK) — weighted mean",
     cpkG: "CPK-G · purchase price basis",
-    cpkGSub: "Purchase price ÷ cumulative distance",
+    cpkGSub: "Weighted mean · Σpurchase price ÷ Σcumulative distance",
     cpkT: "CPK-T · total cost of ownership basis",
-    cpkTSub: "Purchase + ancillary + downtime ÷ cumulative distance",
+    cpkTSub: "Weighted mean · Σ(purchase + ancillary + downtime) ÷ Σcumulative distance",
     cpkL: "CPK-L · lifecycle basis",
-    cpkLSub: "Total ownership cost − recovery value ÷ cumulative distance",
+    cpkLSub: "Weighted mean · Σ(total cost − recovery value) ÷ Σ(cumulative + retread life)",
     priceUnset: "Unit price not set",
     priceUnsetHelp: "Requires the per-tire price in the cost settings (cost_params).",
     paramsUnset: "Parameters pending",
@@ -291,7 +296,8 @@ export default function TcoTab() {
   const tx = TX[lang];
   const catLabel = CAT_LABEL[lang];
   const [category, setCategory] = useState<TcoCategory | "UNLOGGED">(DEFAULT_CATEGORY);
-  const [threshold, setThreshold] = useState<number>(5.0);
+  // 기본값은 발주 임계(tire_config.tread_order) — 5.0 을 상수로 두면 설정 변경 시 선택지 밖 값이 된다
+  const [threshold, setThreshold] = useState<number>(() => treadThresholds().order);
   const [withRetread, setWithRetread] = useState(true);
   /** 개체 원장 표는 길어서 기본 접힘 — 사용자 요청 2026-10-16 */
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -462,9 +468,9 @@ export default function TcoTab() {
           `${tx.basisCosted} ${fmtInt(all?.costed_count ?? 0)}`
         } />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_avg ?? null} tx={tx} missing={missing} priced={priced} />
-          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_avg ?? null} tx={tx} missing={missing} priced={priced} />
-          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_avg ?? null} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkG} sub={tx.cpkGSub} value={all?.cpk_gross_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkT} sub={tx.cpkTSub} value={all?.cpk_tco_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
+          <CpkCard label={tx.cpkL} sub={tx.cpkLSub} value={all?.cpk_lifecycle_wavg ?? null} currency={params.data?.currency ?? undefined} tx={tx} missing={missing} priced={priced} />
         </div>
         {params.data?.unit_price != null && (
           <Note tone="info">
@@ -642,7 +648,7 @@ export default function TcoTab() {
                   onChange={(e) => setThreshold(Number(e.target.value))}
                   className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 font-mono font-semibold text-foreground"
                 >
-                  {REMOVAL_THRESHOLDS.map((th) => (
+                  {removalThresholds().map((th) => (
                     <option key={th} value={th}>{fmtTread(th)}</option>
                   ))}
                 </select>
@@ -727,11 +733,13 @@ function Kpi({ label, value, strong }: { label: string; value: string; strong?: 
  * 대기 중인 파라미터를 쓴다. 빈칸은 "0" 으로도 "누락" 으로도 읽혀서 못 쓴다.
  */
 function CpkCard({
-  label, sub, value, tx, missing, priced,
+  label, sub, value, currency, tx, missing, priced,
 }: {
   label: string;
   sub: string;
   value: number | null;
+  /** cost_params 통화. IDR 고정으로 찍으면 USD 단가 입력 시 «IDR 0.02/km» 가 된다 */
+  currency: string | undefined;
   // TX 는 as const 라 로케일마다 리터럴 타입이 갈린다. 여기서 쓰는 3개만 구조로 받는다.
   tx: { priceUnset: string; priceUnsetHelp: string; paramsUnset: string; paramsUnsetHelp: string; missingLabel: string };
   missing: string[];
@@ -743,7 +751,7 @@ function CpkCard({
       <p className="text-xs font-bold text-foreground">{label}</p>
       <p className="mt-0.5 text-[11px] text-muted-foreground">{sub}</p>
       {value != null ? (
-        <p className="mt-3 font-mono text-xl font-bold text-foreground">{fmtCpk(value)}</p>
+        <p className="mt-3 font-mono text-xl font-bold text-foreground">{fmtCpk(value, currency)}</p>
       ) : (
         <>
           <p className="mt-3 text-sm font-bold" style={{ color: HEX.warn }}>{priced ? tx.paramsUnset : tx.priceUnset}</p>

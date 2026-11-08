@@ -2,11 +2,13 @@
 // Supabase에서 전체 데이터를 로드해 TMS_DATA를 in-place로 채운다.
 // (참조 데이터: tire_config·vehicles·vehicle_positions·replacements·lifetimes·damage_codes,
 //  측정 데이터: inspections → 회차별 dates/hm/km/공기압/트레드 재구성)
+import { normalizeSerial, normalizeSerialOrNull } from "@/lib/serial";
 import { supabase } from "@/lib/supabase";
-import { TMS_DATA, HEAD_MAP } from "./tmsData";
+import { TMS_DATA, HEAD_MAP, treadThresholds } from "./tmsData";
 import type { Unit, LifeRecord, LedgerSegment, TirePosition, SerialChainEntry, TreadSegment, TreadWidths } from "./tmsData";
 import { listInspections, type InspectionRow } from "@/api/inspections";
 import { applyMeterOffset, meterOffsetOf } from "@/lib/meterOffset";
+import { effectiveTread, meterOrNull } from "@/lib/treadRules";
 
 // ============================================================
 // 하중(축하중) 데이터 — Techking "Load Distribution Road Train unit" 시트 기준
@@ -100,6 +102,8 @@ interface Round {
   treadAvg: Record<string, number | null>;
   /** 폭 4점 원시값 — 히스토리 모달이 회차마다 그대로 보여준다. */
   widths: Record<string, TreadWidths | null>;
+  /** 4점 중 0 하나를 이상점으로 빼고 판정한 포지션 (R-2) */
+  outlier: Set<string>;
   /** 그 회차에 그 포지션에 달려 있던 시리얼 — 구간 분리의 유일한 근거 */
   serial: Record<string, string | null>;
   /** 그 회차에 행이 존재한 포지션. 값이 전부 null 인 행과 '행 없음'을 구분한다. */
@@ -115,8 +119,7 @@ function numOrNull(v: unknown): number | null {
 
 /** 빈 문자열은 '시리얼 없음'으로 본다. DB 의 null 과 같게 취급. */
 function normSerial(s: string | null | undefined): string | null {
-  const v = (s ?? "").trim();
-  return v ? v : null;
+  return normalizeSerialOrNull(s);
 }
 
 /**
@@ -129,7 +132,7 @@ function normSerial(s: string | null | undefined): string | null {
  *
  * ⚠ 트레드가 올라간 것은 절대 구분 근거로 쓰지 않는다 (작업지시서 v2 §3).
  */
-function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[] {
+function buildSegments(ch: string, pos: string, rounds: Round[], currentSerial: string | null): TreadSegment[] {
   const n = rounds.length;
   const segs: TreadSegment[] = [];
   let cur: TreadSegment | null = null;
@@ -152,6 +155,7 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
         tread: new Array<number | null | undefined>(n).fill(undefined),
         treadAvg: new Array<number | null | undefined>(n).fill(undefined),
         widths: new Array<TreadWidths | null | undefined>(n).fill(undefined),
+        outlier: new Array<boolean>(n).fill(false),
         press: new Array<number | "N/A" | null | undefined>(n).fill(undefined),
         replacedAt: null,
         isCurrent: false,
@@ -165,13 +169,17 @@ function buildSegments(ch: string, pos: string, rounds: Round[]): TreadSegment[]
     cur.tread[i] = r.tread[pos] ?? null;
     cur.treadAvg[i] = r.treadAvg[pos] ?? null;
     cur.widths[i] = r.widths[pos] ?? null;
+    cur.outlier[i] = r.outlier.has(pos);
     cur.press[i] = r.press[pos] ?? null;
 
     prev = s;   // SQL 의 lag() 과 같게 null 도 그대로 넘긴다
     seenAny = true;
   }
 
-  if (segs.length) segs[segs.length - 1].isCurrent = true;
+  // 마지막 구간이라도 시리얼이 지금 장착된 타이어(v_current_tire)와 다르면 현재가 아니다 —
+  // 교체 뒤 아직 측정 회차가 없는 포지션이다 (R-1 · LAY-01). 그때는 현재 구간이 없다.
+  const last = segs[segs.length - 1];
+  if (last && (!currentSerial || !last.serial || last.serial === currentSerial)) last.isCurrent = true;
 
   // 교체일 매칭 — 시리얼이 근거이고 날짜는 표시용이다.
   // 최초 구간(segNo 0)은 교체가 아니므로 비운다.
@@ -196,6 +204,7 @@ function buildRounds(rows: InspectionRow[]) {
 
   TMS_DATA.tread = {};
   TMS_DATA.segments = {};
+  const { critical } = treadThresholds();
   TMS_DATA.units.forEach((unit) => {
     const rounds = new Map<string, Round>();
     for (const r of byCh.get(unit.ch) || []) {
@@ -205,12 +214,14 @@ function buildRounds(rows: InspectionRow[]) {
           date: r.inspection_date,
           hm: null, km: null,
           press: {}, tread: {}, treadAvg: {}, widths: {}, serial: {},
-          seen: new Set<string>(),
+          outlier: new Set<string>(), seen: new Set<string>(),
         };
         rounds.set(r.inspection_date, round);
       }
-      if (r.hm != null) round.hm = r.hm;
-      if (r.km != null) round.km = r.km;
+      // 0 은 «미기록» — 주행거리·마모율 계산에 0 km 를 넣지 않는다 (R-2 · LIFE-04)
+      const hm = meterOrNull(r.hm), km = meterOrNull(r.km);
+      if (hm != null) round.hm = hm;
+      if (km != null) round.km = km;
       if (r.pressure != null) round.press[r.pos] = r.pressure;
       if (r.tread != null) round.tread[r.pos] = r.tread;
       if (r.tread_avg != null) round.treadAvg[r.pos] = r.tread_avg;
@@ -220,8 +231,15 @@ function buildRounds(rows: InspectionRow[]) {
           l: r.tread_l ?? null, c1: r.tread_c1 ?? null,
           c2: r.tread_c2 ?? null, r: r.tread_r ?? null,
         };
+        // 0 하나가 끼어 최소값이 0 이 된 회차 — 이상점을 빼고 다시 판정한다 (R-2)
+        const eff = effectiveTread(round.widths[r.pos], critical);
+        if (eff?.outlier) {
+          round.tread[r.pos] = eff.min;
+          round.treadAvg[r.pos] = eff.avg;
+          round.outlier.add(r.pos);
+        }
       }
-      round.serial[r.pos] = r.serial ?? null;
+      round.serial[r.pos] = normSerial(r.serial);
       round.seen.add(r.pos);
     }
 
@@ -249,7 +267,7 @@ function buildRounds(rows: InspectionRow[]) {
         dates: sorted.map((r) => r.date),
         min: sorted.map((r) => r.tread[rp] ?? null),
       };
-      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted);
+      TMS_DATA.segments[unit.ch][rp] = buildSegments(unit.ch, rp, sorted, normSerial(pd?.serial));
     }
   });
 }
@@ -326,6 +344,7 @@ export async function loadData(): Promise<void> {
       odoDailyKmMax: numOrNull(cfg.data.odo_daily_km_max),
       odoSpeedKmhMax: numOrNull(cfg.data.odo_speed_kmh_max),
       odoDailyHmMax: numOrNull(cfg.data.odo_daily_hm_max),
+      staleDays: numOrNull(cfg.data.stale_days),
       fxUsdIdr: numOrNull(cfg.data.fx_usd_idr),
       fuelBaseLPerKm: numOrNull(cfg.data.fuel_base_l_per_km),
       fuelPrice: numOrNull(cfg.data.fuel_price),
@@ -342,14 +361,15 @@ export async function loadData(): Promise<void> {
 
   // repl
   TMS_DATA.repl = (repl.data ?? []).map((r) => ({
-    ch: r.ch, pos: r.pos, date: r.date, newSerial: r.new_serial ?? "",
+    ch: r.ch, pos: r.pos, date: r.date, newSerial: normalizeSerial(r.new_serial),
   }));
 
   // ledger — 시리얼별로 묶어 둔다. seqNo 순은 쿼리에서 이미 보장된다.
   const ledgerBySerial: Record<string, LedgerSegment[]> = {};
   for (const r of ledger.data ?? []) {
-    if (!r.serial) continue;
-    (ledgerBySerial[r.serial] ??= []).push({
+    const ledgerSerial = normSerial(r.serial);
+    if (!ledgerSerial) continue;
+    (ledgerBySerial[ledgerSerial] ??= []).push({
       ch: r.ch,
       pos: r.pos,
       seqNo: r.seq_no,
@@ -371,7 +391,7 @@ export async function loadData(): Promise<void> {
   // life
   TMS_DATA.life = (life.data ?? []).map((r): LifeRecord => ({
     no: r.no,
-    serial: r.serial,
+    serial: normalizeSerial(r.serial),
     scrap: r.scrap ?? "-",
     damage: r.damage ?? null,
     install: r.install ?? null,
@@ -411,7 +431,7 @@ export async function loadData(): Promise<void> {
     if (!chainByKey.has(k)) chainByKey.set(k, []);
     chainByKey.get(k)!.push({
       seqNo: h.seq_no,
-      serial: h.serial,
+      serial: normalizeSerial(h.serial),
       mountedAt: h.mounted_at ?? null,
       source: h.source === "replacement" ? "replacement" : "initial",
     });
@@ -432,8 +452,8 @@ export async function loadData(): Promise<void> {
     meterOffset: meterOffsetOf(v),
     positions: (curByCh.get(v.ch) ?? []).map((c): TirePosition => ({
       pos: c.pos,
-      serial: c.serial ?? "",
-      serialInitial: c.serial_initial ?? "",
+      serial: normalizeSerial(c.serial),
+      serialInitial: normalizeSerial(c.serial_initial),
       replCount: c.repl_count ?? 0,
       mountedAt: c.mounted_at ?? null,
       chain: chainByKey.get(`${c.ch}|${c.pos}`) ?? [],

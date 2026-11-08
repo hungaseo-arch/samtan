@@ -9,7 +9,8 @@ import {
 import { EMPTY, fmtCpk, fmtInt, fmtTread, kmPerMmOf, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
 import { X, Download } from "lucide-react";
-import { useLang } from "@/i18n";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import { useAuth } from "@/auth/AuthProvider";
 import TireDetailCard from "./TireDetailCard";
 import IrregularWearBadge from "./IrregularWearBadge";
@@ -492,6 +493,11 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     XLSX.writeFile(wb, `TireLifetimeDB_${stamp}.xlsx`);
   };
 
+  // Esc · 포커스 (COM-03)
+  const codesRef = useDialog(showCodes, () => setShowCodes(false));
+  const histRef = useDialog(!!hist, () => setHistoryOf(null));
+  const closeLabel = DICT[lang]["common.close"];
+
   return (
     <div className="space-y-4">
       {/* 배치도에서 시리얼을 클릭해 들어온 경우 — v_tire_detail 단건 상세.
@@ -758,7 +764,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
             onClick={() => setShowCodes(false)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
+              ref={codesRef} role="dialog" aria-modal="true" aria-label={tx.codesTitle} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -766,7 +773,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   <h3 className="text-base font-bold text-foreground">{tx.codesTitle}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Damage Codes</p>
                 </div>
-                <button onClick={() => setShowCodes(false)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                <button type="button" aria-label={closeLabel} onClick={() => setShowCodes(false)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -792,7 +799,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
             onClick={() => setHistoryOf(null)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
+              ref={histRef} role="dialog" aria-modal="true" aria-label={hist.serial} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -806,7 +814,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[hist.status as LifeRecord["status"]] ?? ""}`}>
                     {hist.status}
                   </span>
-                  <button onClick={() => setHistoryOf(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                  <button type="button" aria-label={closeLabel} onClick={() => setHistoryOf(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                     <X className="w-4 h-4" />
                   </button>
                 </div>

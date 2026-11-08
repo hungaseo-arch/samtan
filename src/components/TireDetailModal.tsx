@@ -2,13 +2,16 @@
 // 타이어 상세 모달 — 차량 배치도(LayoutTab)와 동일한 형태.
 // 포지션의 권장압·시리얼·최근 공기압/트레드 + 트레드·공기압 추이 미니차트.
 // LayoutTab · InspectionTab(점검 이력 배치도) 공용. 등장 애니메이션은 CSS(.overlay-in/.modal-in).
-import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD } from "@/data/tmsData";
+import { TMS_DATA, HEAD_MAP, recPsi, NEW_TREAD, treadThresholds } from "@/data/tmsData";
 import { headPosData, statusOf, codeName, unitByCh, currentSegmentPairs } from "@/data/tmsUtils";
 import type { TireStatus } from "@/data/tmsUtils";
-import { EMPTY, fmtTread } from "@/lib/format";
+import { EMPTY } from "@/lib/format";
 import { X } from "lucide-react";
-import { useLang } from "@/i18n";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import SerialChain from "./SerialChain";
+import PosLatestRows from "./PosLatestRows";
+import { awaitingLabel } from "./posLatestText";
 
 const TX = {
   ko: {
@@ -60,13 +63,18 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
   const d = headPosData(u, pos);
   const st = statusOf(d, pos);
 
+  // Esc · 포커스 (COM-03)
+  const dialogRef = useDialog(true, onClose);
+  const closeLabel = DICT[lang]["common.close"];
+
   return (
     <div
       className="overlay-in fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
       onClick={onClose}
     >
       <div
-        className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
+        ref={dialogRef} role="dialog" aria-modal="true" aria-label={`CH ${ch} · ${HEAD_MAP[pos]}`} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
@@ -76,9 +84,9 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-bold px-2 py-1 rounded-full border ${STATUS_STYLE[st]}`}>
-              {STATUS_LABEL[lang][st]}
+              {st === "none" && d?.awaiting ? awaitingLabel(lang) : STATUS_LABEL[lang][st]}
             </span>
-            <button onClick={onClose} className="p-1 rounded hover:bg-muted/50 transition-colors">
+            <button type="button" aria-label={closeLabel} onClick={onClose} className="p-1 rounded hover:bg-muted/50 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -96,8 +104,7 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
                 hint={tx.serialHint}
               />
             </div>
-            <Row label={tx.latestPress} value={d.latestPress != null ? `${Math.round(d.latestPress)} psi (${d.latestPressDate})` : EMPTY} mono />
-            <Row label={tx.latestTread} value={d.latestTread != null ? `${fmtTread(d.latestTread, false)} mm (${d.latestTreadDate}) · ${tx.newPrefix}${NEW_TREAD}mm` : EMPTY} mono />
+            <PosLatestRows d={d} />
             {d.remark && <Row label={tx.remark} value={d.remark} danger />}
             {(() => {
               const scrap = TMS_DATA.life.find((l) => l.serial === d.serial && l.status === "Scrap");
@@ -108,7 +115,7 @@ export default function TireDetailModal({ ch, pos, onClose, onSerialClick }: {
               <p className="text-xs text-muted-foreground mb-1 font-semibold">{tx.treadTrend}</p>
               <MiniChart
                 pairs={currentSegmentPairs(u, d.segments, "tread")}
-                min={0} max={NEW_TREAD} danger={5} warn={8} decimals={1}
+                min={0} max={NEW_TREAD} danger={treadThresholds().order} warn={treadThresholds().caution} decimals={1}
               />
             </div>
             <div className="mt-2">

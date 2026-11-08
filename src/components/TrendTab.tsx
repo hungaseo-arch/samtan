@@ -54,6 +54,8 @@ const buildTX = () => ({
     lifeDb: "수명 DB 보기",
     current: "현재",
     removed: "제거",
+    awaiting: "측정 대기 — 교체 뒤 아직 측정 회차가 없습니다",
+    outlier: "이상점 제외 — 4점 중 0 하나를 빼고 판정",
     replacedOn: "교체",
     noData: "측정 없음",
     tableFoot: "회차별 측정값. 트레드는 4개 그루브 중 최소값 기준. 행은 시리얼 단위로 나뉘며, 빈칸은 그 타이어가 이 포지션에 없던 회차입니다(0 이 아님).",
@@ -83,6 +85,8 @@ const buildTX = () => ({
     lifeDb: "Lihat DB umur",
     current: "Terpasang",
     removed: "Dilepas",
+    awaiting: "Menunggu diukur — belum ada Pemeriksaan setelah Penggantian",
+    outlier: "Titik anomali dikecualikan — satu nilai 0 dari 4 titik tidak dihitung",
     replacedOn: "Ganti",
     noData: "Tidak ada pengukuran",
     tableFoot: "Nilai ukur per sesi. Tapak berdasarkan nilai min dari 4 alur. Baris dipisah per serial; sel kosong berarti ban itu belum/tidak terpasang di posisi ini pada sesi tersebut (bukan 0).",
@@ -112,6 +116,8 @@ const buildTX = () => ({
     lifeDb: "View lifetime DB",
     current: "Current",
     removed: "Removed",
+    awaiting: "Awaiting measurement — no inspection since the replacement yet",
+    outlier: "Outlier excluded — one 0 among the 4 points was left out",
     replacedOn: "Replaced",
     noData: "No measurement",
     tableFoot: "Measured values by round. Tread is the minimum of the 4 grooves. Rows are split per serial; a blank cell means that tire was not on this position for that round (not a zero).",
@@ -315,7 +321,11 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                 const lo = all.length ? Math.min(...all) : 0;
                 const hi = all.length ? Math.max(...all) : 1;
 
-                return segs.map((seg, k) => {
+                // 교체 뒤 측정 전 — 지금 달린 타이어 줄이 없으면 한 줄 덧붙인다 (R-1 · TRD-01)
+                const awaiting = !segs.some((s) => s.isCurrent) && !!d?.serial;
+                const span = segs.length + (awaiting ? 1 : 0);
+
+                const rows = segs.map((seg, k) => {
                   const pairs = vd
                     .map((x) => ({ d: x.d, v: value(seg, x.i) }))
                     .filter((q): q is { d: string; v: number } => typeof q.v === "number");
@@ -325,8 +335,8 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                     <tr key={`${rp}#${seg.segNo}`} className="border-b border-border/40 hover:bg-muted/10 transition-colors">
                       {k === 0 && (
                         <>
-                          <td rowSpan={segs.length} className="px-2 py-1.5 font-bold text-primary align-top">{p}</td>
-                          <td rowSpan={segs.length} className="px-2 py-1.5 font-semibold align-top">{rp}</td>
+                          <td rowSpan={span} className="px-2 py-1.5 font-bold text-primary align-top">{p}</td>
+                          <td rowSpan={span} className="px-2 py-1.5 font-semibold align-top">{rp}</td>
                         </>
                       )}
                       <td className="px-2 py-1.5 text-[10px] max-w-30">
@@ -352,9 +362,11 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                         const wTitle = w && iw
                           ? `${[w.l, w.c1, w.c2, w.r].map((t) => (t != null ? fmtTread(t, false) : EMPTY)).join(" / ")} mm · Δ${fmtTread(iw.range, false)}`
                           : undefined;
+                        const outlier = metric === "tread" && seg.outlier[x.i];
                         return (
-                          <td key={x.i} title={wTitle} className={`px-2 py-1.5 text-center ${cls} ${line}`}>
+                          <td key={x.i} title={outlier ? [tx.outlier, wTitle].filter(Boolean).join(" · ") : wTitle} className={`px-2 py-1.5 text-center ${cls} ${line}`}>
                             {metric === "tread" ? fmtTread(v, false) : fmtPressure(v, false)}
+                            {outlier && <span className="ml-0.5 text-[9px] text-muted-foreground">*</span>}
                             {iw && iw.level !== "ok" && (
                               <span className={`ml-0.5 text-[9px] ${iw.level === "danger" ? "text-level-danger" : "text-level-warn"}`}>▲</span>
                             )}
@@ -370,6 +382,15 @@ export default function TrendTab({ onSerialClick }: { onSerialClick?: (serial: s
                     </tr>
                   );
                 });
+                if (awaiting) {
+                  rows.push(
+                    <tr key={`${rp}#await`} className="border-b border-border/40">
+                      <td className="px-2 py-1.5 text-[10px] text-primary truncate max-w-30">{d!.serial}</td>
+                      <td colSpan={vd.length + 2} className="px-2 py-1.5 text-muted-foreground text-[10px]">{tx.awaiting}</td>
+                    </tr>,
+                  );
+                }
+                return rows;
               })}
               {/* HM / KM 행 */}
               <tr className="border-b border-border/40 bg-muted/5">

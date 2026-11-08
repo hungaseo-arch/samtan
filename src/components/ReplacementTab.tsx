@@ -17,7 +17,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TMS_DATA } from "@/data/tmsData";
 import { codeName } from "@/data/tmsUtils";
 import { X, Download, Loader2, AlertTriangle, Wand2 } from "lucide-react";
-import { useLang } from "@/i18n";
+import { DICT, useLang } from "@/i18n";
+import { useDialog } from "@/lib/useDialog";
 import { useAuth } from "@/auth/AuthProvider";
 import { fmtInt, fmtTread, EMPTY } from "@/lib/format";
 import type { CasingGrade } from "@/api/tco";
@@ -26,6 +27,13 @@ import {
   type ReplacementRow, type DamageCodeRow, type RemovalPatch,
 } from "@/api/replacements";
 
+// 영어 서수 — 1st 2nd 3rd 4th … 11th 12th 13th … 21st
+const ordinalEn = (n: number) => {
+  const t = n % 100;
+  if (t >= 11 && t <= 13) return `${n}th`;
+  return `${n}${({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th"}`;
+};
+
 const TX = {
   ko: {
     title: "타이어 교체이력",
@@ -33,9 +41,7 @@ const TX = {
     rotation: "로테이션",
     chVehicle: "차량",
     position: "포지션",
-    install1: "1차 장착일",
-    install2: "2차 장착일",
-    install3: "3차 장착일",
+    installN: (n: number) => `${n}차 장착일`,
     footnote1: "교체가 실제 있었던 (차량·포지션)만 표시합니다.",
     footnoteOriginal: "원본 타이어",
     footnoteReplaced: "교체 장착 타이어",
@@ -92,9 +98,7 @@ const TX = {
     rotation: "Rotasi",
     chVehicle: "Unit",
     position: "Posisi",
-    install1: "Tgl pasang 1",
-    install2: "Tgl pasang 2",
-    install3: "Tgl pasang 3",
+    installN: (n: number) => `Tgl pasang ${n}`,
     footnote1: "Hanya menampilkan (Unit·Posisi) yang benar-benar diganti.",
     footnoteOriginal: "Ban asli",
     footnoteReplaced: "Ban pengganti",
@@ -150,9 +154,7 @@ const TX = {
     rotation: "Rotation",
     chVehicle: "Vehicle",
     position: "Position",
-    install1: "1st install date",
-    install2: "2nd install date",
-    install3: "3rd install date",
+    installN: (n: number) => `${ordinalEn(n)} install date`,
     footnote1: "Only (Vehicle·Position) pairs with an actual replacement are shown.",
     footnoteOriginal: "Original tire",
     footnoteReplaced: "Replacement tire",
@@ -316,7 +318,18 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, tx]);
 
-  const has3rd = replChains.some((c) => c.stages.length >= 2);
+  // 교체 회차 수 — 고정 3열이 아니라 가장 긴 체인에 맞춘다 (REPL-01).
+  // 4차 이상이 생기면 예전 표는 그 회차를 조용히 버렸다.
+  const maxStage = useMemo(() => Math.max(1, ...replChains.map((c) => c.stages.length)), [replChains]);
+  const headers = useMemo(
+    () => [tx.chVehicle, tx.position, ...Array.from({ length: maxStage + 1 }, (_, i) => tx.installN(i + 1))],
+    [tx, maxStage],
+  );
+  // 화면 교체 셀 수 = 교체이력 건수 — 어긋나면 표가 이력을 누락하거나 중복한 것이다.
+  const shownStages = replChains.reduce((n, c) => n + c.stages.length, 0);
+  if (import.meta.env.DEV && shownStages !== rows.length) {
+    console.warn(`[ReplacementTab] 표의 교체 셀 ${shownStages}건 ≠ 교체이력 ${rows.length}건`);
+  }
   const missingCount = useMemo(() => rows.filter((r) => r.removal_code === null).length, [rows]);
   const chainOf = (key: string) => replChains.find((c) => `${c.ch}|${c.pos}` === key) ?? null;
 
@@ -359,14 +372,13 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
       const row: Record<string, string | number> = {
         [tx.chVehicle]: `CH ${c.ch}`,
         [tx.position]: c.pos,
-        [tx.install1]: c.firstInstall === EMPTY ? "" : c.firstInstall,
+        [tx.installN(1)]: c.firstInstall === EMPTY ? "" : c.firstInstall,
         [`1${tx.stage} ${tx.colSerial}`]: c.firstSerial ?? "",
       };
       // 회차 수는 행마다 다르므로 표시 중인 최대 회차까지 열을 맞춘다.
-      const maxStages = has3rd ? 2 : 1;
-      for (let i = 0; i < maxStages; i++) {
+      for (let i = 0; i < maxStage; i++) {
         const s = c.stages[i];
-        const n = i + 2; // 2차·3차
+        const n = i + 2; // 2차·3차 …
         row[`${n}${tx.stage} ${tx.colInstall}`] = s?.date ?? "";
         row[`${n}${tx.stage} ${tx.colSerial}`] = s?.serial ?? "";
         row[`${n}${tx.stage} ${tx.colReason}`] = s?.reason.text ?? "";
@@ -392,8 +404,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
     ];
     ws["!cols"] = [
       { wch: 8 }, { wch: 8 }, { wch: 12 }, { wch: 20 },
-      ...stageCols,
-      ...(has3rd ? stageCols : []),
+      ...Array.from({ length: maxStage }, () => stageCols).flat(),
     ];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Replacement");
@@ -401,6 +412,14 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     XLSX.writeFile(wb, `TireReplacement_${stamp}.xlsx`);
   };
+
+  // 훅은 아래 조기 반환보다 앞에 둔다 (rules-of-hooks)
+  const openChain = detail ? chainOf(detail.key) : null;
+
+  // Esc · 포커스 (COM-03)
+  const detailRef = useDialog(!!(openChain && detail), () => setDetail(null));
+  const codesRef = useDialog(showCodes, () => setShowCodes(false));
+  const closeLabel = DICT[lang]["common.close"];
 
   if (repls.isLoading || codes.isLoading) {
     return (
@@ -412,8 +431,6 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
   if (repls.isError) {
     return <div className="py-16 text-center text-sm text-destructive">{tx.loadFail}</div>;
   }
-
-  const openChain = detail ? chainOf(detail.key) : null;
 
   return (
     <div className="space-y-4">
@@ -453,19 +470,14 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm border-collapse">
             <colgroup>
-              {(has3rd
-                ? ["16%", "16%", "23%", "23%", "22%"]
-                : ["20%", "20%", "30%", "30%"]
-              ).map((w, i) => (
-                <col key={i} style={{ width: w }} />
+              {/* 차량·포지션은 좁게, 나머지는 장착일 열이 나눠 갖는다 */}
+              {headers.map((_, i) => (
+                <col key={i} style={{ width: i < 2 ? "8rem" : `calc((100% - 16rem) / ${maxStage + 1})` }} />
               ))}
             </colgroup>
             <thead>
               <tr className="border-b border-border">
-                {(has3rd
-                  ? [tx.chVehicle, tx.position, tx.install1, tx.install2, tx.install3]
-                  : [tx.chVehicle, tx.position, tx.install1, tx.install2]
-                ).map((h) => (
+                {headers.map((h) => (
                   <th key={h} className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
@@ -506,9 +518,9 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                     <button className="hover:underline" title={`CH ${c.ch} ${tx.vehicleTitle}`} onClick={() => onVehicleClick?.(c.ch)}>CH {c.ch}</button>
                   </td>
                   <td className="px-3 py-2 font-mono text-sm">{c.pos}</td>
-                  <td className="px-3 py-2">{dateCell(0)}</td>
-                  <td className="px-3 py-2">{dateCell(1)}</td>
-                  {has3rd && <td className="px-3 py-2">{dateCell(2)}</td>}
+                  {Array.from({ length: maxStage + 1 }, (_, i) => (
+                    <td key={i} className="px-3 py-2">{dateCell(i)}</td>
+                  ))}
                 </tr>
                 );
               })}
@@ -516,7 +528,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
           </table>
         </div>
         <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
-          {tx.footnote1} <strong className="text-foreground">1</strong> = {tx.footnoteOriginal}, <strong className="text-foreground">2·3</strong> = {tx.footnoteReplaced}.
+          {tx.footnote1} <strong className="text-foreground">1</strong> = {tx.footnoteOriginal}, <strong className="text-foreground">{Array.from({ length: maxStage }, (_, i) => i + 2).join("·")}</strong> = {tx.footnoteReplaced}.
           {tx.footnote2}
           {tx.footnote3}
         </p>
@@ -529,7 +541,8 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
             onClick={() => setDetail(null)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
+              ref={detailRef} role="dialog" aria-modal="true" aria-label={tx.detailTitle} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -539,7 +552,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                     CH {openChain.ch} · {openChain.pos}
                   </p>
                 </div>
-                <button onClick={() => setDetail(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                <button type="button" aria-label={closeLabel} onClick={() => setDetail(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -634,7 +647,8 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
             onClick={() => setShowCodes(false)}
           >
             <div
-              className="modal-in bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
+              ref={codesRef} role="dialog" aria-modal="true" aria-label={tx.codeTitle} tabIndex={-1}
+        className="modal-in outline-none bg-card border border-border rounded-2xl p-6 w-full max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-start justify-between mb-4">
@@ -642,7 +656,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
                   <h3 className="text-base font-bold text-foreground">{tx.codeTitle}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Damage Codes</p>
                 </div>
-                <button onClick={() => setShowCodes(false)} className="p-1 rounded hover:bg-muted/50 transition-colors">
+                <button type="button" aria-label={closeLabel} onClick={() => setShowCodes(false)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>

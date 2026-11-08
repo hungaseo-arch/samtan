@@ -8,6 +8,8 @@
 // 이 지표는 한 회차의 **깊이 차**다. 마모량의 비로 보는 S/C·O/I 패턴(WearAnalysisTab,
 // v_wear_pattern)과는 별개이며, 기준 회차 없이 지금 측정만으로 바로 보인다.
 import type { TreadWidths } from "@/data/tmsData";
+import { treadThresholds } from "@/data/tmsData";
+import { effectiveTread } from "@/lib/treadRules";
 
 /** 4점 최대−최소가 이 값(mm) 이상이면 노랑 */
 export const IRREGULAR_WARN_MM = 3;
@@ -46,6 +48,13 @@ export function irregularWear(g: (number | null | undefined)[]): IrregularWear |
   return { range, level, shoulder };
 }
 
-/** TreadWidths(l·c1·c2·r) → irregularWear */
-export const irregularOfWidths = (w: TreadWidths | null | undefined): IrregularWear | null =>
-  w ? irregularWear([w.l, w.c1, w.c2, w.r]) : null;
+/**
+ * TreadWidths(l·c1·c2·r) → irregularWear.
+ * W-1 이상점(0 하나 · 나머지 ≥ tread_critical)을 뺀 회차는 유효 점이 3개라 폭 분포를 말할 수 없다 → null.
+ * 그대로 두면 0 − 9.4 = Δ9.4 로 거짓 «위험» 배지가 붙는다 (CH 834 L1 08-23 등 7회차, 2026-10-17 점검).
+ */
+export const irregularOfWidths = (
+  w: TreadWidths | null | undefined,
+  critical: number = treadThresholds().critical,
+): IrregularWear | null =>
+  w && !effectiveTread(w, critical)?.outlier ? irregularWear([w.l, w.c1, w.c2, w.r]) : null;
