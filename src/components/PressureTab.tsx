@@ -118,12 +118,12 @@ const buildTX = () => {
     alertCount: "kasus",
     daysAgo: "{n} hari lalu",
     measuredOf: "dari {n} ban, nilai terbaru",
-    noAlert: "Saat ini tidak ada anomali tekanan.",
+    noAlert: "Saat ini tidak ada anomali tekanan",
     badgeLow: "Tekanan rendah",
     badgeHigh: "Tekanan berlebih",
     badgeDev: "Deviasi",
     rec: "Rekomendasi",
-    alertNote: `Penilaian: Bahaya = di bawah ${low} rekomendasi (rendah) atau lebih dari +${danger} (berlebih) · Perhatian = deviasi melebihi ±${warn} thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)`,
+    alertNote: `Penilaian : Bahaya = di bawah ${low} rekomendasi (rendah) atau lebih dari +${danger} (berlebih) · Perhatian = deviasi melebihi ±${warn} thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)`,
 
     secJudgeTitle: "Kriteria penilaian",
 
@@ -138,7 +138,7 @@ const buildTX = () => {
     thAction: "Tindakan",
 
     secLineTitle: "Jalur penanggung jawab",
-    lineNote: "Siklus inspeksi: inspeksi berkala sekitar 2 minggu · bila ada anomali lapor Foreman → Manager",
+    lineNote: "Siklus inspeksi : inspeksi berkala sekitar 2 minggu · bila ada anomali lapor Foreman → Manager",
 
     // PRESSURE_STD
     stdSteering: "Poros kemudi",
@@ -181,7 +181,7 @@ const buildTX = () => {
     sym3: "Aus tidak rata / TOE IN",
     sym3cause: "Alignment (toe) buruk",
     sym3risk: "Aus dini 0mm sebelah",
-    sym3action: "Lapor pengawas · servis alignment (mis: CH 839 L1)",
+    sym3action: "Lapor pengawas · servis alignment (mis : CH 839 L1)",
     sym4: "Deviasi kiri-kanan",
     sym4cause: "Penambahan angin tidak merata",
     sym4risk: "Kemudi menarik · kestabilan jalan terganggu",
@@ -202,12 +202,12 @@ const buildTX = () => {
     alertCount: "cases",
     daysAgo: "{n} days ago",
     measuredOf: "of {n} tires, latest values",
-    noAlert: "No pressure anomalies at present.",
+    noAlert: "No pressure anomalies at present",
     badgeLow: "Low pressure",
     badgeHigh: "Over-inflated",
     badgeDev: "Deviation",
     rec: "Recommended",
-    alertNote: `Criteria: Danger = below ${low} of recommended (low) or above +${danger} (high) · Caution = deviation beyond ±${warn} of recommended (based on each vehicle's latest measured round)`,
+    alertNote: `Criteria : Danger = below ${low} of recommended (low) or above +${danger} (high) · Caution = deviation beyond ±${warn} of recommended (based on each vehicle's latest measured round)`,
 
     secJudgeTitle: "Status criteria",
 
@@ -222,7 +222,7 @@ const buildTX = () => {
     thAction: "Action",
 
     secLineTitle: "Inspection reporting line",
-    lineNote: "Inspection cycle: round inspection roughly every 2 weeks · report anomalies Foreman → Manager",
+    lineNote: "Inspection cycle : round inspection roughly every 2 weeks · report anomalies Foreman → Manager",
 
     // PRESSURE_STD
     stdSteering: "Steer axle",

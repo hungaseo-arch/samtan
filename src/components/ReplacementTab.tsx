@@ -99,11 +99,11 @@ const TX = {
     chVehicle: "Unit",
     position: "Posisi",
     installN: (n: number) => `Tgl pasang ${n}`,
-    footnote1: "Hanya menampilkan (Unit·Posisi) yang benar-benar diganti.",
+    footnote1: "Hanya menampilkan (Unit·Posisi) yang benar-benar diganti",
     footnoteOriginal: "Ban asli",
     footnoteReplaced: "Ban pengganti",
-    footnote2: "Alasan ganti adalah alasan ban sebelumnya dilepas (Kode kerusakan saat afkir, selainnya \"Rotasi\").",
-    footnote3: "Unit → Tata Letak. Klik tanggal pasang untuk melihat serial·alasan ganti.",
+    footnote2: "Alasan ganti adalah alasan ban sebelumnya dilepas (Kode kerusakan saat afkir, selainnya \"Rotasi\")",
+    footnote3: "Unit → Tata Letak. Klik tanggal pasang untuk melihat serial·alasan ganti",
     serialTitle: "Lihat DB Umur",
     vehicleTitle: "Lihat Tata Letak",
     codeTitle: "Kode Kerusakan",
@@ -116,10 +116,10 @@ const TX = {
     colInstall: "Tgl pasang",
 
     loading: "Memuat riwayat penggantian…",
-    loadFail: "Gagal memuat riwayat penggantian.",
+    loadFail: "Gagal memuat riwayat penggantian",
 
     removalTitle: "Data pelepasan",
-    removalSub: "Catatan ban yang dilepas pada tahap ini. Menjadi masukan perhitungan TCO.",
+    removalSub: "Catatan ban yang dilepas pada tahap ini. Menjadi masukan perhitungan TCO",
     oldSerial: "Serial ban dilepas",
     oldSerialAuto: "Isi dari pemasangan sebelumnya",
     removalCode: "Alasan pelepasan",
@@ -137,16 +137,16 @@ const TX = {
     removalNote: "Catatan",
     save: "Simpan",
     saving: "Menyimpan…",
-    saved: "Tersimpan.",
-    saveFail: "Gagal menyimpan.",
+    saved: "Tersimpan",
+    saveFail: "Gagal menyimpan",
     revert: "Kembalikan",
-    readOnly: "Tidak ada hak input — hanya bisa melihat.",
-    invalidTread: "Isi antara 0 ~ 60 mm.",
-    invalidDowntime: "Isi bilangan bulat 0 atau lebih.",
+    readOnly: "Tidak ada hak input — hanya bisa melihat",
+    invalidTread: "Isian harus 0 ~ 60 mm",
+    invalidDowntime: "Isian harus bilangan bulat 0 atau lebih",
 
     missingBadge: "Alasan kosong",
     missingCount: "Alasan pelepasan kosong",
-    missingHelp: "Tanpa alasan pelepasan, biaya TCO per alasan tidak bisa dihitung. Klik tanggal pasang untuk mengisi.",
+    missingHelp: "Tanpa alasan pelepasan, biaya TCO per alasan tidak bisa dihitung. Klik tanggal pasang untuk mengisi",
   },
   en: {
     title: "Tire Replacement History",
@@ -155,11 +155,11 @@ const TX = {
     chVehicle: "Vehicle",
     position: "Position",
     installN: (n: number) => `${ordinalEn(n)} install date`,
-    footnote1: "Only (Vehicle·Position) pairs with an actual replacement are shown.",
+    footnote1: "Only (Vehicle·Position) pairs with an actual replacement shown",
     footnoteOriginal: "Original tire",
     footnoteReplaced: "Replacement tire",
-    footnote2: "The replacement reason is why the previous tire was removed (damage code on scrap, otherwise \"Rotation\").",
-    footnote3: "Vehicle opens the layout; clicking an install date opens the serial·replacement reason details.",
+    footnote2: "The replacement reason is why the previous tire was removed (damage code on scrap, otherwise \"Rotation\")",
+    footnote3: "Vehicle opens the layout; click an install date for serial·replacement reason details",
     serialTitle: "View lifetime DB",
     vehicleTitle: "View layout",
     codeTitle: "Damage code",
@@ -172,10 +172,10 @@ const TX = {
     colInstall: "Install date",
 
     loading: "Loading replacement history…",
-    loadFail: "Could not load replacement history.",
+    loadFail: "Replacement history load failed",
 
     removalTitle: "Removal record",
-    removalSub: "The tire taken off at this stage. Feeds the TCO calculation.",
+    removalSub: "The tire taken off at this stage. Input to the TCO calculation",
     oldSerial: "Removed serial",
     oldSerialAuto: "Fill from previous mount",
     removalCode: "Removal reason",
@@ -193,16 +193,16 @@ const TX = {
     removalNote: "Note",
     save: "Save",
     saving: "Saving…",
-    saved: "Saved.",
-    saveFail: "Could not save.",
+    saved: "Saved",
+    saveFail: "Could not save",
     revert: "Revert",
-    readOnly: "No write permission — view only.",
-    invalidTread: "Enter a value between 0 and 60 mm.",
-    invalidDowntime: "Enter a whole number of 0 or more.",
+    readOnly: "No write permission — view only",
+    invalidTread: "Value must be 0 to 60 mm",
+    invalidDowntime: "Value must be a whole number of 0 or more",
 
     missingBadge: "No reason",
     missingCount: "Removal reason missing",
-    missingHelp: "Without a removal reason the per-reason TCO cannot be computed. Click an install date to fill it in.",
+    missingHelp: "Without a removal reason, per-reason TCO cannot be computed. Click an install date to fill it in",
   },
 } as const;
 
@@ -359,7 +359,7 @@ export default function ReplacementTab({ onSerialClick, onVehicleClick }: {
       await qc.invalidateQueries({ queryKey: ["v_removal_analysis"] });
       setFlash({ id: st.id, ok: true, msg: tx.saved });
     } catch (e) {
-      setFlash({ id: st.id, ok: false, msg: `${tx.saveFail} ${(e as Error).message}` });
+      setFlash({ id: st.id, ok: false, msg: `${tx.saveFail} : ${(e as Error).message}` });
     } finally {
       setBusyId(null);
     }

@@ -38,8 +38,8 @@ const TX = {
     secUsers: "Manajemen Izin Pengguna",
     secLogs: "Log Aktivitas Pengguna",
     secSettings: "Kriteria Penilaian",
-    desc: "Kelola akun dan izin, serta periksa riwayat perubahan dan akses pengguna.",
-    loadFail: "Gagal memuat daftar: ",
+    desc: "Kelola akun dan izin, periksa riwayat perubahan dan akses pengguna",
+    loadFail: "Gagal memuat daftar : ",
     retry: "Coba lagi",
   },
   en: {
@@ -47,8 +47,8 @@ const TX = {
     secUsers: "User Permissions",
     secLogs: "User Activity Log",
     secSettings: "Judgement Criteria",
-    desc: "Manage accounts and permissions, and review each user's changes and sign-ins.",
-    loadFail: "Failed to load the list: ",
+    desc: "Manage accounts and permissions; review user change and sign-in history",
+    loadFail: "Failed to load the list : ",
     retry: "Retry",
   },
 } as const;

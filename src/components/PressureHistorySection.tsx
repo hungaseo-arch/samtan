@@ -46,11 +46,11 @@ const TX = {
     colAt: "Posisi saat ini",
     detached: "dilepas",
     fleet: "Total",
-    none: "Belum ada ban dengan paparan tekanan rendah.",
+    none: "Belum ada ban dengan paparan tekanan rendah",
     foot: (warn: string) =>
-      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah ${COMPLIANCE_WARN_PCT}% berwarna kuning. Deviasi rata-rata bertanda (− = rendah).`,
+      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah ${COMPLIANCE_WARN_PCT}% berwarna kuning. Deviasi rata-rata bertanda (− = rendah)`,
     footExposure:
-      "Paparan tekanan rendah (%·km) = Σ (rekomendasi − aktual)/rekomendasi pada pemeriksaan bertekanan rendah × KM sampai pemeriksaan berikutnya. Asumsi: tekanan tiap pemeriksaan bertahan sampai pemeriksaan berikutnya. Kekurangan kecil dalam rentang normal dan pemeriksaan tanpa KM berikutnya tidak dihitung.",
+      "Paparan tekanan rendah (%·km) = Σ (rekomendasi − aktual)/rekomendasi pada pemeriksaan bertekanan rendah × KM sampai pemeriksaan berikutnya. Asumsi : tekanan tiap pemeriksaan bertahan sampai pemeriksaan berikutnya. Kekurangan kecil dalam rentang normal dan pemeriksaan tanpa KM berikutnya tidak dihitung",
   },
   en: {
     title: "Pressure history analysis",
@@ -66,11 +66,11 @@ const TX = {
     colAt: "Current position",
     detached: "removed",
     fleet: "Fleet",
-    none: "No tire has recorded under-inflation exposure.",
+    none: "No tire has recorded under-inflation exposure",
     foot: (warn: string) =>
-      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below ${COMPLIANCE_WARN_PCT}% are yellow. Average deviation is signed (− = low).`,
+      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below ${COMPLIANCE_WARN_PCT}% are yellow. Average deviation is signed (− = low)`,
     footExposure:
-      "Under-inflation exposure (%·km) = Σ (recommended − actual)/recommended on low rounds × KM to the next round. Assumption: each round's pressure held until the next round. Small shortfalls within the normal range and rounds without a next KM are excluded.",
+      "Under-inflation exposure (%·km) = Σ (recommended − actual)/recommended on low rounds × KM to the next round. Assumption : each round's pressure held until the next round. Small shortfalls within the normal range and rounds without a next KM are excluded",
   },
 };
 

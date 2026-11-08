@@ -38,10 +38,10 @@ const TX = {
   id: {
     title: "Detail ban",
     loading: "Memuat…",
-    notFound: "Tidak ada catatan untuk serial ini.",
+    notFound: "Tidak ada catatan untuk serial ini",
     unregistered: "Belum terdaftar di DB umur ban",
     unregisteredHint:
-      "Data diambil dari riwayat pemeriksaan. Mohon lengkapi data pemasangan awal.",
+      "Data diambil dari riwayat pemeriksaan. Data pemasangan awal perlu dilengkapi",
     serial: "Serial",
     no: "No",
     install: "Tgl pasang awal",
@@ -63,10 +63,10 @@ const TX = {
   en: {
     title: "Tire detail",
     loading: "Loading…",
-    notFound: "No record for this serial.",
+    notFound: "No record for this serial",
     unregistered: "Not registered in lifetime DB",
     unregisteredHint:
-      "Data taken from inspection history. Please complete the initial install record.",
+      "Data taken from inspection history. Initial install record needs completing",
     serial: "Serial",
     no: "No",
     install: "First install date",

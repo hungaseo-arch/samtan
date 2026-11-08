@@ -102,7 +102,7 @@ const TX = {
     cComp: "Kepatuhan",
     cExpo: "Paparan tekanan rendah (%·km)",
     kmMissing: "KM belum diisi",
-    kmMissingHint: "KM belum tercatat di 2 sesi atau lebih, jadi paparan tekanan rendah dan kerugian tidak dapat dihitung. Ini belum diisi, bukan 0, dan tidak dihitung dalam total.",
+    kmMissingHint: "KM belum tercatat di 2 sesi atau lebih, sehingga paparan tekanan rendah dan kerugian tidak dapat dihitung. Belum diisi (bukan 0) dan dikeluarkan dari total",
     cFuelL: "Kerugian BBM",
     cFuel: "Nilai kerugian BBM",
     cLife: "Kerugian umur",
@@ -114,7 +114,7 @@ const TX = {
     targetNone: "Belum ada unit dengan harga terisi — perlu diatur",
     monthTitle: "Tren bulanan",
     monthSub: "Paparan tekanan rendah (batang) · BBM tambahan (garis). Dikelompokkan per bulan pemeriksaan",
-    monthNone: "Tidak ada catatan paparan tekanan rendah.",
+    monthNone: "Tidak ada catatan paparan tekanan rendah",
     sExpo: "Paparan tekanan rendah (%·km)",
     sFuel: "BBM tambahan (L)",
     download: "Unduh Excel",
@@ -133,9 +133,9 @@ const TX = {
     target: "Target umur",
     unset: "belum diatur",
     estimate:
-      "Kerugian BBM dan umur adalah estimasi. Koefisien adalah asumsi — perlu dikoreksi dengan pengukuran lapangan. Tekanan tiap pemeriksaan dianggap bertahan sampai pemeriksaan berikutnya.",
+      "Kerugian BBM dan umur adalah estimasi. Koefisien adalah asumsi — perlu dikoreksi dengan pengukuran lapangan. Tekanan tiap pemeriksaan dianggap bertahan sampai pemeriksaan berikutnya",
     cpkNote:
-      "CPK unit = jumlah CPK per ban dari 10 ban terpasang (biaya ban per 1 km unit). Dikosongkan bila ada ban tanpa harga atau mata uang campuran.",
+      "CPK unit = jumlah CPK per ban dari 10 ban terpasang (biaya ban per 1 km unit). Dikosongkan bila ada ban tanpa harga atau mata uang campuran",
   },
   en: {
     title: "Economics summary",
@@ -161,7 +161,7 @@ const TX = {
     cComp: "Compliance",
     cExpo: "Under-inflation exposure (%·km)",
     kmMissing: "Distance not entered",
-    kmMissingHint: "KM is not recorded in 2 or more rounds, so under-inflation exposure and losses cannot be calculated. This is missing, not 0, and is left out of the totals.",
+    kmMissingHint: "KM not recorded in 2 or more rounds, so under-inflation exposure and losses cannot be calculated. Missing (not 0) and excluded from totals",
     cFuelL: "Fuel loss",
     cFuel: "Fuel loss cost",
     cLife: "Life loss",
@@ -173,7 +173,7 @@ const TX = {
     targetNone: "No vehicle has prices yet — setup needed",
     monthTitle: "Monthly trend",
     monthSub: "Under-inflation exposure (bars) · extra fuel (line). Grouped by inspection month",
-    monthNone: "No under-inflation exposure recorded.",
+    monthNone: "No under-inflation exposure recorded",
     sExpo: "Under-inflation exposure (%·km)",
     sFuel: "Extra fuel (L)",
     download: "Download Excel",
@@ -192,9 +192,9 @@ const TX = {
     target: "Target life",
     unset: "not set",
     estimate:
-      "Fuel and life losses are estimates. Coefficients are assumptions — to be calibrated with field measurements. Each round's pressure is assumed to hold until the next round.",
+      "Fuel and life losses are estimates. Coefficients are assumptions — to be calibrated with field measurements. Each round's pressure is assumed to hold until the next round",
     cpkNote:
-      "Vehicle CPK = sum of per-tire CPK of the 10 mounted tires (tire cost per vehicle km). Left blank if any tire lacks a price or currencies are mixed.",
+      "Vehicle CPK = sum of per-tire CPK of the 10 mounted tires (tire cost per vehicle km). Left blank if any tire lacks a price or currencies are mixed",
   },
 };
 

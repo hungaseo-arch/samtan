@@ -54,7 +54,7 @@ const TX = {
     cancel: "Batal",
     confirm: (s: string, v: string) => `Simpan harga beli ${s} sebesar ${v}.`,
     confirmClear: (s: string) => `Kosongkan harga beli ${s}. Perhitungan memakai harga standar pengaturan biaya.`,
-    invalid: "Masukkan angka 0 atau lebih",
+    invalid: "Angka 0 atau lebih wajib diisi",
     failed: "Gagal menyimpan",
   },
   en: {
@@ -76,7 +76,7 @@ const TX = {
     cancel: "Cancel",
     confirm: (s: string, v: string) => `Save purchase price of ${s} as ${v}.`,
     confirmClear: (s: string) => `Clear the purchase price of ${s}. The cost-settings default price will be used.`,
-    invalid: "Enter a number of 0 or more",
+    invalid: "Number of 0 or more required",
     failed: "Save failed",
   },
 };
