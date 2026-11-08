@@ -3,9 +3,23 @@
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.1.0/) 를 따르고 날짜는 WIB 기준입니다.
 버전 태그는 아직 쓰지 않으므로 배포 단위 대신 **작업 묶음(Phase · Task)** 으로 나눕니다.
 
+## [2026-11-08] 배포 — 단계 1 prod 반영 · 검증 (WO-TMS-2026-11-STEP1)
+
+결과 보고 `docs/WO-TMS-2026-11-STEP1_결과.md`. main `b0daae1` (PR #6 `a2fe6ca` · PR #7 `b0daae1`), `gh-pages` `4e17a3a`.
+
+### Changed
+- prod DB — 마이그레이션 6건 적용 (쎄오님 터미널 `supabase db push --remote`): M-12 `20261017100000` · `110000` · `120000`, M-13 `20261104100000` · `110000` · `120000`.
+  17본 대조 17/17(차이 0.0 km, 평균 57,121 km), CPK-G 가중평균 562.43(G1 직후 · G2 이후 현재 286.93, 산출 29 → 73본), `zero_tread_unverified` ERROR 98 → ERROR 16 + WARN 82.
+- 사이트 배포 — CHK-TMS-2026-10-16-WEB 개선(PR #6)과 LIFE-KM(PR #7)이 처음으로 라이브에 반영된다.
+- `supabase/config.toml` — CLI 3.0 이 거부하는 `[inbucket]` → `[local_smtp]`.
+
+### Added
+- pgTAP `t107` — 단일 0 OUTLIER 트리거 29건 (PGlite 실행; Docker `supabase test db` 미실행).
+- 결정 기록 — 수명 종료 기준 `min` 확정(M-14), 신품 판정 22.0 유지(M-15), `decisions.md` «현장 확인 필요» 절.
+
 ## [Unreleased] — 2026-11-04 · WO-TMS-2026-11-LIFE-KM 수명 DB 주행 KM 과소 산출 수정
 
-결과 보고 `docs/WO-TMS-2026-11-LIFE-KM_결과.md`. 브랜치 `fix/life-km-first-mount`. 마이그레이션 3건은 **prod 적용 대기** (decisions M-13).
+결과 보고 `docs/WO-TMS-2026-11-LIFE-KM_결과.md`. 브랜치 `fix/life-km-first-mount`. 마이그레이션 3건은 **prod 적용 완료 2026-11-08** (decisions M-13).
 
 ### Fixed
 - 최초 장착분 주행 KM (T-1 · C-1) — `v_tire_ledger` 가 장착일 없는 seq 0 구간을 첫 신품 측정 회차부터 잡는다
