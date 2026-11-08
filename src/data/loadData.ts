@@ -345,6 +345,8 @@ export async function loadData(): Promise<void> {
       odoSpeedKmhMax: numOrNull(cfg.data.odo_speed_kmh_max),
       odoDailyHmMax: numOrNull(cfg.data.odo_daily_hm_max),
       staleDays: numOrNull(cfg.data.stale_days),
+      // 20261104110000 미적용 환경은 컬럼이 없다 → null (접근자가 'min' 폴백)
+      lifeEndBasis: cfg.data.life_end_basis ?? null,
       fxUsdIdr: numOrNull(cfg.data.fx_usd_idr),
       fuelBaseLPerKm: numOrNull(cfg.data.fuel_base_l_per_km),
       fuelPrice: numOrNull(cfg.data.fuel_price),
@@ -384,6 +386,9 @@ export async function loadData(): Promise<void> {
       hmStart: numOrNull(r.hm_start),
       hmEnd: numOrNull(r.hm_end),
       kmMethod: r.km_method ?? null,
+      // 20261104100000 미적용 환경은 컬럼이 없다 — 추론 없음으로 본다
+      mountedAtEffective: r.mounted_at_effective ?? r.mounted_at ?? null,
+      startInferred: r.start_inferred === true,
     });
   }
   TMS_DATA.ledger = ledgerBySerial;

@@ -1,6 +1,6 @@
 // @section: life-tab
 import { Fragment, useState, useEffect, useRef } from "react";
-import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved } from "@/data/tmsData";
+import { TMS_DATA, treadLevel, treadThresholds, targetLifeKm, meterUnresolved, lifeEndBasis } from "@/data/tmsData";
 import type { TreadLevel } from "@/data/tmsData";
 import {
   codeName, fmtD, lifeCalc, findUnitBySerial, latestTreadOf, latestTreadAvgOf, tireHistory, tireMovements,
@@ -40,6 +40,12 @@ const buildTX = () => ({
     colHr: "주행 HR",
     colExpKm: "예상 KM (0mm)",
     colExpHm: "예상 HM (0mm)",
+    // 수명 종료 기준별 열 머리 (T-3) — tire_config.life_end_basis
+    expKmBasis: { min: "예상 KM (최소 0mm)", three_zero: "예상 KM (3점 0mm)", four_zero: "예상 KM (4점 0mm)" },
+    expHmBasis: { min: "예상 HM (최소 0mm)", three_zero: "예상 HM (3점 0mm)", four_zero: "예상 HM (4점 0mm)" },
+    fourPointShort: "4점 측정 부족",
+    cmpPrefix: "[비교] ",
+    fourPointShortTip: "4점(좌·중1·중2·우) 측정 회차가 2개 미만이라 이 기준으로 외삽할 수 없습니다",
     colCpk: "CPK",
     colExpCpk: "예상 CPK",
     colTotalCost: "총비용",
@@ -71,13 +77,18 @@ const buildTX = () => ({
     foot3c: "최근 트레드",
     foot3d: " = 가장 최근 회차의 폭 4점 중 ",
     foot3dMin: "최소값",
-    foot3d2: `입니다(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 즉시교체). 교체 판정은 가장 얇은 지점을 기준으로 하기 때문입니다. 그 아래 회색 숫자는 같은 회차의 `,
+    foot3d2: `입니다(<${treadThresholds().caution}mm 주의, <${treadThresholds().order}mm 발주, <${treadThresholds().critical}mm 권장 교체). 교체 판정은 가장 얇은 지점을 기준으로 하기 때문입니다. 그 아래 회색 숫자는 같은 회차의 `,
     foot3dAvg: "4점 평균",
     foot3d3: "입니다. 중앙 그루브가 먼저 닳는 타이어는 최소값이 0.0mm 여도 숄더가 남아 주행 중일 수 있으며, 두 값의 차이가 그 상태를 보여줍니다. 4점 측정 이전 회차는 평균이 표시되지 않습니다.",
     foot4a: "HM Reset",
     foot4b: " = 운용 중 차량의 가동시간계(Hour Meter)·주행거리가 0으로 초기화된 차량(CH 832·835). 리셋 이전 누적 이력이 끊겨 수명·예상수명이 ",
     foot4c: "로 표시될 수 있습니다.",
     foot5: "예상 KM은 트레드가 신품 22mm부터 측정된 타이어에 한해 0mm 도달 시점을 추정하며, 교체·폐기(Scrap)·미장착(Not Install) 타이어에는 표시하지 않습니다.",
+    foot5Basis: {
+      min: " 현재 수명 종료 기준은 «최소 0mm» — 회차별 4점 중 최소값이 0mm 에 닿는 시점입니다. 센터 홈만 0mm 인 타이어는 숄더가 남아 실제로는 더 달립니다.",
+      three_zero: " 현재 수명 종료 기준은 «3점 0mm» — 회차별 4점 중 두 번째로 큰 값이 0mm 에 닿는 시점(4점 중 3점이 0mm)입니다. 4점 측정 회차만 쓰며, 2회차 미만이면 «4점 측정 부족»입니다.",
+      four_zero: " 현재 수명 종료 기준은 «4점 0mm» — 회차별 4점 중 최대값이 0mm 에 닿는 시점(4점 모두 0mm)입니다. 4점 측정 회차만 쓰며, 2회차 미만이면 «4점 측정 부족»입니다.",
+    },
     foot6a: "측정 외",
     foot6b: " = 모니터링 5대(834·839·832·835·849) 외 차량 장착 또는 예비 타이어 — 점검 데이터가 없어 트레드·주행·예상이 ",
     foot6c: "로 표시됩니다.",
@@ -123,12 +134,12 @@ const buildTX = () => ({
     mCurrent: "현재",
     excelDownload: "엑셀 다운로드",
     kmLower: "하한값",
-    kmLowerTip: "장착일 이전 주행 미상 — 첫 점검 이전 주행이 빠져 실제보다 작습니다",
+    kmLowerTip: "장착 전 주행 미상 — 장착일이 없고 첫 측정이 신품이 아니어서(또는 km 기록 없음) 첫 점검 이전 주행이 빠져 실제보다 작습니다",
     avgExclLower: "하한값 제외 {n}본 평균",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "주행 KM (하한값)",
-    foot9b: " = 원장 구간 경계 km 는 교체 시 입력 KM → 같은 날 점검 회차 → 앞뒤 회차 날짜 비례 보간 순으로 산출합니다. 장착일이 없는 최초 장착분은 첫 점검 이후 주행만 잡혀 하한값이며, 평균행의 주행 KM 은 하한값을 뺀 평균입니다.",
+    foot9b: " = 원장 구간 경계 km 는 교체 시 입력 KM → 같은 날 점검 회차 → 앞뒤 회차 날짜 비례 보간 순으로 산출합니다. 장착일이 없는 최초 장착분은 첫 측정이 신품(4점 평균 22mm)이면 그 회차를 장착 시점으로 보고 탈착까지 전 구간을 잡습니다(FIRST_NEW_INSPECTION, 하한값 아님). 첫 측정이 신품이 아니거나 km 기록이 없는 경우만 하한값이며, 평균행의 주행 KM 은 하한값을 뺀 평균입니다. 거리는 트레드와 무관하게 재며, 센터 홈 0mm 회차도 주행 중으로 셉니다.",
   },
   id: {
     dbTitle: "DB Umur Ban",
@@ -145,6 +156,11 @@ const buildTX = () => ({
     colHr: "Jam (HR)",
     colExpKm: "Prediksi KM (0mm)",
     colExpHm: "Prediksi HM (0mm)",
+    expKmBasis: { min: "Prediksi KM (min 0mm)", three_zero: "Prediksi KM (3 titik 0mm)", four_zero: "Prediksi KM (4 titik 0mm)" },
+    expHmBasis: { min: "Prediksi HM (min 0mm)", three_zero: "Prediksi HM (3 titik 0mm)", four_zero: "Prediksi HM (4 titik 0mm)" },
+    fourPointShort: "Ukur 4 titik kurang",
+    cmpPrefix: "[Banding] ",
+    fourPointShortTip: "Sesi ukur 4 titik (Kiri·Tgh 1·Tgh 2·Kanan) kurang dari 2 sehingga tidak dapat diekstrapolasi dengan kriteria ini",
     colCpk: "CPK",
     colExpCpk: "CPK prediksi",
     colTotalCost: "Total biaya",
@@ -176,13 +192,18 @@ const buildTX = () => ({
     foot3c: "Tapak terkini",
     foot3d: " = ",
     foot3dMin: "nilai terkecil dari 4 titik lebar",
-    foot3d2: ` pada sesi ukur terbaru (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm ganti segera). Penilaian ganti selalu memakai titik paling tipis. Angka abu-abu di bawahnya adalah `,
+    foot3d2: ` pada sesi ukur terbaru (<${treadThresholds().caution}mm perhatian, <${treadThresholds().order}mm pesan ban, <${treadThresholds().critical}mm disarankan ganti). Penilaian ganti selalu memakai titik paling tipis. Angka abu-abu di bawahnya adalah `,
     foot3dAvg: "rata-rata 4 titik",
     foot3d3: " pada sesi yang sama. Pada ban yang alur tengahnya habis lebih dulu, nilai terkecil bisa 0.0mm padahal bahunya masih tersisa dan ban masih jalan — selisih kedua angka menunjukkan kondisi itu. Sesi sebelum pengukuran 4 titik tidak menampilkan rata-rata.",
     foot4a: "HM Reset",
     foot4b: " = unit yang Hour Meter·jarak tempuhnya di-reset ke 0 saat operasi (CH 832·835). Riwayat akumulasi sebelum reset terputus sehingga umur·prediksi dapat ditampilkan ",
     foot4c: ".",
     foot5: "Prediksi KM hanya untuk ban yang diukur dari kondisi baru 22mm, mengestimasi waktu mencapai 0mm, dan tidak ditampilkan untuk ban ganti·afkir (Scrap)·tidak terpasang (Not Install).",
+    foot5Basis: {
+      min: " Kriteria akhir umur saat ini «min 0mm» — saat nilai terkecil dari 4 titik mencapai 0mm. Ban yang hanya alur tengahnya 0mm masih punya bahu dan sebenarnya masih bisa jalan lebih jauh.",
+      three_zero: " Kriteria akhir umur saat ini «3 titik 0mm» — saat nilai terbesar kedua dari 4 titik mencapai 0mm (3 dari 4 titik 0mm). Hanya sesi ukur 4 titik; jika kurang dari 2 sesi, ditampilkan «Ukur 4 titik kurang».",
+      four_zero: " Kriteria akhir umur saat ini «4 titik 0mm» — saat nilai terbesar dari 4 titik mencapai 0mm (keempat titik 0mm). Hanya sesi ukur 4 titik; jika kurang dari 2 sesi, ditampilkan «Ukur 4 titik kurang».",
+    },
     foot6a: "Non-ukur",
     foot6b: " = terpasang di unit selain 5 unit pantau (834·839·832·835·849) atau ban cadangan — tanpa data inspeksi sehingga tapak·tempuh·prediksi ditampilkan ",
     foot6c: ".",
@@ -228,12 +249,12 @@ const buildTX = () => ({
     mCurrent: "Saat ini",
     excelDownload: "Unduh Excel",
     kmLower: "batas bawah",
-    kmLowerTip: "Jarak sebelum tanggal pasang tidak diketahui — jarak sebelum pemeriksaan pertama tidak terhitung",
+    kmLowerTip: "Jarak sebelum pasang tidak diketahui — tanpa tanggal pasang dan Pemeriksaan pertama bukan ban baru (atau tanpa KM), jadi jarak sebelum Pemeriksaan pertama tidak terhitung",
     avgExclLower: "rata-rata {n} ban tanpa batas bawah",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "KM tempuh (batas bawah)",
-    foot9b: " = KM batas segmen dihitung berurutan dari KM saat penggantian → Pemeriksaan di hari yang sama → interpolasi proporsional tanggal antara dua Pemeriksaan. Ban pemasangan awal tanpa tanggal pasang hanya terhitung sejak Pemeriksaan pertama sehingga merupakan batas bawah; KM tempuh di baris rata-rata adalah rata-rata tanpa batas bawah.",
+    foot9b: " = KM batas segmen dihitung berurutan dari KM saat penggantian → Pemeriksaan di hari yang sama → interpolasi proporsional tanggal antara dua Pemeriksaan. Ban pemasangan awal tanpa tanggal pasang: jika Pemeriksaan pertama menunjukkan ban baru (rata-rata 4 titik 22mm), sesi itu dianggap saat pasang dan seluruh jarak sampai dilepas dihitung (FIRST_NEW_INSPECTION, bukan batas bawah). Hanya jika Pemeriksaan pertama bukan ban baru atau tanpa KM, nilainya batas bawah; KM tempuh di baris rata-rata adalah rata-rata tanpa batas bawah. Jarak dihitung tanpa melihat Kedalaman alur — sesi dengan alur tengah 0mm tetap dihitung sebagai jalan.",
   },
   en: {
     dbTitle: "Tire Lifetime DB",
@@ -250,6 +271,11 @@ const buildTX = () => ({
     colHr: "Operating HR",
     colExpKm: "Est. KM (0mm)",
     colExpHm: "Est. HM (0mm)",
+    expKmBasis: { min: "Est. KM (min 0mm)", three_zero: "Est. KM (3-point 0mm)", four_zero: "Est. KM (4-point 0mm)" },
+    expHmBasis: { min: "Est. HM (min 0mm)", three_zero: "Est. HM (3-point 0mm)", four_zero: "Est. HM (4-point 0mm)" },
+    fourPointShort: "Too few 4-point rounds",
+    cmpPrefix: "[Compare] ",
+    fourPointShortTip: "Fewer than 2 rounds with all 4 points (L·C1·C2·R), so this basis cannot be extrapolated",
     colCpk: "CPK",
     colExpCpk: "Est. CPK",
     colTotalCost: "Total cost",
@@ -281,13 +307,18 @@ const buildTX = () => ({
     foot3c: "Latest tread",
     foot3d: " = the ",
     foot3dMin: "minimum of the 4 width points",
-    foot3d2: ` in the latest round (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm replace now). Replacement is judged on the thinnest point. The grey figure below it is the `,
+    foot3d2: ` in the latest round (<${treadThresholds().caution}mm caution, <${treadThresholds().order}mm order, <${treadThresholds().critical}mm recommended replace). Replacement is judged on the thinnest point. The grey figure below it is the `,
     foot3dAvg: "4-point average",
     foot3d3: " for the same round. On tires whose centre grooves wear first, the minimum can read 0.0mm while the shoulders still have rubber and the tire is still running — the gap between the two shows that. Rounds measured before 4-point recording show no average.",
     foot4a: "HM Reset",
     foot4b: " = vehicles whose Hour Meter and distance were reset to 0 during operation (CH 832·835). Cumulative history before the reset is broken, so lifetime and estimated lifetime may be shown as ",
     foot4c: ".",
     foot5: "Estimated KM applies only to tires measured from a new 22mm tread and estimates when 0mm will be reached; it is not shown for replaced, scrapped (Scrap) or not-installed (Not Install) tires.",
+    foot5Basis: {
+      min: " The current end-of-life basis is «min 0mm» — when the smallest of the 4 points reaches 0mm. A tyre with only the centre grooves at 0mm still has shoulder rubber and actually runs further.",
+      three_zero: " The current end-of-life basis is «3-point 0mm» — when the second-largest of the 4 points reaches 0mm (3 of 4 points at 0mm). Only rounds with all 4 points are used; with fewer than 2 such rounds it shows «Too few 4-point rounds».",
+      four_zero: " The current end-of-life basis is «4-point 0mm» — when the largest of the 4 points reaches 0mm (all 4 points at 0mm). Only rounds with all 4 points are used; with fewer than 2 such rounds it shows «Too few 4-point rounds».",
+    },
     foot6a: "Not measured",
     foot6b: " = fitted to a vehicle outside the 5 monitored units (834·839·832·835·849) or held as a spare — with no inspection data, tread·distance·estimates are shown as ",
     foot6c: ".",
@@ -333,12 +364,12 @@ const buildTX = () => ({
     mCurrent: "Current",
     excelDownload: "Excel download",
     kmLower: "lower bound",
-    kmLowerTip: "Distance before the mount date is unknown — running before the first inspection is missing",
+    kmLowerTip: "Distance before mounting is unknown — no mount date and the first inspection was not a new tyre (or had no KM), so running before the first inspection is missing",
     avgExclLower: "average of {n} tyres excl. lower bound",
     colKmFlag: "km_flag",
     colKmMethod: "km_method",
     foot9a: "Running KM (lower bound)",
-    foot9b: " = Segment boundary km comes from the KM entered at replacement → an inspection on the same day → date-proportional interpolation between the surrounding inspections. Initial fitments without a mount date only count from the first inspection, so they are lower bounds; the average row's running KM excludes them.",
+    foot9b: " = Segment boundary km comes from the KM entered at replacement → an inspection on the same day → date-proportional interpolation between the surrounding inspections. For initial fitments without a mount date, if the first inspection shows a new tyre (4-point average 22mm) that round is taken as the mount point and the whole run to removal is counted (FIRST_NEW_INSPECTION, not a lower bound). Only when the first inspection was not a new tyre or had no KM is the value a lower bound; the average row's running KM excludes those. Distance is measured regardless of tread — rounds with 0mm centre grooves still count as running.",
   },
 } as const);
 
@@ -357,6 +388,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
   const { canDownload } = useAuth();
   // 문구에 임계치가 들어가므로 DB 로드 후 렌더 시점에 만든다.
   const tx = buildTX()[lang];
+  // 예상 KM·HM 열의 수명 종료 기준 (T-3) — 열 머리·각주가 같은 값을 쓴다
+  const basis = lifeEndBasis();
 
   // 폭 방향 4점. 열 순서(좌→중1→중2→우)는 확정이고, 차량 기준 외측/내측은
   // 미확정이라 방향 이름을 붙이지 않는다 (v3 §Q1 보류).
@@ -468,8 +501,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
         // 원장 구간별 산출 근거 — 구간이 여럿이면 장착 순으로 잇는다 (T-2)
         [tx.colKmFlag]: ledgerOf(l.serial).map((g) => g.kmFlag).join(" → "),
         [tx.colKmMethod]: ledgerOf(l.serial).map((g) => g.kmMethod ?? EMPTY).join(" → "),
-        [tx.colExpKm]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
-        [tx.colExpHm]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
+        [tx.expKmBasis[basis]]: c?.expectedKm != null && !noExpected ? c.expectedKm : "",
+        [tx.expHmBasis[basis]]: c?.expectedHm != null && !noExpected ? c.expectedHm : "",
         // 엑셀은 계산이 되도록 숫자로 낸다. 통화는 옆 열 — 행마다 다를 수 있다
         [tx.colCurrency]: cost?.total != null ? cost.currency : "",
         [tx.colTotalCost]: cost?.total ?? "",
@@ -481,11 +514,15 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
         [tx.colProjDate]: installed ? c?.projection.projectedDate ?? "" : "",
         [tx.colStatus]: l.status,
         [tx.colNote]: noteParts.join(" · "),
+        // 수명 종료 기준 3종 비교 (T-3 기본값 결정 자료) — 화면 기준과 무관하게 모두 낸다
+        [tx.cmpPrefix + tx.expKmBasis.min]: c?.expectedByBasis.min.km ?? "",
+        [tx.cmpPrefix + tx.expKmBasis.three_zero]: c?.expectedByBasis.three_zero.km ?? "",
+        [tx.cmpPrefix + tx.expKmBasis.four_zero]: c?.expectedByBasis.four_zero.km ?? "",
       };
     });
     const XLSX = await import("xlsx");
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }];
+    ws["!cols"] = [{ wch: 5 }, { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 24 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 28 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Lifetime DB");
     const d = new Date();
@@ -556,8 +593,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   { k: "tread", label: tx.colTread, align: "text-right" },
                   { k: "km", label: tx.colKm, align: "text-right" },
                   { k: "hr", label: tx.colHr, align: "text-right" },
-                  { k: "ekm", label: tx.colExpKm, align: "text-right" },
-                  { k: "ehm", label: tx.colExpHm, align: "text-right" },
+                  { k: "ekm", label: tx.expKmBasis[basis], align: "text-right" },
+                  { k: "ehm", label: tx.expHmBasis[basis], align: "text-right" },
                   { k: "cpk", label: tx.colCpk, align: "text-right" },
                   { k: "rem", label: tx.colRemKm, align: "text-right" },
                   { k: "pdate", label: tx.colProjDate, align: "text-right" },
@@ -648,6 +685,12 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                       <span className={`font-bold ${c.expectedKm >= targetLifeKm() ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
                       <span className="text-muted-foreground/40">{EMPTY}</span>
+                    )}
+                    {/* 4점 기준인데 4점 회차가 2개 미만 — 비운 이유를 보인다 (T-3) */}
+                    {!noExpected && basis !== "min" && c?.fourPointShort && (
+                      <div className="text-[10px] leading-tight text-level-warn" title={tx.fourPointShortTip}>
+                        {tx.fourPointShort}
+                      </div>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
@@ -745,7 +788,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
           <br />
           <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
           <br />
-          {tx.foot5}
+          {tx.foot5}{tx.foot5Basis[basis]}
           <br />
           <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
           <br />
