@@ -35,6 +35,10 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
 - 마이그레이션 적용은 `supabase db push` 만. MCP `apply_migration`·대시보드 SQL 편집기 금지 —
   자동 타임스탬프로 기록돼 원격 이력과 로컬 파일명이 어긋난다
   (2026-08-29 그렇게 어긋난 30건을 `migration repair` 로 정리했음)
+- grant 는 `authenticated` 에게만. **`anon` 에게는 어떤 권한도 주지 않는다** — 뷰·테이블·시퀀스·함수 모두.
+  뷰를 새로 만들거나 다시 만들 때 옛 마이그레이션의 `grant select … to anon, authenticated` 를 복사해 오지 말 것
+  (2026-09-06 에 anon 을 전부 막았는데 뷰 재정의 migration 6건이 되살렸다 — 2026-11-08 `20261108100000` 로 회수, decisions M-16).
+  재발 방지 pgTAP `supabase/tests/t108_anon_revoke_test.sql` 이 public 스키마 전체의 anon 권한 0 을 검사한다 (사용자 결정 2026-11-08)
 - 타임존: 저장 UTC. 표시·입력은 둘로 갈린다 (X-19, 사용자 결정 2026-09-15)
   - *시각* 표시(감사로그·로그인) = 운영지 자카르타 `Asia/Jakarta` (WIB, UTC+7). 관리자 화면 전용이다
   - *날짜* 판정(점검일 기본값) = 현장 발릭빠빤 `Asia/Makassar` (**WITA**, UTC+8). WIT(UTC+9)가 아니다

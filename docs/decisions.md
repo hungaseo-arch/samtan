@@ -631,7 +631,8 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | ~~M-13~~ | `20261104100000` · `110000` · `120000` prod 적용 (WO-TMS-2026-11-LIFE-KM) | **적용 (2026-11-08, 쎄오님 터미널 `supabase db push --remote --yes`).** 원격 이력 66 → 69건. 검증: `life_end_basis` = `min` · `v_tire_ledger`·`v_data_quality` `security_invoker=on` · `FIRST_NEW_INSPECTION` 60본 · `zero_tread_unverified` ERROR 98 → ERROR 16 + WARN 82 · 의존 뷰 오류 없음 · 17본 prod 대조 17/17 (차이 0.0 km, 평균 57,121 km). 상세 `docs/WO-TMS-2026-11-STEP1_결과.md` §3~4 |
 | ~~M-14~~ | 수명 종료 기준 기본값 (`life_end_basis`) | **`min` 확정 (쎄오님 결정 2026-11-08, DB 값 변경 없음).** 폐기 17본 실주행 대비 평균 오차 min +0.3% · three_zero +7.4% · four_zero +14.0% — 17본이 전부 WO 폐기·최소 0 mm 폐기라 min 은 정의상 근접(검증이 아니라 사실 확인). four_zero 는 고객 리포트에서 «잠재 수명(참고)» 용도로만 검토. 비교표 `docs/WO-TMS-2026-11-STEP1_결과.md` §5 · 부록 A |
 | ~~M-15~~ | M-1 신품 판정 22.0 vs 21.5 허용 시 달라지는 본수 | **22.0 유지, 종결 (쎄오님 결정 2026-11-08).** prod: 후보 70본 중 22.0 이상 70 · 21.5 이상 70 · 차이 0본 |
-| M-16 | `20261016150000` 이 `v_tire_ledger` 에 `grant select … to anon` 을 다시 걸었다 (20260906100000 익명 차단 이후) | **확인 필요.** `security_invoker` 라 하위 테이블 권한에서 막혀 실제 노출은 없음(익명 조회 시 `permission denied for view v_tire_mount_history` 확인). 20261104100000 은 `authenticated` 에만 grant — 기존 anon 권한 회수(`revoke`)는 승인 후 별도 마이그레이션 **2026-11-08 조사 (읽기 전용): anon SELECT 권한이 `v_tire_ledger` 1건이 아니라 `public` 의 6개 객체** — `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern`. 쎄오님 결정(2026-11-08 «회수 진행»)은 `v_tire_ledger` 1건 기준이었으므로 **회수 범위 확인 대기** (WO-STEP1-FOLLOWUP §3-1). 마이그레이션 `20261108100000` 은 범위 확정 전 작성하지 않음. |
+| ~~M-16~~ | `20261016150000` 이 `v_tire_ledger` 에 `grant select … to anon` 을 다시 걸었다 (20260906100000 익명 차단 이후) | **6개 객체 전부 회수로 결정 (쎄오님 2026-11-08).** 조사(읽기 전용): public 스키마에서 anon 권한이 남은 관계는 `v_tire_ledger` 1건이 아니라 6건 — `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern` (SELECT). 컬럼·시퀀스·함수 명시 grant 없음. **6개 모두 `security_invoker=on` 이라 하위 테이블 RLS 가 막고 있어 실제 노출은 없었다.** 원인: 뷰 재정의 migration 4건(`20261016140000` · `150000` · `20261017100000` · `120000`)이 옛 grant 문을 복사. `20261108100000_revoke_anon_views.sql` 로 회수, 재발 방지 t108(public 전체 anon 권한 0) + CLAUDE.md 규칙 추가. **prod 적용은 G5 대기 (M-17)** |
+| M-17 | `20261108100000_revoke_anon_views.sql` prod 적용 | **승인 대기 (G5).** 쎄오님 터미널 `supabase db push --remote --dry-run` → 기대 `20261108100000` 1건. PGlite: 전체 + 신규 2회 적용 + t102·t104·t106·t107·t108 95건 통과 |
 
 ### 쎄오님 결정 2026-11-08 (WO-TMS-2026-11-STEP1-FOLLOWUP §0)
 
@@ -641,8 +642,8 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | 2 | LIFE-KM §9-4 회귀에 최소 0 회차 포함 | 사후 승인 (G2 로 반영된 현행 유지) | 해소 |
 | 3 | LIFE-KM §9-5 외삽 총량 `max(주행, 마지막 측정점 + 잔여)` | 사후 승인 | 해소 |
 | 4 | M-15 신품 판정 22.0 vs 21.5 | 22.0 유지, 종결 | 해소 |
-| 5 | LIFE-KM §9-6 첫 회차 `tread_avg` NULL 처리 | 보류. 먼저 조사 — **NULL 본수 0** (결과 보고 부록 B: 미적용 10본은 전부 CH 849 첫 회차 km 없음) | 판단 대기 |
-| 6 | M-16 `v_tire_ledger` anon grant | 회수 진행 — 조사 결과 대상이 6개 객체라 **범위 확인 대기** | 진행 중 |
+| 5 | LIFE-KM §9-6 첫 회차 `tread_avg` NULL 처리 | 보류 후 조사 → **해당 없음 (쎄오님 확인 2026-11-08)**: 첫 회차 NULL 0본, 미적용 10본은 전부 CH 849 첫 회차 km 없음 → 구현하지 않음. CH 849 km 누락 10본은 아래 «현장 확인 필요» 4 | 해소 |
+| 6 | M-16 anon grant | 회수 진행 → 조사 결과 6개 객체, **6개 모두 회수 (쎄오님 2026-11-08)**. 마이그레이션 `20261108100000_revoke_anon_views.sql` · t108 · CLAUDE.md 규칙 | G5 대기 (M-17) |
 | 7 | config.toml CLI 3.0 구 키 | 정리 진행 | 진행 중 |
 | 8 | 머지된 원격 브랜치 | 삭제 진행 (`feat/web-improvements-20261016` · `fix/life-km-first-mount`) | 진행 중 |
 
@@ -653,7 +654,7 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 1. **삼탄 7대 밖 Install 15본** — 수명 DB 에 `Install` 로 있으나 CH 824·832·834·835·839·847·849 가 아니다. 위치는 `lifetimes.note` 에만 있다 (850 · 852 · 813 · 842 · 838 · 859 계열, 예: «850 R2i»). 원장·점검 이력 없음, `DA1BFBPH02426D` 는 note 도 없음. 목록 `docs/WO-TMS-2026-11-STEP1_결과.md` 부록 A 의 `†` 행.
 2. **같은 위치 다중 장착 3곳** (장착 중 원장 마지막 위치 기준) — CH 824 R3 Out (`DA12511H03130D` · `DA1BFBPH02432D`) · CH 835 R3 In (`DA1BFANH07570D` · `DA12511H03161D`) · CH 849 R3 Out (`DA1BFANH04814D` · `DA1BFBPH02435D` · `DA1BFBPH02653D`). 교체 등록 누락 또는 위치 오기 의심.
 3. **CH 847 예상 KM 과대 (M-1 연동 의심, 원인 미확인)** — 10본 모두 주행 KM 69,895.1 인데 `min` 예상이 82,538 ~ 303,141 km (`DA1BFANH10236D` L1 303,141 · `DA1BFANH05040D` R1 194,676 이 특히 큼). 07-12 회차 KM 급증(M-1) 정정 전까지 CH 847 예상값은 «데이터 확인 필요».
-4. **CH 849 첫 회차(2026-05-03) 차량 km 없음** — 10본이 시작점 추론에서 빠져 NO_KM (결과 보고 부록 B). 원본 점검표에서 km 를 확인할 수 있으면 `FIRST_NEW_INSPECTION` 이 적용된다.
+4. **CH 849 첫 회차(2026-05-03) 차량 km 누락 10본** — 시작점 추론에서 빠져 NO_KM (결과 보고 부록 B). 원본 점검표에서 2026-05-03 CH 849 의 km 를 확인해 입력하면 `FIRST_NEW_INSPECTION` 이 적용된다. 해당 시리얼: `DA1BFANH10245D`(L1) · `DA12511H03128D`(L2 In) · `DA1BFANH05097D`(L2 Out) · `DA12511H03157D`(L3 In) · `DA12511H03029D`(L3 Out) · `DA1BFBPH02475D`(R1) · `DA1BFBPH02653D`(R2 In) · `DA12511H03161D`(R2 Out) · `DA12510H09948D`(R3 In) · `DA1BFBPH02435D`(R3 Out). 첫 회차 `tread_avg` 는 전부 22.00.
 
 ---
 

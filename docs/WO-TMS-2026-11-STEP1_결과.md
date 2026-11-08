@@ -185,13 +185,13 @@ CH 832 4본(04847D · 02472D · 07563D · 05096D): 값은 기대와 일치하나
 - **02574D · 02689D 의 G2 이전 값** 은 조회하지 못해 «변화 없음»을 직접 대조하지 못했다 (원장에 seq 1 만 있는 구조만 확인).
 - **CH 832 4본**(04847D · 02472D · 07563D · 05096D) 값은 일치하나 KM 중복 의심 건 — 입력 확인 후 바뀔 수 있음.
 - **장착 중 31본의 «—»**(예상값 없음) 사유는 조사하지 않음.
-- **anon grant 6개 객체 (신규 발견)** — 지시서 기대(`v_tire_ledger` 1건)와 다름. 목록: `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern` (모두 `public`, SELECT). 지시서 §3-1 에 따라 목록만 보고하고 멈춤.
+- **anon grant 6개 객체 (신규 발견)** — 지시서 기대(`v_tire_ledger` 1건)와 다름. 목록: `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern` (모두 `public`, SELECT). 목록 보고 후 중단 → 쎄오님이 **6개 모두 회수**로 결정(2026-11-08). 읽기 전용 확인: 6개 모두 `security_invoker=on` 이라 실제 노출은 없었고, 컬럼·시퀀스·함수 명시 grant 는 없다. 회수 migration `20261108100000` · t108 · CLAUDE.md 규칙 추가 — prod 적용은 G5 대기.
 - 미적용 시작점 추론 10본 → 부록 B (전부 CH 849, 첫 회차 km 없음).
 
 ## 9. 쎄오님 결정 필요
 
-1. **M-16 회수 범위** — anon SELECT 6개 객체 중 어디까지 회수할지. (결정 6 은 `v_tire_ledger` 1건 기준이었음.) 뷰는 `security_invoker` 라 anon 이 조회해도 하위 테이블 RLS 에서 막히는지는 이번에 확인하지 않았다.
-2. 결정 5(첫 회차 `tread_avg` NULL 처리) 판단 자료: **NULL 본수 0** (부록 B). 구현 불필요로 보이나 판단은 쎄오님.
+1. ~~M-16 회수 범위~~ — **6개 모두 회수로 결정(2026-11-08)**. prod 적용(G5)만 남음.
+2. ~~결정 5~~ — **해당 없음으로 결정(2026-11-08)**: 첫 회차 `tread_avg` NULL 0본, 구현하지 않음. CH 849 km 누락 10본은 현장 확인.
 3. 배포 화면 확인 5항목 (§7).
 4. 현장 확인 항목 (`docs/decisions.md` «현장 확인 필요»).
 
