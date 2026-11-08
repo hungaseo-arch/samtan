@@ -30,9 +30,9 @@ const TX = {
     save: "저장",
     clear: "비우기",
     cancel: "취소",
-    confirm: (s: string, v: string) => `${s} 구매가를 ${v} 로 저장합니다.`,
-    confirmClear: (s: string) => `${s} 구매가를 비웁니다. 원가 설정 기본 단가로 계산됩니다.`,
-    invalid: "0 이상의 숫자를 입력하세요",
+    confirm: (s: string, v: string) => `${s} 구매가 ${v} 로 저장`,
+    confirmClear: (s: string) => `${s} 구매가 비움. 원가 설정 기본 단가로 계산`,
+    invalid: "0 이상의 숫자 입력 필요",
     failed: "저장 실패",
   },
   id: {
@@ -54,7 +54,7 @@ const TX = {
     cancel: "Batal",
     confirm: (s: string, v: string) => `Simpan harga beli ${s} sebesar ${v}.`,
     confirmClear: (s: string) => `Kosongkan harga beli ${s}. Perhitungan memakai harga standar pengaturan biaya.`,
-    invalid: "Masukkan angka 0 atau lebih",
+    invalid: "Angka 0 atau lebih wajib diisi",
     failed: "Gagal menyimpan",
   },
   en: {
@@ -76,7 +76,7 @@ const TX = {
     cancel: "Cancel",
     confirm: (s: string, v: string) => `Save purchase price of ${s} as ${v}.`,
     confirmClear: (s: string) => `Clear the purchase price of ${s}. The cost-settings default price will be used.`,
-    invalid: "Enter a number of 0 or more",
+    invalid: "Number of 0 or more required",
     failed: "Save failed",
   },
 };

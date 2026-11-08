@@ -633,6 +633,10 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | ~~M-15~~ | M-1 신품 판정 22.0 vs 21.5 허용 시 달라지는 본수 | **22.0 유지, 종결 (쎄오님 결정 2026-11-08).** prod: 후보 70본 중 22.0 이상 70 · 21.5 이상 70 · 차이 0본 |
 | ~~M-16~~ | `20261016150000` 이 `v_tire_ledger` 에 `grant select … to anon` 을 다시 걸었다 (20260906100000 익명 차단 이후) | **6개 객체 전부 회수로 결정 (쎄오님 2026-11-08).** 조사(읽기 전용): public 스키마에서 anon 권한이 남은 관계는 `v_tire_ledger` 1건이 아니라 6건 — `v_odometer_anomaly` · `v_tco_fleet` · `v_tco_unit` · `v_tire_ledger` · `v_tire_ledger_total` · `v_wear_pattern` (SELECT). 컬럼·시퀀스·함수 명시 grant 없음. **6개 모두 `security_invoker=on` 이라 하위 테이블 RLS 가 막고 있어 실제 노출은 없었다.** 원인: 뷰 재정의 migration 4건(`20261016140000` · `150000` · `20261017100000` · `120000`)이 옛 grant 문을 복사. `20261108100000_revoke_anon_views.sql` 로 회수, 재발 방지 t108(public 전체 anon 권한 0) + CLAUDE.md 규칙 추가. **prod 적용은 G5 대기 (M-17)** |
 | ~~M-17~~ | `20261108100000_revoke_anon_views.sql` prod 적용 | **적용 (2026-11-08, 쎄오님 터미널 `supabase db push --remote --yes`).** dry-run 은 이 1건만(경고 2줄 없음). 원격 이력 69 → 70건. 검증(읽기 전용): public 의 anon 권한 관계·컬럼·시퀀스·함수 모두 0(적용 전 관계 6 · 컬럼 102), 6개 뷰 authenticated SELECT 유지·`security_invoker=on` 유지. 로그인 화면 조회는 쎄오님 확인 대기. `docs/WO-TMS-2026-11-STEP1_결과.md` §10 |
+| M-18 | 사이트 문구에 «보고서 작성 가이드라인 통합본 (2026.10 개정)» 적용(2026-11-08) 중 `CLAUDE.md` 와 충돌하는 표기 — **날짜**: 가이드 `YYYY.MM.DD` / 앱은 `format.ts` 에서 로케일과 무관하게 ISO `YYYY-MM-DD` 고정(감사 로그와 점검일 대조 시 오독 방지) | **쎄오님 확인 필요.** 바꾸지 않음. 점검일 입력·엑셀·감사 로그가 ISO 에 의존 |
+| M-19 | 위와 같은 충돌 — **수량 단위**: 가이드 «1,200본 / 지게차 3대» / `CLAUDE.md`·`fmtQty` «1,200 EA» | **쎄오님 확인 필요.** 바꾸지 않음 |
+| M-20 | 가이드 «약어는 최초 1회 풀어 쓰고 괄호에 약어» — 화면에 TCO · CPK · HM · KM · CV · S/C · OUTLIER 등이 풀이 없이 쓰임 | **미적용.** 탭 이름·열 머리까지 바꾸면 레이아웃에 영향 → 용어집(툴팁/각주) 방식을 정해 주세요 |
+| ~~M-21~~ | `id`·`en` 문구에도 같은 간결체를 적용할지 | **적용 결정 (쎄오님 2026-11-08).** 가이드 §6.1 인도네시아어판 «poin-poin singkat berbentuk kata benda» 에 맞춰 — 단일 문장 끝 마침표 제거, 콜론 «Item : isi», `Please`·`Silakan`·`Anda`·`You` 같은 정중·주어형과 명령형 안내를 명사형·상태형으로(예: `Isi tanggal` → `Tanggal wajib diisi`, `Enter the date.` → `Date required`). 영어는 가이드에 규정이 없어 같은 원칙을 유추 적용. 확인창 의문문·긴 설명 각주의 본문 문장은 유지. 약 370건, 33개 파일 |
 
 ### 쎄오님 결정 2026-11-08 (WO-TMS-2026-11-STEP1-FOLLOWUP §0)
 

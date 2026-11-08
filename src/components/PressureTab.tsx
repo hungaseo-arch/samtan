@@ -34,12 +34,12 @@ const buildTX = () => {
     alertCount: "건",
     daysAgo: "{n}일 전",
     measuredOf: "전체 {n}본 중 최근 값 기준",
-    noAlert: "현재 공기압 이상 항목이 없습니다.",
+    noAlert: "현재 공기압 이상 항목 없음",
     badgeLow: "저압",
     badgeHigh: "과압",
     badgeDev: "편차",
     rec: "권장",
-    alertNote: `판정: 위험 = 권장의 ${low} 미만(저압) 또는 +${danger} 초과(과압) · 주의 = 권장 대비 ±${warn} 초과 편차 (각 차량 최근 회차 실측값 기준)`,
+    alertNote: `판정 : 위험 = 권장의 ${low} 미만(저압) 또는 +${danger} 초과(과압) · 주의 = 권장 대비 ±${warn} 초과 편차 (각 차량 최근 회차 실측값 기준)`,
 
     secJudgeTitle: "상태 판정 기준",
 
@@ -54,7 +54,7 @@ const buildTX = () => {
     thAction: "조치",
 
     secLineTitle: "점검 담당 라인",
-    lineNote: "점검 주기: 약 2주 간격 회차 점검 · 이상 발견 시 Foreman → Manager 보고",
+    lineNote: "점검 주기 : 약 2주 간격 회차 점검 · 이상 발견 시 Foreman → Manager 보고",
 
     // PRESSURE_STD
     stdSteering: "조향축",
@@ -97,7 +97,7 @@ const buildTX = () => {
     sym3: "편마모 / TOE IN",
     sym3cause: "얼라인먼트(토우) 불량",
     sym3risk: "한쪽 0mm 조기 마모",
-    sym3action: "감독자 보고 · 얼라인먼트 정비 (예: CH 839 L1)",
+    sym3action: "감독자 보고 · 얼라인먼트 정비 (예 : CH 839 L1)",
     sym4: "좌우 편차",
     sym4cause: "불균일 보충",
     sym4risk: "조향 쏠림 · 주행 불안정",
@@ -118,12 +118,12 @@ const buildTX = () => {
     alertCount: "kasus",
     daysAgo: "{n} hari lalu",
     measuredOf: "dari {n} ban, nilai terbaru",
-    noAlert: "Saat ini tidak ada anomali tekanan.",
+    noAlert: "Saat ini tidak ada anomali tekanan",
     badgeLow: "Tekanan rendah",
     badgeHigh: "Tekanan berlebih",
     badgeDev: "Deviasi",
     rec: "Rekomendasi",
-    alertNote: `Penilaian: Bahaya = di bawah ${low} rekomendasi (rendah) atau lebih dari +${danger} (berlebih) · Perhatian = deviasi melebihi ±${warn} thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)`,
+    alertNote: `Penilaian : Bahaya = di bawah ${low} rekomendasi (rendah) atau lebih dari +${danger} (berlebih) · Perhatian = deviasi melebihi ±${warn} thd rekomendasi (berdasarkan nilai aktual inspeksi terakhir tiap kendaraan)`,
 
     secJudgeTitle: "Kriteria penilaian",
 
@@ -138,7 +138,7 @@ const buildTX = () => {
     thAction: "Tindakan",
 
     secLineTitle: "Jalur penanggung jawab",
-    lineNote: "Siklus inspeksi: inspeksi berkala sekitar 2 minggu · bila ada anomali lapor Foreman → Manager",
+    lineNote: "Siklus inspeksi : inspeksi berkala sekitar 2 minggu · bila ada anomali lapor Foreman → Manager",
 
     // PRESSURE_STD
     stdSteering: "Poros kemudi",
@@ -181,7 +181,7 @@ const buildTX = () => {
     sym3: "Aus tidak rata / TOE IN",
     sym3cause: "Alignment (toe) buruk",
     sym3risk: "Aus dini 0mm sebelah",
-    sym3action: "Lapor pengawas · servis alignment (mis: CH 839 L1)",
+    sym3action: "Lapor pengawas · servis alignment (mis : CH 839 L1)",
     sym4: "Deviasi kiri-kanan",
     sym4cause: "Penambahan angin tidak merata",
     sym4risk: "Kemudi menarik · kestabilan jalan terganggu",
@@ -202,12 +202,12 @@ const buildTX = () => {
     alertCount: "cases",
     daysAgo: "{n} days ago",
     measuredOf: "of {n} tires, latest values",
-    noAlert: "No pressure anomalies at present.",
+    noAlert: "No pressure anomalies at present",
     badgeLow: "Low pressure",
     badgeHigh: "Over-inflated",
     badgeDev: "Deviation",
     rec: "Recommended",
-    alertNote: `Criteria: Danger = below ${low} of recommended (low) or above +${danger} (high) · Caution = deviation beyond ±${warn} of recommended (based on each vehicle's latest measured round)`,
+    alertNote: `Criteria : Danger = below ${low} of recommended (low) or above +${danger} (high) · Caution = deviation beyond ±${warn} of recommended (based on each vehicle's latest measured round)`,
 
     secJudgeTitle: "Status criteria",
 
@@ -222,7 +222,7 @@ const buildTX = () => {
     thAction: "Action",
 
     secLineTitle: "Inspection reporting line",
-    lineNote: "Inspection cycle: round inspection roughly every 2 weeks · report anomalies Foreman → Manager",
+    lineNote: "Inspection cycle : round inspection roughly every 2 weeks · report anomalies Foreman → Manager",
 
     // PRESSURE_STD
     stdSteering: "Steer axle",

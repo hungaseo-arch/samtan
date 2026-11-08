@@ -29,8 +29,8 @@ const TX = {
     secUsers: "사용자 권한관리",
     secLogs: "사용자별 로그기록",
     secSettings: "판정 기준",
-    desc: "계정·권한을 관리하고, 사용자가 남긴 변경·접속 기록을 확인합니다.",
-    loadFail: "목록을 불러오지 못했습니다: ",
+    desc: "계정·권한 관리, 사용자 변경·접속 기록 확인",
+    loadFail: "목록 불러오기 실패 : ",
     retry: "다시 시도",
   },
   id: {
@@ -38,8 +38,8 @@ const TX = {
     secUsers: "Manajemen Izin Pengguna",
     secLogs: "Log Aktivitas Pengguna",
     secSettings: "Kriteria Penilaian",
-    desc: "Kelola akun dan izin, serta periksa riwayat perubahan dan akses pengguna.",
-    loadFail: "Gagal memuat daftar: ",
+    desc: "Kelola akun dan izin, periksa riwayat perubahan dan akses pengguna",
+    loadFail: "Gagal memuat daftar : ",
     retry: "Coba lagi",
   },
   en: {
@@ -47,8 +47,8 @@ const TX = {
     secUsers: "User Permissions",
     secLogs: "User Activity Log",
     secSettings: "Judgement Criteria",
-    desc: "Manage accounts and permissions, and review each user's changes and sign-ins.",
-    loadFail: "Failed to load the list: ",
+    desc: "Manage accounts and permissions; review user change and sign-in history",
+    loadFail: "Failed to load the list : ",
     retry: "Retry",
   },
 } as const;

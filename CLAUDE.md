@@ -46,6 +46,9 @@ Supabase (Postgres · Auth · RLS · Storage · Edge Functions) / Cloudflare Pag
     `src/lib/format.ts` 의 `todayInField()` 만 사용한다
 - 로케일: `ko` / `id` / `en` 3개 (`Lang`, `src/i18n/index.tsx`). 기본값은 `id` — 현장 점검자 화면 기준.
   새 UI 문구는 세 로케일을 전부 채울 것. 하나라도 비면 그 화면만 언어가 튄다
+  `ko` 문구는 명사형 개조식 — `~함·~음·~필요·~불가·~완료`, `~합니다`·`~한다` 미사용, 한 문장이면 끝 마침표 생략, 콜론은 «항목 : 내용»
+  `id`·`en` 도 같은 간결체 — 짧은 명사구·상태형(`Tanggal wajib diisi` · `Date required`), `Please`·`Silakan`·`Anda`·`You` 미사용, 단일 문장은 끝 마침표 생략, 콜론은 «Item : isi»
+  (사내 «보고서 작성 가이드라인 통합본 (2026.10 개정)» §6.1·§6.4, AsuraDB 자료·문서)
 - 커밋: Conventional Commits (`feat(schema): ...`). `main` 직접 푸시 금지
 - Task 완료 시 완료 조건(DoD)을 항목별로 체크해 보고. 미충족 시 다음 Task 진행 금지
 

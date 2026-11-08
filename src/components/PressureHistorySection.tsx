@@ -26,11 +26,11 @@ const TX = {
     colAt: "현재 위치",
     detached: "탈착",
     fleet: "전체",
-    none: "저압 노출이 기록된 타이어가 없습니다.",
+    none: "저압 노출이 기록된 타이어 없음",
     foot: (warn: string) =>
       `준수율 = 정상(권장 대비 ±${warn} 이내) 회차 ÷ 측정 회차. ${COMPLIANCE_WARN_PCT}% 미만 차량은 노랑. 평균 편차는 부호 유지(− 저압).`,
     footExposure:
-      "저압 노출(%·km) = Σ 저압 회차의 (권장 − 실측)/권장 × 다음 회차까지 주행 KM. 가정: 각 회차의 공기압이 다음 회차까지 그대로 유지됐다. 정상 범위 안의 소폭 저압·다음 회차 KM 이 없는 회차는 넣지 않습니다.",
+      "저압 노출(%·km) = Σ 저압 회차의 (권장 − 실측)/권장 × 다음 회차까지 주행 KM. 가정 : 각 회차의 공기압이 다음 회차까지 그대로 유지. 정상 범위 안의 소폭 저압·다음 회차 KM 이 없는 회차는 제외",
   },
   id: {
     title: "Analisis riwayat tekanan angin",
@@ -46,11 +46,11 @@ const TX = {
     colAt: "Posisi saat ini",
     detached: "dilepas",
     fleet: "Total",
-    none: "Belum ada ban dengan paparan tekanan rendah.",
+    none: "Belum ada ban dengan paparan tekanan rendah",
     foot: (warn: string) =>
-      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah ${COMPLIANCE_WARN_PCT}% berwarna kuning. Deviasi rata-rata bertanda (− = rendah).`,
+      `Kepatuhan = pemeriksaan normal (dalam ±${warn} dari rekomendasi) ÷ pemeriksaan terukur. Unit di bawah ${COMPLIANCE_WARN_PCT}% berwarna kuning. Deviasi rata-rata bertanda (− = rendah)`,
     footExposure:
-      "Paparan tekanan rendah (%·km) = Σ (rekomendasi − aktual)/rekomendasi pada pemeriksaan bertekanan rendah × KM sampai pemeriksaan berikutnya. Asumsi: tekanan tiap pemeriksaan bertahan sampai pemeriksaan berikutnya. Kekurangan kecil dalam rentang normal dan pemeriksaan tanpa KM berikutnya tidak dihitung.",
+      "Paparan tekanan rendah (%·km) = Σ (rekomendasi − aktual)/rekomendasi pada pemeriksaan bertekanan rendah × KM sampai pemeriksaan berikutnya. Asumsi : tekanan tiap pemeriksaan bertahan sampai pemeriksaan berikutnya. Kekurangan kecil dalam rentang normal dan pemeriksaan tanpa KM berikutnya tidak dihitung",
   },
   en: {
     title: "Pressure history analysis",
@@ -66,11 +66,11 @@ const TX = {
     colAt: "Current position",
     detached: "removed",
     fleet: "Fleet",
-    none: "No tire has recorded under-inflation exposure.",
+    none: "No tire has recorded under-inflation exposure",
     foot: (warn: string) =>
-      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below ${COMPLIANCE_WARN_PCT}% are yellow. Average deviation is signed (− = low).`,
+      `Compliance = normal rounds (within ±${warn} of recommended) ÷ measured rounds. Units below ${COMPLIANCE_WARN_PCT}% are yellow. Average deviation is signed (− = low)`,
     footExposure:
-      "Under-inflation exposure (%·km) = Σ (recommended − actual)/recommended on low rounds × KM to the next round. Assumption: each round's pressure held until the next round. Small shortfalls within the normal range and rounds without a next KM are excluded.",
+      "Under-inflation exposure (%·km) = Σ (recommended − actual)/recommended on low rounds × KM to the next round. Assumption : each round's pressure held until the next round. Small shortfalls within the normal range and rounds without a next KM are excluded",
   },
 };
 
