@@ -195,6 +195,16 @@ CH 832 4본(04847D · 02472D · 07563D · 05096D): 값은 기대와 일치하나
 3. 배포 화면 확인 5항목 (§7).
 4. 현장 확인 항목 (`docs/decisions.md` «현장 확인 필요»).
 
+## 10. 후속 작업 결과 (WO-TMS-2026-11-STEP1-FOLLOWUP)
+
+| 항목 | 결과 |
+|---|---|
+| §1 문서 | 이 보고서 · decisions · CHANGELOG (`b665352`) |
+| §2 미적용 10본 | 전부 CH 849 첫 회차 km 없음, 첫 회차 `tread_avg` NULL 0본 → 결정 5 «해당 없음» (부록 B) |
+| §3 M-16 | anon 권한 6개 뷰 전부 회수로 결정. **사전 확인: 6개 모두 `security_invoker=on` — 실제 노출 없음.** `20261108100000_revoke_anon_views.sql` + t108(public 전체 anon 권한 0, 프로브 포함 8건) + CLAUDE.md 규칙 (`bf36816` · `4e43121`). PGlite: 전체 + 신규 2회 적용, t102·t104·t106·t107·t108 **95건 통과**, 회수 migration 없이 t108 만 돌리면 prod 와 같은 6개 뷰를 잡으며 실패. **prod 적용은 G5 (M-17)** |
+| §4 config | `enable_signup` → `enabled` (email · sms), `orioledb_version` → `[db]` (`f1d1cfd`). CLI 경고 2줄 소멸 (Docker 부재로 `supabase status` 의 config 로딩 구간에서 확인; §3-3 dry-run 출력으로 재확인 예정) |
+| §5 브랜치 | 원격 `feat/web-improvements-20261016` · `fix/life-km-first-mount` 삭제(조상 확인 후), 로컬 `-d`. 남은 머지된 원격 브랜치: `feat/wear-fleet-average` · `feat/wear-km-per-mm` (삭제 안 함). `feat/life-km-correction` 은 이미 원격에 없었음 |
+
 ---
 
 ## 부록 A — 장착 중(Install) 67본 비교표

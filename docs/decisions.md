@@ -644,8 +644,8 @@ WO-TMS-2026-10-LIFE §4 — 상세는 `docs/WO-TMS-2026-10-LIFE_결과.md`.
 | 4 | M-15 신품 판정 22.0 vs 21.5 | 22.0 유지, 종결 | 해소 |
 | 5 | LIFE-KM §9-6 첫 회차 `tread_avg` NULL 처리 | 보류 후 조사 → **해당 없음 (쎄오님 확인 2026-11-08)**: 첫 회차 NULL 0본, 미적용 10본은 전부 CH 849 첫 회차 km 없음 → 구현하지 않음. CH 849 km 누락 10본은 아래 «현장 확인 필요» 4 | 해소 |
 | 6 | M-16 anon grant | 회수 진행 → 조사 결과 6개 객체, **6개 모두 회수 (쎄오님 2026-11-08)**. 마이그레이션 `20261108100000_revoke_anon_views.sql` · t108 · CLAUDE.md 규칙 | G5 대기 (M-17) |
-| 7 | config.toml CLI 3.0 구 키 | 정리 진행 | 진행 중 |
-| 8 | 머지된 원격 브랜치 | 삭제 진행 (`feat/web-improvements-20261016` · `fix/life-km-first-mount`) | 진행 중 |
+| 7 | config.toml CLI 3.0 구 키 | 정리 완료 (`f1d1cfd`): `[auth.email]`·`[auth.sms]` `enable_signup` → `enabled`, `orioledb_version` → `[db]`. CLI 경고 2줄 소멸 확인. sms `enabled=false` 는 «제공자 비활성» 이라 옛 «가입 차단» 보다 넓지만 SMS 미사용이라 차이 없음 | 해소 |
+| 8 | 머지된 원격 브랜치 | 삭제 완료 (2026-11-08): `feat/web-improvements-20261016` · `fix/life-km-first-mount` — 삭제 전 `--is-ancestor origin/main` 통과, 로컬은 `git branch -d`. 남은 머지된 브랜치 `feat/wear-fleet-average` · `feat/wear-km-per-mm` 은 삭제하지 않음 | 해소 |
 
 ### 현장 확인 필요 (2026-11-08)
 
