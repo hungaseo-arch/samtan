@@ -36,7 +36,7 @@
 | 검증 | 결과 | 기대값 |
 |---|---|---|
 | 원격 이력 | 3건 추가 (`v_wear_pattern_null_guard` · `single_zero_outlier_trigger` · `v_tco_fleet_weighted`) | 3건 |
-| `v_tco_fleet.cpk_gross_wavg` (ALL) | **562.43** (단순 평균 2,628.16, 표본 100본, 산출 29본). `cpk_tco_wavg`·`cpk_lifecycle_wavg` 는 단가 파라미터 미확정으로 NULL(설계대로) | 약 562.43 |
+| `v_tco_fleet.cpk_gross_wavg` (ALL) | **562.43** (G1 직후·G2 이전 시점: 단순 평균 2,628.16, 표본 100본, 산출 29본 — **G2 이후 값은 §3 참조**). `cpk_tco_wavg`·`cpk_lifecycle_wavg` 는 단가 파라미터 미확정으로 NULL(설계대로) | 약 562.43 |
 | lateral 가드 | `oi_ratio` NULL 174행 모두 `insufficient`, 종전 `even` 7행 → 0 | even 0 |
 | OUTLIER | W-1 표식 7 · 전체 7 (불변), `apply_single_zero_outlier` 존재, recalc 본문이 호출 | 7 불변 |
 | 뷰 | `v_wear_pattern` · `v_tco_fleet` · `v_tco_unit` 모두 `security_invoker=on`, `v_tco_unit.lifecycle_km` 열 존재 | on 유지 |
@@ -55,6 +55,7 @@
 | `km_method = FIRST_NEW_INSPECTION` | **60행 (60본)** · 분포: INSPECTION 5 · INTERPOLATED 45 · null 23 (`v_tire_ledger` 133행) | ≥ 1 |
 | `zero_tread_unverified` | **ERROR 16 + WARN 82** (합 98; 종전 ERROR 98) | 분포 기록 |
 | 의존 뷰 | `v_tco_unit` 100행 · `v_tco_fleet` 21행 · `v_removal_analysis` 63행, 오류 없음 | 오류 없음 |
+| **CPK-G 가중평균 (G2 이후, G5 적용 후 재조회)** | **286.93** — 산출 29 → **73본**, 총 주행 3,411,621.0 km, 단순 평균 795.28. G2 가 최초 장착분 주행 KM 을 늘려(`FIRST_NEW_INSPECTION` 60본) 분모가 커지고 CPK 산출 가능 본수가 늘어난 결과로 보이나, 요인별로 분해해 확인하지는 않았다. `cpk_tco_wavg`·`cpk_lifecycle_wavg` 는 여전히 NULL | 기록 |
 
 ## 4. 17본 prod 대조 (§5-1)
 
@@ -175,7 +176,7 @@ CH 832 4본(04847D · 02472D · 07563D · 05096D): 값은 기대와 일치하나
 
 배포 확인(curl): 약 30초 뒤부터 라이브가 새 번들 `index-CVbYaPoV.js` 서빙(빌드 해시 동일). 새 청크에서 «가중평균»·«tertimbang»·«권장 교체»·«3점 0mm»·«수명 종료 기준» 확인, 배포 번들에 `service_role` 문자열 0건.
 
-**쎄오님 화면 확인 대기(결과 미수령):** ① 원가 탭 CPK-G 카드 «가중평균» · 약 562.43 ② 수명 DB 열 머리 «예상 KM (최소 0mm / 3점 0mm / 4점 0mm)» ③ 관리 › 판정 기준 › «수명 종료 기준» = 최소 0 mm ④ KO · ID 전환 시 반대 언어 노출 없음 ⑤ 콘솔 오류 없음.
+**쎄오님 화면 확인 대기(결과 미수령):** ① 원가 탭 CPK-G 카드 «가중평균» · **약 286.93** (G2 이후 값. 지시서의 562.43 은 G2 이전 값이라 화면과 다르게 보이는 것이 정상) ② 수명 DB 열 머리 «예상 KM (최소 0mm / 3점 0mm / 4점 0mm)» ③ 관리 › 판정 기준 › «수명 종료 기준» = 최소 0 mm ④ KO · ID 전환 시 반대 언어 노출 없음 ⑤ 콘솔 오류 없음.
 
 ## 8. 미실행 · 이상 항목
 
@@ -201,9 +202,28 @@ CH 832 4본(04847D · 02472D · 07563D · 05096D): 값은 기대와 일치하나
 |---|---|
 | §1 문서 | 이 보고서 · decisions · CHANGELOG (`b665352`) |
 | §2 미적용 10본 | 전부 CH 849 첫 회차 km 없음, 첫 회차 `tread_avg` NULL 0본 → 결정 5 «해당 없음» (부록 B) |
-| §3 M-16 | anon 권한 6개 뷰 전부 회수로 결정. **사전 확인: 6개 모두 `security_invoker=on` — 실제 노출 없음.** `20261108100000_revoke_anon_views.sql` + t108(public 전체 anon 권한 0, 프로브 포함 8건) + CLAUDE.md 규칙 (`bf36816` · `4e43121`). PGlite: 전체 + 신규 2회 적용, t102·t104·t106·t107·t108 **95건 통과**, 회수 migration 없이 t108 만 돌리면 prod 와 같은 6개 뷰를 잡으며 실패. **prod 적용은 G5 (M-17)** |
+| §3 M-16 | anon 권한 6개 뷰 전부 회수로 결정. **사전 확인: 6개 모두 `security_invoker=on` — 실제 노출 없음.** `20261108100000_revoke_anon_views.sql` + t108(public 전체 anon 권한 0, 프로브 포함 8건) + CLAUDE.md 규칙 (`bf36816` · `4e43121`). PGlite: 전체 + 신규 2회 적용, t102·t104·t106·t107·t108 **95건 통과**, 회수 migration 없이 t108 만 돌리면 prod 와 같은 6개 뷰를 잡으며 실패. **G5 적용 완료 (아래 «G5 적용 검증»)** |
 | §4 config | `enable_signup` → `enabled` (email · sms), `orioledb_version` → `[db]` (`f1d1cfd`). CLI 경고 2줄 소멸 (Docker 부재로 `supabase status` 의 config 로딩 구간에서 확인; §3-3 dry-run 출력으로 재확인 예정) |
 | §5 브랜치 | 원격 `feat/web-improvements-20261016` · `fix/life-km-first-mount` 삭제(조상 확인 후), 로컬 `-d`. 남은 머지된 원격 브랜치: `feat/wear-fleet-average` · `feat/wear-km-per-mm` (삭제 안 함). `feat/life-km-correction` 은 이미 원격에 없었음 |
+
+### G5 적용 검증 (2026-11-08, 읽기 전용)
+
+쎄오님 터미널 `supabase db push --remote --dry-run` 출력(`g5-dry.txt`): `Would push these migrations: • 20261108100000_revoke_anon_views.sql` **1건만**, CLI 경고 2줄 없음, `Initialising login role...` 로 접속 성공. 적용 출력 `g5.txt` 는 이 세션에서 찾지 못했다(로컬·호스트 모두 없음) — 적용은 DB 이력으로 확인.
+
+| 검증 | 결과 | 기대값 |
+|---|---|---|
+| 원격 이력 | **70건**, 신규 `20261108100000 revoke_anon_views` | 70건 |
+| anon 권한 (`information_schema.role_table_grants`, public·finance) | **0건** (적용 전 6건) | 0건 |
+| public 관계 anon 권한 (SELECT 외 INSERT·UPDATE·DELETE·TRUNCATE·REFERENCES·TRIGGER 포함) | 0 | 0 |
+| public 컬럼 단위 anon 권한 | 0 (적용 전 102 컬럼) | 0 |
+| public 시퀀스 anon 권한 · 함수 명시 anon EXECUTE | 0 · 0 | 0 |
+| 6개 뷰 authenticated SELECT | 6/6 유지, service_role 도 유지 | 유지 |
+| 6개 뷰 reloptions | 모두 `security_invoker=on` 유지 | 유지 |
+| 6개 뷰 조회 (postgres 권한, 읽기 전용) | v_tire_ledger 133 · v_tire_ledger_total 100 · v_odometer_anomaly 62 · v_wear_pattern 659 · v_tco_unit 100 · v_tco_fleet 21 행 | 오류 없음 |
+| `life_end_basis` · `FIRST_NEW_INSPECTION` | `min` · 60 (G2 상태 유지) | 불변 |
+
+미확인: 로그인 상태(authenticated)에서 수명 DB·원가 탭이 정상 조회되는지는 이 세션에서 확인할 수 없다 → 쎄오님 화면 확인.
+적용 직전·직후에 걸쳐 조회한 한 번은 이력 69건·anon 6건(적용 전)으로 나왔고 곧바로 재조회해 적용 후 상태를 확인했다.
 
 ---
 

@@ -9,7 +9,7 @@
 
 ### Changed
 - prod DB — 마이그레이션 6건 적용 (쎄오님 터미널 `supabase db push --remote`): M-12 `20261017100000` · `110000` · `120000`, M-13 `20261104100000` · `110000` · `120000`.
-  17본 대조 17/17(차이 0.0 km, 평균 57,121 km), CPK-G 가중평균 562.43, `zero_tread_unverified` ERROR 98 → ERROR 16 + WARN 82.
+  17본 대조 17/17(차이 0.0 km, 평균 57,121 km), CPK-G 가중평균 562.43(G1 직후 · G2 이후 현재 286.93, 산출 29 → 73본), `zero_tread_unverified` ERROR 98 → ERROR 16 + WARN 82.
 - 사이트 배포 — CHK-TMS-2026-10-16-WEB 개선(PR #6)과 LIFE-KM(PR #7)이 처음으로 라이브에 반영된다.
 - `supabase/config.toml` — CLI 3.0 이 거부하는 `[inbucket]` → `[local_smtp]`.
 
