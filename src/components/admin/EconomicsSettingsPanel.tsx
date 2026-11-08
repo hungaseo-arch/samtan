@@ -18,7 +18,7 @@ type NumKey = (typeof ECON_NUM_KEYS)[number];
 const TX = {
   ko: {
     head: "경제성 계수",
-    desc: "경제성(TCO 탭) 추정에 쓰는 가정값입니다. 비워 두면 해당 항목은 «설정 필요» 로 표시됩니다. 현장 실측으로 보정하세요.",
+    desc: "경제성(TCO 탭) 추정에 쓰는 가정값. 비워 두면 해당 항목은 «설정 필요» 로 표시. 현장 실측으로 보정 필요",
     fx_usd_idr: "환율 — 1 USD 당 IDR",
     fuel_base_l_per_km: "Road Train 기준 연비 (L/km)",
     fuel_price: "경유 단가 (통화/L)",
@@ -27,10 +27,10 @@ const TX = {
     life_sens_per_10pct: "저압 10% 당 수명 감소 (%)",
     hint: { fuel_sens_per_10pct: "지시서 제안 1.2 (제조사 통상 1~1.5)", life_sens_per_10pct: "지시서 제안 8 (20% 저압 시 15~25% 단축)" } as Partial<Record<NumKey, string>>,
     empty: "미설정",
-    invalid: "0 이상의 숫자만 입력하세요 (환율은 0 보다 커야 합니다).",
-    confirm: "경제성 계수를 바꿉니다.\n모든 사용자의 추정 손실액이 바뀝니다.",
+    invalid: "0 이상의 숫자만 입력 (환율은 0 보다 커야 함)",
+    confirm: "경제성 계수 변경\n모든 사용자의 추정 손실액에 반영",
     save: "저장", reset: "되돌리기",
-    saved: "경제성 계수를 저장했습니다", saveFail: "저장 실패: ",
+    saved: "경제성 계수 저장 완료", saveFail: "저장 실패 : ",
   },
   id: {
     head: "Koefisien ekonomi",

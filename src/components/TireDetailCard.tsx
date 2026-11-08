@@ -14,9 +14,9 @@ const TX = {
   ko: {
     title: "타이어 상세",
     loading: "불러오는 중…",
-    notFound: "이 시리얼의 기록이 없습니다.",
+    notFound: "이 시리얼의 기록 없음",
     unregistered: "수명 DB 미등록 타이어",
-    unregisteredHint: "점검 이력에서 가져온 데이터입니다. 최초 장착 정보를 보완해 주십시오.",
+    unregisteredHint: "점검 이력에서 가져온 데이터. 최초 장착 정보 보완 필요",
     serial: "시리얼",
     no: "No",
     install: "최초 장착일",

@@ -16,13 +16,13 @@ import { fmtMeter, todayInField } from "@/lib/format";
 const TX = {
   ko: {
     head: "계기 리셋 보정 (HM·KM)",
-    desc: "계기를 교체·리셋한 차량은 리셋일과 리셋 직전 누적값을 입력하세요. 리셋일(포함) 이후 회차에 더해 연속 시계열로 계산합니다. 점검 원본은 바뀌지 않습니다.",
+    desc: "계기를 교체·리셋한 차량은 리셋일과 리셋 직전 누적값 입력 필요. 리셋일(포함) 이후 회차에 더해 연속 시계열로 계산. 점검 원본은 변경 없음",
     colCh: "차량", colDate: "리셋일", colHm: "리셋 직전 HM", colKm: "리셋 직전 KM", colHint: "리셋일 직전 회차 값",
     flag: "리셋 차량", save: "저장",
-    saved: "보정값을 저장했습니다", saveFail: "저장 실패: ",
-    invalid: "리셋일은 오늘 이전이어야 하고, 보정값은 0 이상이며 하나 이상 입력해야 합니다.",
-    confirm: (ch: string) => `CH ${ch} 의 계기 보정값을 저장하시겠습니까?\n모든 화면의 HM·KM 이 바뀝니다.`,
-    clearHint: "리셋일을 비우면 보정이 해제됩니다.",
+    saved: "보정값 저장 완료", saveFail: "저장 실패 : ",
+    invalid: "리셋일은 오늘 이전, 보정값은 0 이상이며 하나 이상 입력 필요",
+    confirm: (ch: string) => `CH ${ch} 의 계기 보정값을 저장하시겠습니까?\n모든 화면의 HM·KM 변경`,
+    clearHint: "리셋일을 비우면 보정 해제",
   },
   id: {
     head: "Koreksi Reset Meter (HM·KM)",

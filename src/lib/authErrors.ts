@@ -7,17 +7,17 @@ import type { Lang } from "@/i18n";
 const MSG = {
   denied: {
     id: "Anda tidak memiliki izin. Hubungi administrator.",
-    ko: "권한이 없습니다. 관리자에게 문의하세요.",
+    ko: "권한 없음. 관리자에게 문의",
     en: "You do not have permission. Please contact an administrator.",
   },
   auth: {
     id: "Perlu masuk (login).",
-    ko: "로그인이 필요합니다.",
+    ko: "로그인 필요",
     en: "Sign-in required.",
   },
   generic: {
     id: "Terjadi kesalahan.",
-    ko: "오류가 발생했습니다.",
+    ko: "오류 발생",
     en: "An error occurred.",
   },
 } as const;
