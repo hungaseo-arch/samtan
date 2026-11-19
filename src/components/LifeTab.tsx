@@ -89,6 +89,7 @@ const buildTX = () => ({
     projWhyShort: { few_rounds: "회차 부족", no_trend: "추세 없음", hm_reset: "HM Reset", no_data: "데이터 부족", none: "산출 불가" },
     estReached: "도달",
     estReachedTip: "누적 KM 이 0 mm 예상치 이상",
+    statusName: { Install: "장착", Scrap: "폐기", Spare: "예비", "Not Install": "미장착" },
     footMore: "기준 전체 보기",
     foot8a: "잔여 KM · 예상 교체일",
     foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율). 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개`,
@@ -235,6 +236,7 @@ const buildTX = () => ({
     projWhyShort: { few_rounds: "Sesi kurang", no_trend: "Tanpa tren", hm_reset: "HM Reset", no_data: "Data kurang", none: "Tak terhitung" },
     estReached: "Tercapai",
     estReachedTip: "KM kumulatif sudah mencapai perkiraan 0 mm",
+    statusName: { Install: "Terpasang", Scrap: "Afkir", Spare: "Cadangan", "Not Install": "Belum pasang" },
     footMore: "Semua keterangan",
     foot8a: "Sisa KM · Prakiraan tgl ganti",
     foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm`,
@@ -381,6 +383,7 @@ const buildTX = () => ({
     projWhyShort: { few_rounds: "Few rounds", no_trend: "No trend", hm_reset: "HM Reset", no_data: "Low data", none: "N/A" },
     estReached: "Reached",
     estReachedTip: "Cumulative KM already at the 0 mm projection",
+    statusName: { Install: "Mounted", Scrap: "Scrapped", Spare: "Spare", "Not Install": "Not mounted" },
     footMore: "All notes",
     foot8a: "Remaining KM · Projected date",
     foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm`,
@@ -468,6 +471,17 @@ const buildTX = () => ({
 
 
 /** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
+
+// 원장 비고는 DB 자유 입력(한국어)이다. 알려진 문구만 id·en 으로 옮기고, 남은 한글은 lang="ko" 와 «KO» 표시로 구분한다.
+const NOTE_TERMS: [string, { id: string; en: string }][] = [
+  ["연속 교체 기재", { id: "penggantian beruntun tercatat", en: "consecutive replacements logged" }],
+  ["원장 확인 대기", { id: "menunggu cek catatan asli", en: "awaiting ledger check" }],
+];
+function noteView(note: string, lang: string): { text: string; foreign: boolean } {
+  if (lang === "ko") return { text: note, foreign: false };
+  const text = NOTE_TERMS.reduce((t, [ko, tr]) => t.split(ko).join(lang === "id" ? tr.id : tr.en), note);
+  return { text, foreign: /[가-힣]/.test(text) };
+}
 
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
   // Install 은 정상 상태라 색을 쓰지 않는다 — 녹색은 신호등(트레드·예상 KM 달성)에만, 붉은 행과 겹치지 않게
@@ -817,10 +831,10 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
               className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-foreground font-semibold focus-visible:outline-2 focus-visible:outline-primary"
             >
               <option value="ALL">{tx.all}</option>
-              <option value="Install">Install</option>
-              <option value="Scrap">Scrap</option>
-              <option value="Spare">Spare</option>
-              <option value="Not Install">Not Install</option>
+              <option value="Install">{tx.statusName["Install"]}</option>
+              <option value="Scrap">{tx.statusName["Scrap"]}</option>
+              <option value="Spare">{tx.statusName["Spare"]}</option>
+              <option value="Not Install">{tx.statusName["Not Install"]}</option>
             </select>
             {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
             {canDownload && (
@@ -1064,7 +1078,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   </>
                   )}
                   <td className="px-2 py-1.5 text-right">
-                    {belowView && installed && c?.expectedKm != null && c?.km != null && c.expectedKm <= c.km ? (
+                    {belowView && installed && c?.expectedKm != null && c?.km != null && Math.round(c.expectedKm) <= Math.round(c.km) ? (
                       // 거리 KM 과 같은 숫자를 되풀이하지 않는다 — 이미 0 mm 예상치에 닿은 행
                       <>
                         <span className="text-muted-foreground">{EMPTY}</span>
@@ -1167,7 +1181,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                       <span
                         className={`inline-block whitespace-nowrap text-[11px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
                       >
-                        {l.status}
+                        {tx.statusName[l.status]}
                       </span>
                     </td>
                   </>
@@ -1179,7 +1193,10 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                     {[
                       !monitored && <span key="nm" className="text-[11px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
                       damage && <button key="dmg" className="text-destructive font-bold hover:underline inline-block min-h-6 px-1 -my-1 align-middle" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
-                      l.note && <span key="note">{l.note}</span>,
+                      l.note && (() => {
+                        const n = noteView(l.note, lang);
+                        return <span key="note" lang={n.foreign ? "ko" : undefined}>{n.foreign && <span className="text-[10px] border border-border/60 rounded px-1 mr-1 align-middle">KO</span>}{n.text}</span>;
+                      })(),
                       hmReset && (hmUnresolved
                         ? <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>
                         : <span key="hmr" className="text-muted-foreground" title={tx.hmResetFixedTitle}>{tx.hmResetFixed}</span>),
@@ -1304,7 +1321,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[hist.status as LifeRecord["status"]] ?? ""}`}>
-                    {hist.status}
+                    {tx.statusName[hist.status as LifeRecord["status"]] ?? hist.status}
                   </span>
                   <button type="button" aria-label={closeLabel} onClick={() => setHistoryOf(null)} className="p-1 rounded hover:bg-muted/50 transition-colors">
                     <X className="w-4 h-4" />
