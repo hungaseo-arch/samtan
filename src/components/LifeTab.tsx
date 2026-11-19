@@ -8,7 +8,7 @@ import {
 } from "@/data/tmsUtils";
 import { EMPTY, fmtCpk, fmtInt, fmtTread, kmPerMmOf, todayInField } from "@/lib/format";
 import type { LifeRecord } from "@/data/tmsData";
-import { X, Download } from "lucide-react";
+import { X, Download, ArrowUp, ArrowDown, ArrowUpDown, AlertTriangle, AlertCircle } from "lucide-react";
 import { DICT, useLang } from "@/i18n";
 import { useDialog } from "@/lib/useDialog";
 import { useAuth } from "@/auth/AuthProvider";
@@ -53,12 +53,40 @@ const buildTX = () => ({
     colCurrency: "통화",
     colRemKm: "잔여 KM (발주)",
     colProjDate: "예상 교체일",
+    colLastMeas: "마지막 측정",
+    agoDays: "{n}일 전",
+    detailHint: "HR·예상 HM·CPK·상태 : 행 클릭 시 확인",
+    tipEkm: "예상 KM : 신품 22 mm부터 측정된 타이어의 수명 종료 기준 도달 시점 추정 KM",
+    tipRem: "잔여 KM : 최근 트레드에서 발주 기준까지 남은 주행거리",
+    hCpk: "CPK",
+    tableLabel: "타이어 수명 목록",
+    belowNote: "발주 기준 {mm} mm 미만 · 폐기 아님",
+    lastMeasAll: "전 차량 마지막 측정 {d} · {n}일 전",
+    minLabel: "최저",
+    colsHidden: "HR·CPK 열 : 1000px 이상 화면에서 표시",
+    activeFilters: "적용 중 : {f}",
     colWearRate: "마모율 (mm/1,000km)",
     colKmPerMm: "km/mm",
-    due30: "30일 이내 교체",
+    due30: "30일 이내·경과",
+    viewAll: "전체 타이어",
+    sortReset: "정렬 해제",
+    projExcluded: "측정 오래됨·미감시 — 준비 목록 제외",
+    searchPh: "시리얼·차량 검색",
     projDays: "{n}일",
     projOver: "{n}일 경과",
+    projBelow: "기준 이하",
+    projNow: "즉시",
+    noMatch: "일치 없음",
+    clearAll: "검색·필터 해제",
+    rowOpen: "이력 열기",
+    projLast: "마지막 측정 {d}",
+    projLastAge: "측정 {n}일 전",
+    chipChAll: "차량 전체",
+    projBelowTitle: "발주 기준 이하 — 예상일은 마지막 측정일",
+    remAsOf: "마지막 측정 시점 기준 잔여",
+    projOverTitle: "측정 후 주행으로 이미 도달 예상 · 재측정 필요",
     projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족" },
+    footMore: "기준 전체 보기",
     foot8a: "잔여 KM · 예상 교체일",
     foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율). 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개`,
     colStatus: "상태",
@@ -168,12 +196,40 @@ const buildTX = () => ({
     colCurrency: "Mata uang",
     colRemKm: "Sisa KM (pesan)",
     colProjDate: "Prakiraan tgl ganti",
+    colLastMeas: "Ukur terakhir",
+    agoDays: "{n} hr lalu",
+    detailHint: "HR·Prediksi HM·CPK·Status : klik baris",
+    tipEkm: "Prediksi KM : estimasi KM saat batas akhir umur tercapai, untuk ban terukur sejak baru 22 mm",
+    tipRem: "Sisa KM : jarak tempuh dari Kedalaman alur terakhir sampai batas pesan",
+    hCpk: "CPK",
+    tableLabel: "Daftar umur ban",
+    belowNote: "Batas pesan < {mm} mm · bukan scrap",
+    lastMeasAll: "Ukur terakhir semua unit {d} · {n} hr lalu",
+    minLabel: "Terendah",
+    colsHidden: "Kolom HR·CPK : tampil di layar ≥ 1000px",
+    activeFilters: "Aktif : {f}",
     colWearRate: "Laju aus (mm/1,000km)",
     colKmPerMm: "km/mm",
-    due30: "Ganti ≤ 30 hari",
+    due30: "≤ 30 hari·lewat",
+    viewAll: "Semua ban",
+    sortReset: "Reset urutan",
+    projExcluded: "Pengukuran lama·tidak dipantau — di luar daftar",
+    searchPh: "Cari serial/unit",
     projDays: "{n} hari",
     projOver: "lewat {n} hari",
+    projBelow: "Di bawah batas",
+    projNow: "Segera",
+    noMatch: "Tidak ada yang cocok",
+    clearAll: "Hapus pencarian·filter",
+    rowOpen: "Buka riwayat",
+    projLast: "Ukur {d}",
+    projLastAge: "Ukur {n} hr lalu",
+    chipChAll: "Semua unit",
+    projBelowTitle: "Di bawah batas pesan — tanggal = tgl ukur terakhir",
+    remAsOf: "Sisa per ukur terakhir",
+    projOverTitle: "Diperkirakan sudah tercapai sejak ukur terakhir · ukur ulang",
     projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang" },
+    footMore: "Semua keterangan",
     foot8a: "Sisa KM · Prakiraan tgl ganti",
     foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm`,
     colStatus: "Status",
@@ -283,12 +339,40 @@ const buildTX = () => ({
     colCurrency: "Currency",
     colRemKm: "Remaining KM (order)",
     colProjDate: "Projected repl. date",
+    colLastMeas: "Last measured",
+    agoDays: "{n} d ago",
+    detailHint: "HR·Est. HM·CPK·Status : click row",
+    tipEkm: "Est. KM : projected KM at end-of-life basis, for tires measured from new 22 mm",
+    tipRem: "Remaining KM : distance from latest tread to the order limit",
+    hCpk: "CPK",
+    tableLabel: "Tire lifetime list",
+    belowNote: "Order limit < {mm} mm · not scrap",
+    lastMeasAll: "All units last measured {d} · {n} d ago",
+    minLabel: "Lowest",
+    colsHidden: "HR·CPK columns : shown at ≥ 1000px",
+    activeFilters: "Active : {f}",
     colWearRate: "Wear rate (mm/1,000km)",
     colKmPerMm: "km/mm",
-    due30: "Replace ≤ 30 days",
+    due30: "≤ 30 days·overdue",
+    viewAll: "All tires",
+    sortReset: "Clear sort",
+    projExcluded: "Stale or unmonitored — not in prep list",
+    searchPh: "Search serial/unit",
     projDays: "{n} d",
     projOver: "{n} d overdue",
+    projBelow: "Below limit",
+    projNow: "Now",
+    noMatch: "No matches",
+    clearAll: "Clear search·filters",
+    rowOpen: "Open history",
+    projLast: "Meas. {d}",
+    projLastAge: "Meas. {n} d ago",
+    chipChAll: "All units",
+    projBelowTitle: "Below order threshold — date = last measurement",
+    remAsOf: "Remaining as of last measurement",
+    projOverTitle: "Likely reached since last measurement · re-measure",
     projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data" },
+    footMore: "All notes",
     foot8a: "Remaining KM · Projected date",
     foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm`,
     colStatus: "Status",
@@ -377,7 +461,8 @@ const buildTX = () => ({
 /** 값 없음 표기 — 표·요약·모달이 같은 글자를 쓴다. */
 
 const STATUS_STYLE: Record<LifeRecord["status"], string> = {
-  Install: "text-level-ok border-level-ok/40 bg-level-ok/10",
+  // Install 은 정상 상태라 색을 쓰지 않는다 — 녹색은 신호등(트레드·예상 KM 달성)에만, 붉은 행과 겹치지 않게
+  Install: "text-foreground border-foreground/30 bg-card",
   Scrap: "text-level-danger border-level-danger/40 bg-level-danger/10",
   Spare: "text-level-warn border-level-warn/40 bg-level-warn/10",
   "Not Install": "text-muted-foreground border-border bg-muted/20",
@@ -403,14 +488,142 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
   const today = todayInField();
 
   // DUE30 — 대시보드 「교체 준비 목록」과 같은 판정(prepDaysLeft)이라 건수가 일치한다.
+  // 상태 필터와 AND 로 겹치는 토글 칩이다
+  // 기준 이하(잔여 0 — 즉시) 와 30일 이내(잔여 있음)는 성격이 달라 칩을 나눈다. 서로 배타
+  // 기본 뷰 = 기준 이하(발주·교체 대상). 「전체」는 명시 선택(all). 기준 이하가 0건이면 전체로 폴백
+  // 칩 건수 — 상태 필터·검색과 무관하게 전체 기준 (칩을 켜면 목록이 줄어도 숫자는 그대로)
+  const dueCount = { below: 0, soon: 0 };
+  const belowByCh = new Map<string, number>();
+  for (const l of TMS_DATA.life) {
+    const d = prepDaysLeft(l.serial, l.status, today);
+    if (d == null || d > PREP_WINDOW_DAYS) continue;
+    const lc = lifeCalc(l.serial);
+    if (lc?.projection.remainingKm === 0) {
+      dueCount.below++;
+      if (lc.ch) belowByCh.set(lc.ch, (belowByCh.get(lc.ch) ?? 0) + 1);
+    } else dueCount.soon++;
+  }
+  const [dueSel, setDueSel] = useState<null | "below" | "soon" | "all">(null);
+  const due: null | "below" | "soon" = dueSel === "all" ? null : dueSel ?? (dueCount.below > 0 ? "below" : null);
+  const setDue = (v: null | "below" | "soon") => { setDueSel(v ?? "all"); if (v === "below") setSort((s) => (s?.k === "rem" ? null : s)); };
+  const [q, setQ] = useState("");
+  const theadRef = useRef<HTMLTableSectionElement>(null);
+  const [headH, setHeadH] = useState(40);
+  // 차량 요약 칩 — 기준 이하 26행을 차량 단위 결정으로 줄여 본다. 기본 화면에서 눌러도 기준 이하로 진입한다
+  const [chSel, setChSel] = useState<string | null>(null);
+  /** 장착 차량·포지션 라벨 (예: "CH 824 · L1") — 계산 대상이 아니면 빈 문자열 */
+  const whereOf = (serial: string) => {
+    const c = lifeCalc(serial);
+    return c ? `${c.ch} · ${c.pos}` : "";
+  };
+  const qn = q.trim().toLowerCase();
   const filtered = TMS_DATA.life.filter((l) => {
-    if (lifeFilter === "ALL") return true;
-    if (lifeFilter === "DUE30") {
+    if (lifeFilter !== "ALL" && l.status !== lifeFilter) return false;
+    if (qn && !`${l.serial} ${whereOf(l.serial)}`.toLowerCase().includes(qn)) return false;
+    if (due) {
       const d = prepDaysLeft(l.serial, l.status, today);
-      return d != null && d <= PREP_WINDOW_DAYS;
+      if (d == null || d > PREP_WINDOW_DAYS) return false;
+      const below = lifeCalc(l.serial)?.projection.remainingKm === 0;
+      if (due === "below" && chSel && lifeCalc(l.serial)?.ch !== chSel) return false;
+      return due === "below" ? below : !below;
     }
-    return l.status === lifeFilter;
+    return true;
   });
+
+  // 정렬 — 기본: Install 먼저 + 예상 교체일 오름차순(날짜 없는 Install은 Install 끝), 나머지는 원장 순서.
+  // 헤더 클릭: 오름 → 내림 → 기본으로 복귀. 값 없는 행은 항상 뒤
+  // 기준 이하 뷰 — 잔여 KM 은 전 행 0 이라 열을 빼고, 예상 교체일 자리에 «마지막 측정»을 둔다
+  const belowView = due === "below";
+  type SortKey = "tread" | "rem" | "pdate";
+  const [sort, setSort] = useState<{ k: SortKey; dir: "asc" | "desc" } | null>(null);
+  const toggleSort = (k: SortKey) =>
+    setSort((s) => (s?.k !== k ? { k, dir: "asc" } : s.dir === "asc" ? { k, dir: "desc" } : null));
+  const sortVal = (l: LifeRecord, k: SortKey): number | string | null => {
+    if (k === "tread") return latestTreadOf(l.serial);
+    if (l.status !== "Install") return null;
+    const p = lifeCalc(l.serial)?.projection;
+    if (k === "rem") return p?.remainingKm ?? null;
+    // 표시 규칙(prepDaysLeft)과 같게 — stale·미감시 행은 날짜가 있어도 값 없음으로 취급
+    return prepDaysLeft(l.serial, l.status, today) == null ? null : p?.projectedDate ?? null;
+  };
+  // 동률 해소 — 같은 날짜(기준 이하 행은 전부 마지막 측정일)면 트레드가 낮은 행이 위. 값 없음은 뒤
+  const byTread = (a: LifeRecord, b: LifeRecord) => {
+    const ta = latestTreadOf(a.serial);
+    const tb = latestTreadOf(b.serial);
+    if (ta == null && tb == null) return 0;
+    if (ta == null) return 1;
+    if (tb == null) return -1;
+    return ta - tb;
+  };
+  const sorted = sort
+    ? [...filtered].sort((a, b) => {
+        const va = sortVal(a, sort.k);
+        const vb = sortVal(b, sort.k);
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
+        const r = va < vb ? -1 : va > vb ? 1 : 0;
+        return r === 0 ? byTread(a, b) : sort.dir === "asc" ? r : -r;
+      })
+    : [...filtered].sort((a, b) => {
+        const ia = a.status === "Install" ? 0 : 1;
+        const ib = b.status === "Install" ? 0 : 1;
+        if (ia !== ib) return ia - ib;
+        if (ia === 1) return 0;
+        // 기준 이하 목록은 차량 단위로 묶어 본다 — 차량 먼저, 그 안에서 날짜·트레드 순
+        if (due === "below" && !chSel) {
+          const ca = lifeCalc(a.serial)?.ch ?? "";
+          const cb = lifeCalc(b.serial)?.ch ?? "";
+          if (ca !== cb) return ca < cb ? -1 : 1;
+        }
+        const da = sortVal(a, "pdate") as string | null;
+        const db = sortVal(b, "pdate") as string | null;
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da < db ? -1 : da > db ? 1 : byTread(a, b);
+      });
+
+  // 기준 이하 뷰에서 모든 행의 마지막 측정일이 같으면 열 대신 표 위 한 줄로 — 같은 값 26개는 소음이다
+  const lastDates = new Set<string>();
+  let lastDateAll = belowView && sorted.length > 0;
+  for (const l of sorted) {
+    const d = l.status === "Install" ? lifeCalc(l.serial)?.projection.projectedDate : null;
+    if (d) lastDates.add(d); else lastDateAll = false;
+  }
+  const sameDate = lastDateAll && lastDates.size === 1;
+  const lastDate = sameDate ? [...lastDates][0] : null;
+  const lastAge = lastDate && sorted[0] ? Math.max(0, -(prepDaysLeft(sorted[0].serial, sorted[0].status, today) ?? 0)) : 0;
+  const showPdate = !sameDate;
+  const full = !belowView;
+  useEffect(() => {
+    const el = theadRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setHeadH(el.offsetHeight));
+    ro.observe(el);
+    setHeadH(el.offsetHeight);
+    return () => ro.disconnect();
+  }, [belowView, lang, sorted.length > 0]);
+  const colCount = full ? 11 : showPdate ? 6 : 5;
+  // 차량별 소제목 — 기본 정렬(차량 → 날짜)일 때만. 최저 트레드가 그 차량의 긴급도
+  const groupHeads = belowView && !sort && !chSel;
+  const chStat = new Map<string, { n: number; min: number | null }>();
+  if (groupHeads) {
+    for (const l of sorted) {
+      const ch = lifeCalc(l.serial)?.ch ?? "";
+      const t = latestTreadOf(l.serial);
+      const g = chStat.get(ch) ?? { n: 0, min: null };
+      g.n++;
+      if (t != null && (g.min == null || t < g.min)) g.min = t;
+      chStat.set(ch, g);
+    }
+  }
+  const activeFilterText = [
+    due === "below" ? tx.projBelow : due === "soon" ? tx.due30 : null,
+    chSel ? `CH ${chSel}` : null,
+    qn ? `"${q.trim()}"` : null,
+    lifeFilter !== "ALL" ? lifeFilter : null,
+  ].filter(Boolean).join(" · ");
 
   /** 예상 교체일을 못 낸 사유 — 셀 툴팁 */
   const projWhy = (c: LifeCalc | null, hmReset: boolean | undefined) =>
@@ -472,7 +685,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     return { tread: m(acc.tread), kmExact: m(acc.kmExact), kmExactN: acc.kmExact[1], hr: m(acc.hr), ekm: m(acc.ekm), ehm: m(acc.ehm), rem: m(acc.rem),
       cpk: cpkCur ? m(acc.cpk) : null, cpkCur: cpkCur ?? "IDR" };
   })();
-
+  // 현재 필터·정렬 상태 그대로 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
   // 현재 필터에 표시된 행을 엑셀(.xlsx)로 내보내기 (xlsx는 클릭 시 동적 로드)
   const exportExcel = async () => {
     const rows = filtered.map((l) => {
@@ -544,25 +757,60 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
       {/* Lifetime DB */}
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3 mb-4">
-          <span className="text-xs font-bold text-primary uppercase tracking-widest">
-            {tx.dbTitle}
-          </span>
-          <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
-            {filtered.length}{tx.pcs} / {TMS_DATA.life.length}{tx.pcs}
-          </span>
+          <h2 className="text-base font-bold text-foreground">{tx.dbTitle}</h2>
+          {(qn !== "" || lifeFilter !== "ALL" || chSel) && (
+            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
+              {filtered.length}{tx.pcs} / {due === "below" ? dueCount.below : due === "soon" ? dueCount.soon : TMS_DATA.life.length}{tx.pcs}
+            </span>
+          )}
+          <button
+            type="button"
+            aria-pressed={due === null}
+            onClick={() => { setDue(null); setChSel(null); }}
+            className={`text-xs font-semibold px-3 py-1 min-h-7 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${due === null ? "bg-primary/15 border-primary ring-1 ring-primary text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
+          >
+            {tx.viewAll}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{TMS_DATA.life.length}</span>
+          </button>
+          {([["below", tx.projBelow, "level-danger"], ["soon", tx.due30, "level-order"]] as const).map(([k, label, tone]) => {
+            const on = due === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={on}
+                onClick={() => { setDue(on ? null : k); setChSel(null); }}
+                className={`text-xs font-semibold px-3 py-1 min-h-7 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? (tone === "level-danger" ? "bg-level-danger/15 border-level-danger ring-1 ring-level-danger" : "bg-level-order/20 border-level-order ring-1 ring-level-order") + " text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
+              >
+                {label}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{dueCount[k]}</span>
+              </button>
+            );
+          })}
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={tx.searchPh}
+            aria-label={tx.searchPh}
+            className="text-xs bg-muted/30 border border-border rounded-full px-3 py-1 w-44 min-h-6 focus-visible:outline-2 focus-visible:outline-primary"
+          />
+          {sort && (
+            <button type="button" onClick={() => setSort(null)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground min-h-6 px-1">
+              {tx.sortReset}
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{tx.status}:</span>
             <select
               value={lifeFilter}
+              aria-label={tx.status}
               onChange={(e) => setLifeFilter(e.target.value)}
-              className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-foreground font-semibold"
+              className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-foreground font-semibold focus-visible:outline-2 focus-visible:outline-primary"
             >
               <option value="ALL">{tx.all}</option>
               <option value="Install">Install</option>
               <option value="Scrap">Scrap</option>
               <option value="Spare">Spare</option>
               <option value="Not Install">Not Install</option>
-              <option value="DUE30">{tx.due30}</option>
             </select>
             {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
             {canDownload && (
@@ -576,42 +824,133 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
             )}
           </div>
         </div>
+        {belowView && belowByCh.size > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pb-3" role="group" data-ch-chips aria-label={tx.projBelow}>
+            {[null, ...[...belowByCh.keys()].sort()].map((ch) => {
+              const on = chSel === ch;
+              return (
+                <button
+                  key={ch ?? "all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => { setDue("below"); setChSel(ch); }}
+                  className={`text-xs px-2.5 py-0.5 min-h-6 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? "bg-primary/15 border-primary ring-1 ring-primary text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
+                >
+                  {ch ? `CH ${ch}` : tx.chipChAll}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{ch ? belowByCh.get(ch) : dueCount.below}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {belowView && sorted.length > 0 && (
+          <p className="pb-2 text-[11px] text-muted-foreground">
+            {tx.belowNote.replace("{mm}", fmtTread(treadThresholds().order, false))}
+            {lastDate && <> · {tx.lastMeasAll.replace("{d}", lastDate).replace("{n}", fmtInt(lastAge))}</>}
+            {" · "}{tx.detailHint}
+          </p>
+        )}
+        <div role="status" className="sr-only">{sorted.length === 0 ? tx.noMatch : `${fmtInt(sorted.length)}${tx.pcs}`}</div>
+        {!belowView && sorted.length > 0 && <p className="hidden max-[999px]:block pb-2 text-[11px] text-muted-foreground">{tx.colsHidden}</p>}
         <div className="overflow-auto max-h-[70vh]">
-          <table className="w-full min-w-250 table-fixed text-xs border-collapse font-mono">
+          <table aria-label={tx.tableLabel} className="w-full min-w-240 max-[999px]:min-w-160 table-fixed text-xs border-collapse font-mono">
             <colgroup>
-              {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(12%). 합계 100% */}
-              {["3%", "11%", "7%", "7%", "7%", "6%", "7%", "7%", "8%", "7%", "9%", "10%", "11%"].map((w, i) => (
-                <col key={i} style={{ width: w }} />
+              {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(9%). 합계 100%.
+                  No·최초 장착일은 표에서 뺐다 — 행 모달(이력)에 장착일이 있고 No 는 엑셀에 남는다 */}
+              {/* 1000px 미만: 주행 HR(3)·CPK(6) 열을 접는다 — 값은 행 모달에서 확인. 남는 폭은 시리얼·교체일·비고로 */}
+              {(!belowView ? [
+                "w-[11%] max-[999px]:w-[15%]",
+                "w-[8%] max-[999px]:w-[10%]",
+                "w-[8%] max-[999px]:w-[9%]",
+                "w-[7%] max-[999px]:hidden",
+                "w-[7.5%] max-[999px]:w-[8.75%]",
+                "w-[7.5%] max-[999px]:w-[8.75%]",
+                "w-[13%] max-[999px]:hidden",
+                "w-[9%] max-[999px]:w-[11.5%]",
+                "w-[10%] max-[999px]:w-[15.5%]",
+                "w-[10%] max-[999px]:w-[14.3%]",
+                "w-[9%] max-[999px]:w-[7.2%]",
+              ] : showPdate ? [
+                "w-[16%]",
+                "w-[12%]",
+                "w-[13%]",
+                "w-[13%]",
+                "w-[14%]",
+                "w-[32%]",
+              ] : [
+                "w-[17%]",
+                "w-[14%]",
+                "w-[15%]",
+                "w-[15%]",
+                "w-[39%]",
+              ]).map((cls, i) => (
+                <col key={i} className={cls} />
               ))}
             </colgroup>
-            <thead className="sticky top-0 z-10">
+            <thead ref={theadRef} className="sticky top-0 z-10">
               <tr>
                 {[
-                  { k: "no", label: tx.colNo, align: "text-left" },
                   { k: "serial", label: tx.colSerial, align: "text-left" },
-                  { k: "install", label: tx.colInstall, align: "text-left" },
-                  { k: "tread", label: tx.colTread, align: "text-right" },
+                  { k: "tread", label: tx.colTread, align: "text-right", sort: "tread" as SortKey },
                   { k: "km", label: tx.colKm, align: "text-right" },
-                  { k: "hr", label: tx.colHr, align: "text-right" },
+                  ...(full ? [{ k: "hr", label: tx.colHr, align: "text-right" }] : []),
                   { k: "ekm", label: tx.expKmBasis[basis], align: "text-right" },
-                  { k: "ehm", label: tx.expHmBasis[basis], align: "text-right" },
-                  { k: "cpk", label: tx.colCpk, align: "text-right" },
-                  { k: "rem", label: tx.colRemKm, align: "text-right" },
-                  { k: "pdate", label: tx.colProjDate, align: "text-right" },
-                  { k: "status", label: tx.colStatus, align: "text-center" },
+                  ...(full ? [{ k: "ehm", label: tx.expHmBasis[basis], align: "text-right" }, { k: "cpk", label: tx.colCpk, align: "text-right" }] : []),
+                  ...(belowView ? [] : [{ k: "rem", label: tx.colRemKm, align: "text-right", sort: "rem" as SortKey }]),
+                  ...(showPdate ? [{ k: "pdate", label: belowView ? tx.colLastMeas : tx.colProjDate, align: "text-right", sort: "pdate" as SortKey }] : []),
+                  ...(full ? [{ k: "status", label: tx.colStatus, align: "text-center" }] : []),
                   { k: "note", label: tx.colNote, align: "text-center" },
-                ].map((h) => (
+                ].map((h: { k: string; label: string; align: string; sort?: SortKey }) => (
                   <th
                     key={h.k}
-                    className={`bg-card border-b border-border px-2 py-2 text-muted-foreground font-semibold whitespace-nowrap ${h.align}`}
+                    scope="col"
+                    title={h.k === "ekm" ? tx.tipEkm : h.k === "rem" ? tx.tipRem : undefined}
+                    aria-sort={h.sort ? (sort?.k === h.sort ? (sort.dir === "asc" ? "ascending" : "descending") : "none") : undefined}
+                    className={`bg-card border-b border-border px-2 py-2 max-[999px]:px-1 max-[999px]:text-[11px] text-muted-foreground font-semibold whitespace-normal break-keep align-bottom leading-tight ${h.k === "hr" || h.k === "cpk" ? "max-[999px]:hidden " : ""}${h.k === "serial" ? "sticky left-0 z-20" : ""} ${h.align}`}
                   >
-                    {h.label}
+                    {(() => {
+                      // «예상 KM (최소 0mm)» → 주 라벨 / 조건 2줄. 조건은 보조 정보라 작게
+                      const i = h.label.indexOf(" (");
+                      const inner = i < 0 ? h.label : (
+                        <>
+                          {h.label.slice(0, i)}
+                          <span className="block text-[11px] font-normal">{h.label.slice(i + 1)}</span>
+                        </>
+                      );
+                      if (!h.sort) return inner;
+                      const k = h.sort;
+                      const Icon = sort?.k === k ? (sort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => toggleSort(k)}
+                          className="inline-flex items-end gap-1 min-h-7 text-right font-semibold hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded"
+                        >
+                          <span>{inner}</span>
+                          <Icon className={`w-3 h-3 shrink-0 mb-0.5 ${sort?.k === k ? "text-foreground" : ""}`} aria-hidden="true" />
+                        </button>
+                      );
+                    })()}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => {
+              {sorted.length === 0 && (
+                <tr>
+                  <td colSpan={colCount} className="px-2 py-8 text-center font-sans text-muted-foreground">
+                    <div className="font-semibold text-foreground">{tx.noMatch}</div>
+                    {activeFilterText && <div className="text-xs mt-0.5">{tx.activeFilters.replace("{f}", activeFilterText)}</div>}
+                    <button
+                      type="button"
+                      onClick={() => { setQ(""); setDue(null); setChSel(null); setLifeFilter("ALL"); }}
+                      className="mt-1 min-h-7 px-2 underline underline-offset-2 hover:text-foreground focus-visible:outline-2 focus-visible:outline-primary rounded"
+                    >
+                      {tx.clearAll}
+                    </button>
+                  </td>
+                </tr>
+              )}
+              {sorted.map((l, idx) => {
                 const c = lifeCalc(l.serial);
                 const cost = tireCostOf(l.serial);
                 const noExpected = l.status === "Scrap" || l.status === "Not Install";
@@ -630,121 +969,185 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 const daysLeft = installed ? prepDaysLeft(l.serial, l.status, today) : null;
                 const dateCls = daysLeft == null ? "" : daysLeft <= PREP_URGENT_DAYS
                   ? "text-level-danger font-bold" : daysLeft <= PREP_WINDOW_DAYS ? "text-level-warn font-bold" : "text-foreground";
-                const why = installed && !proj?.projectedDate ? projWhy(c, hmUnresolved) : "";
+                const why = installed && !(proj?.projectedDate && daysLeft != null)
+                  ? (proj?.projectedDate ? tx.projExcluded : projWhy(c, hmUnresolved)) : "";
+                const chHere = lifeCalc(l.serial)?.ch ?? "";
+                const newGroup = groupHeads && (idx === 0 || (lifeCalc(sorted[idx - 1].serial)?.ch ?? "") !== chHere);
+                const gs = newGroup ? chStat.get(chHere) : undefined;
                 return (
+                <Fragment key={l.no}>
+                {gs && (
+                  <tr className="border-b border-border">
+                    <th colSpan={colCount} scope="colgroup" style={{ top: headH }} className="sticky z-5 bg-muted px-2 py-1 text-left text-[11px] font-bold text-foreground font-sans">
+                      CH {chHere}<span className="font-normal text-muted-foreground"> · {fmtInt(gs.n)}{tx.pcs}{gs.min != null && <> · {tx.minLabel} {fmtTread(gs.min, false)} mm</>}</span>
+                    </th>
+                  </tr>
+                )}
                 <tr
-                  key={l.no}
                   ref={l.serial === target ? focusRow : undefined}
                   onClick={() => setHistoryOf(l.serial)}
-                  className={`border-b border-border/30 transition-colors cursor-pointer ${isFocus ? "bg-primary/10 ring-2 ring-primary/50" : `hover:bg-muted/10 ${!monitored ? "bg-muted/20" : ""}`}`}
+                  // 행 자체에 포커스가 있을 때만 — 안쪽 버튼(손상 코드)의 Enter 가 위로 번져 모달이 겹쳐 열리지 않게 한다
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+                      e.preventDefault();
+                      setHistoryOf(l.serial);
+                    }
+                  }}
+                  className={`border-b border-border/30 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${isFocus ? "bg-primary/10 ring-2 ring-primary/50" : `hover:bg-muted/10 ${!monitored ? "bg-muted/10" : ""}`}`}
                 >
-                  <td className="px-2 py-1.5 text-muted-foreground">{l.no}</td>
-                  <td className="px-2 py-1.5 text-[10px] max-w-35 truncate">{l.serial}</td>
-                  <td className="px-2 py-1.5 text-muted-foreground">{fmtD(l.install)}</td>
+                  <td className="px-2 max-[999px]:px-1 py-1.5 text-[11px] max-w-35 sticky left-0 z-1 bg-card">
+                    <div className="truncate" title={l.serial}>{l.serial}<span className="sr-only"> · {tx.rowOpen}</span></div>
+                    {c && <div className="text-muted-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>}
+                  </td>
                   <td className="px-2 py-1.5 text-right">
                     {tread != null ? (
                       <>
-                        <span className={treadCls}>{fmtTread(tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span>
+                        <span className={`${treadCls}${belowView ? " text-sm font-bold" : ""}`}>{installed && (treadLevel(tread) === "danger" || treadLevel(tread) === "order") && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-hidden="true" />}{fmtTread(tread, false)}<span className="text-muted-foreground ml-0.5">mm</span></span>
                         {/* 4점 평균 병기 — 최소값이 0.0 이어도 숄더가 남았는지 여기서 보인다.
                             판정·색상은 위의 최소값이 그대로 쥔다. 평균은 읽기 보조일 뿐이다.
                             평균이 최소값과 같으면(4점이 모두 동일) 줄만 차지하므로 생략한다. */}
                         {treadAvg != null && treadAvg !== tread && (
-                          <div className="text-[10px] text-muted-foreground/60 leading-tight">
+                          <div className="text-[11px] text-muted-foreground leading-tight">
                             {tx.avgPrefix}{fmtTread(treadAvg, false)}
                           </div>
                         )}
                       </>
                     ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                      <span className="text-muted-foreground">{EMPTY}</span>
                     )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {c?.km != null ? (
                       <>
-                        <span className="font-bold text-primary">{fmtInt(c.km)}</span>
+                        <span className="font-bold">{fmtInt(c.km)}</span>
                         {/* TCO 탭 개체 원장과 같은 표기 — 숫자만 보면 하한값인지 알 수 없다 (T-2) */}
                         {c.kmIsLowerBound && (
-                          <div className="text-[10px] leading-tight text-level-warn" title={tx.kmLowerTip}>
+                          <div className="text-[11px] leading-tight text-level-warn" title={tx.kmLowerTip}>
                             ({tx.kmLower})
                           </div>
                         )}
                       </>
                     ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                      <span className="text-muted-foreground">{EMPTY}</span>
                     )}
                   </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {c?.hr != null ? (
-                      <span className="text-foreground">{fmtInt(c.hr)}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
-                    )}
-                  </td>
+                  {full && (
+                  <>
+                    <td className="px-2 py-1.5 text-right max-[999px]:hidden">
+                      {c?.hr != null ? (
+                        <span className="text-foreground">{fmtInt(c.hr)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">{EMPTY}</span>
+                      )}
+                    </td>
+                  </>
+                  )}
                   <td className="px-2 py-1.5 text-right">
                     {c?.expectedKm != null && !noExpected ? (
-                      <span className={`font-bold ${c.expectedKm >= targetLifeKm() ? "text-level-ok" : "text-primary"}`}>{fmtInt(c.expectedKm)}</span>
+                      <span className={`font-bold ${c.expectedKm >= targetLifeKm() && !c.kmIsLowerBound && c.projection.remainingKm !== 0 ? "text-level-ok" : ""}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
+                      <span className="text-muted-foreground">{EMPTY}</span>
                     )}
                     {/* 4점 기준인데 4점 회차가 2개 미만 — 비운 이유를 보인다 (T-3) */}
                     {!noExpected && basis !== "min" && c?.fourPointShort && (
-                      <div className="text-[10px] leading-tight text-level-warn" title={tx.fourPointShortTip}>
+                      <div className="text-[11px] leading-tight text-level-warn" title={tx.fourPointShortTip}>
                         {tx.fourPointShort}
                       </div>
                     )}
                   </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {c?.expectedHm != null && !noExpected ? (
-                      <span className="font-bold text-primary">{fmtInt(c.expectedHm)}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
-                    )}
-                  </td>
-                  {/* CPK (§B-1) — 단가 미입력이면 − (0 이 아님). 예상 CPK 는 아래 줄에 작게 */}
-                  <td className="px-2 py-1.5 text-right whitespace-nowrap">
-                    {cost?.cpk != null ? (
-                      <span className="text-foreground">{fmtCpk(cost.cpk, cost.currency)}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40">{EMPTY}</span>
-                    )}
-                    {cost?.expCpk != null && (
-                      <div className="text-[10px] text-muted-foreground/70 leading-tight">{tx.cpkExpPrefix}{fmtCpk(cost.expCpk, cost.currency)}</div>
-                    )}
-                  </td>
-                  <td className="px-2 py-1.5 text-right">
-                    {proj?.remainingKm != null ? (
-                      <span className="text-foreground">{fmtInt(proj.remainingKm)}</span>
-                    ) : (
-                      <span className="text-muted-foreground/40" title={why || undefined}>{EMPTY}</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1.5 text-right" title={why || undefined}>
-                    {proj?.projectedDate && daysLeft != null ? (
-                      <>
-                        <span className={dateCls}>{proj.projectedDate}</span>
-                        <div className="text-[10px] text-muted-foreground/70 leading-tight">
-                          {daysLeft < 0
-                            ? tx.projOver.replace("{n}", fmtInt(-daysLeft))
-                            : tx.projDays.replace("{n}", fmtInt(daysLeft))}
-                        </div>
-                      </>
-                    ) : (
-                      <span className={`text-muted-foreground/40 ${why ? "cursor-help underline decoration-dotted" : ""}`}>{EMPTY}</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-1.5 text-center">
-                    <span
-                      className={`inline-block whitespace-nowrap text-[10px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
-                    >
-                      {l.status}
-                    </span>
-                  </td>
+                  {full && (
+                  <>
+                    <td className="px-2 py-1.5 text-right">
+                      {c?.expectedHm != null && !noExpected ? (
+                        <span className="font-bold">{fmtInt(c.expectedHm)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">{EMPTY}</span>
+                      )}
+                    </td>
+                    {/* CPK (§B-1) — 단가 미입력이면 − (0 이 아님). 예상 CPK 는 아래 줄에 작게 */}
+                    <td className="px-2 py-1.5 text-right whitespace-nowrap max-[999px]:hidden">
+                      {cost?.cpk != null ? (
+                        <span className="text-foreground">{fmtCpk(cost.cpk, cost.currency)}</span>
+                      ) : (
+                        <span className="text-muted-foreground">{EMPTY}</span>
+                      )}
+                      {cost?.expCpk != null && (
+                        <div className="text-[11px] text-muted-foreground leading-tight">{tx.cpkExpPrefix}{fmtCpk(cost.expCpk, cost.currency)}</div>
+                      )}
+                    </td>
+                  </>
+                  )}
+                  {!belowView && (
+                    <td className="px-2 py-1.5 text-right" title={proj?.remainingKm ? tx.remAsOf : undefined}>
+                      {proj?.remainingKm != null && proj.remainingKm > 0 ? (
+                        <span className="text-foreground">{fmtInt(proj.remainingKm)}</span>
+                      ) : (
+                        <span className="text-muted-foreground" title={why || undefined}>{EMPTY}</span>
+                      )}
+                    </td>
+                  )}
+                  {showPdate && (
+                    <td className="px-2 py-1.5 text-right" title={why || (proj?.remainingKm === 0 ? `${tx.projBelowTitle} (${tx.projLast.replace("{d}", proj.projectedDate ?? "")})` : daysLeft != null && daysLeft < 0 ? tx.projOverTitle : undefined)}>
+                      {proj?.projectedDate && daysLeft != null ? (
+                        <>
+                          {proj.remainingKm === 0 && belowView ? (
+                            // 마지막 측정 열 — 날짜와 경과일만. 조치(즉시)는 뷰 자체가 말한다
+                            <>
+                              <span className="text-foreground whitespace-nowrap">{proj.projectedDate}</span>
+                              <div className="text-[11px] text-muted-foreground leading-tight whitespace-nowrap">
+                                {tx.agoDays.replace("{n}", fmtInt(Math.max(0, -daysLeft)))}
+                              </div>
+                            </>
+                          ) : proj.remainingKm === 0 ? (
+                            // 기준 이하 — 날짜는 예측이 아니라 '마지막 측정일'이라 회색 사실로 낮추고, 조치(즉시)만 강조한다
+                            <>
+                              <span className="text-level-danger font-bold whitespace-nowrap">{tx.projNow}</span>
+                              <div className="text-[11px] text-muted-foreground leading-tight whitespace-nowrap">
+                                {tx.projLastAge.replace("{n}", fmtInt(Math.max(0, -daysLeft)))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <span className={`${dateCls} whitespace-nowrap`}>
+                                {daysLeft <= PREP_URGENT_DAYS ? <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-hidden="true" />
+                                  : daysLeft <= PREP_WINDOW_DAYS ? <AlertCircle className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-hidden="true" /> : null}
+                                {proj.projectedDate}
+                              </span>
+                              <div className="text-[11px] text-muted-foreground leading-tight">
+                                {daysLeft < 0
+                                  ? tx.projOver.replace("{n}", fmtInt(-daysLeft))
+                                  : tx.projDays.replace("{n}", fmtInt(daysLeft))}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-muted-foreground">{EMPTY}</span>
+                          {why && <div className="text-[11px] font-sans text-muted-foreground leading-tight break-keep">{why}</div>}
+                        </>
+                      )}
+                    </td>
+                  )}
+                  {full && (
+                  <>
+                    <td className="px-2 py-1.5 text-center">
+                      <span
+                        className={`inline-block whitespace-nowrap text-[11px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
+                      >
+                        {l.status}
+                      </span>
+                    </td>
+                  </>
+                  )}
                   {/* 비고 — 조각 사이에 실제 ' · ' 문자를 넣는다.
                       여백(margin)만으로 띄우면 복사·스크린리더에서 '측정 외850 R2i' 처럼 붙는다. */}
-                  <td className="px-2 py-1.5 text-[10px] text-muted-foreground text-center">
+                  <td className="px-2 py-1.5 text-[11px] text-muted-foreground text-center" title={l.note || undefined}>
+                    <div className="line-clamp-2">
                     {[
-                      !monitored && <span key="nm" className="text-[9px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
-                      damage && <button key="dmg" className="text-destructive font-bold hover:underline" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
+                      !monitored && <span key="nm" className="text-[11px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
+                      damage && <button key="dmg" className="text-destructive font-bold hover:underline inline-block min-h-6 px-1 -my-1 align-middle" onClick={(e) => { e.stopPropagation(); openCodes(damage); }}>{codeName(damage)}</button>,
                       l.note && <span key="note">{l.note}</span>,
                       hmReset && (hmUnresolved
                         ? <span key="hmr" className="text-level-warn font-semibold">{tx.hmReset}</span>
@@ -752,52 +1155,67 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                     ].filter(Boolean).map((node, i) => (
                       <Fragment key={i}>{i > 0 && " · "}{node}</Fragment>
                     ))}
+                    </div>
                   </td>
                 </tr>
+                </Fragment>
                 );
               })}
             </tbody>
-            <tfoot>
+            {sorted.length > 0 && <tfoot>
               <tr className="border-t-2 border-border bg-muted/30 font-bold">
-                <td className="px-2 py-2 text-muted-foreground" colSpan={3}>{tx.avg}</td>
-                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground/60 ml-0.5">mm</span></span> : EMPTY}</td>
-                <td className="px-2 py-2 text-right text-primary">
+                <td className="px-2 py-2 text-muted-foreground">{tx.avg}</td>
+                <td className="px-2 py-2 text-right">{avg.tread != null ? <span>{fmtTread(avg.tread, false)}<span className="text-muted-foreground ml-0.5">mm</span></span> : EMPTY}</td>
+                <td className="px-2 py-2 text-right">
                   {fmtInt(avg.kmExact)}
                   {avg.kmExactN > 0 && (
-                    <div className="text-[10px] font-normal leading-tight text-muted-foreground whitespace-nowrap">
+                    <div className="text-[11px] font-normal font-sans leading-tight text-muted-foreground break-keep">
                       ({tx.avgExclLower.replace("{n}", fmtInt(avg.kmExactN))})
                     </div>
                   )}
                 </td>
-                <td className="px-2 py-2 text-right">{fmtInt(avg.hr)}</td>
-                <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ekm)}</td>
-                <td className="px-2 py-2 text-right text-primary">{fmtInt(avg.ehm)}</td>
-                <td className="px-2 py-2 text-right whitespace-nowrap">{fmtCpk(avg.cpk, avg.cpkCur)}</td>
-                <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>
-                <td colSpan={3} />
+                {full && <td className="px-2 py-2 text-right max-[999px]:hidden">{fmtInt(avg.hr)}</td>}
+                <td className="px-2 py-2 text-right">{fmtInt(avg.ekm)}</td>
+                {full && <td className="px-2 py-2 text-right">{fmtInt(avg.ehm)}</td>}
+                {full && <td className="px-2 py-2 text-right whitespace-nowrap max-[999px]:hidden">{fmtCpk(avg.cpk, avg.cpkCur)}</td>}
+                {!belowView && <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>}
+                <td colSpan={full ? 3 : showPdate ? 2 : 1} />
               </tr>
-            </tfoot>
+            </tfoot>}
           </table>
         </div>
-        <p className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
-          <strong className="text-foreground">{tx.foot1a}</strong>{tx.foot1b}
-          <br />
-          <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(targetLifeKm()))}</strong>{tx.foot2b}
-          <br />
-          <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
-          <br />
-          <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
-          <br />
-          {tx.foot5}{tx.foot5Basis[basis]}
-          <br />
-          <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
-          <br />
-          <strong className="text-foreground">{tx.foot9a}</strong>{tx.foot9b}
-          <br />
-          <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
-          <br />
-          {tx.foot7a}<strong className="text-destructive">{tx.foot7b}</strong>{tx.foot7c}<button className="text-primary hover:underline font-semibold" onClick={() => openCodes(null)}>{tx.foot7d}</button>
-        </p>
+        <details className="mt-3 text-[11px] text-muted-foreground leading-relaxed">
+          <summary className="cursor-pointer font-semibold text-foreground min-h-6 py-1">{tx.footMore}</summary>
+          <div className="mt-1 space-y-1.5">
+            <p>
+              <strong className="text-foreground">{tx.foot2a.replace("{km}", fmtInt(targetLifeKm()))}</strong>{tx.foot2b}
+            </p>
+            <p>
+              <strong className="text-foreground">{tx.foot4a}</strong>{tx.foot4b}<span className="font-mono">{EMPTY}</span>{tx.foot4c}
+            </p>
+            <p>
+              <strong className="text-foreground">{tx.foot9a}</strong>{tx.foot9b}
+            </p>
+            <p>
+              <strong className="text-foreground">{tx.foot1a}</strong>{tx.foot1b}
+            </p>
+            <p>
+              <strong className="text-foreground">{tx.foot3a}</strong>{tx.foot3b}<strong className="text-foreground">{tx.foot3c}</strong>{tx.foot3d}<strong className="text-foreground">{tx.foot3dMin}</strong>{tx.foot3d2}<strong className="text-foreground">{tx.foot3dAvg}</strong>{tx.foot3d3}
+            </p>
+            <p>
+              {tx.foot5}{tx.foot5Basis[basis]}
+            </p>
+            <p>
+              <strong className="text-foreground">{tx.foot8a}</strong>{tx.foot8b}
+            </p>
+            <p>
+              <span className="border border-border/60 rounded px-1.5 py-0.5">{tx.foot6a}</span>{tx.foot6b}<span className="font-mono">{EMPTY}</span>{tx.foot6c}
+            </p>
+            <p>
+              {tx.foot7a}<strong className="text-destructive">{tx.foot7b}</strong>{tx.foot7c}<button type="button" className="inline-flex items-center min-h-6 px-1 -my-1 text-primary hover:underline font-semibold focus-visible:outline-2 focus-visible:outline-primary rounded" onClick={() => openCodes(null)}>{tx.foot7d}</button>
+            </p>
+          </div>
+        </details>
       </div>
 
       {/* 손상 코드 모달 (표의 손상 코드 클릭 또는 '손상 코드 전체 보기'로 열림) */}
@@ -872,6 +1290,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 <HRow label={tx.hDamage} value={hist.damage ? codeName(hist.damage) : null} danger />
                 <HRow label={tx.hHmReset} value={hist.hmReset ? tx.hHmResetYes : tx.hHmResetNo} danger={hist.hmReset} />
                 <HRow label={tx.hKmHr} value={`${fmtInt(hist.km)} km / ${fmtInt(hist.hr)} hr`} mono />
+                <HRow label={tx.hCpk} value={(() => { const k = tireCostOf(hist.serial); return k?.cpk != null ? fmtCpk(k.cpk, k.currency) : EMPTY; })()} mono />
                 <HRow label={tx.hExpKmHm} value={`${fmtInt(hist.expectedKm)} km / ${fmtInt(hist.expectedHm)} hr`} mono />
                 <HRow
                   label={tx.hTread}
