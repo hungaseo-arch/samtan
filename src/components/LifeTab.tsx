@@ -28,7 +28,8 @@ const buildTX = () => ({
   ko: {
     dbTitle: "타이어 수명 DB",
     status: "상태",
-    all: "전체",
+    all: "상태 전체",
+    viewGroup: "보기",
     pcs: "본",
     colNo: "No",
     colSerial: "시리얼",
@@ -63,7 +64,7 @@ const buildTX = () => ({
     belowNote: "발주 기준 {mm} mm 미만 · 폐기 아님",
     lastMeasAll: "전 차량 마지막 측정 {d} · {n}일 전",
     minLabel: "최저",
-    colsHidden: "HR·CPK 열 : 1000px 이상 화면에서 표시",
+    colsHidden: "HR·CPK 열 : 1000px 이상 화면에서 표시 · 장착 외 상태 : 시리얼 아래 표기",
     activeFilters: "적용 중 : {f}",
     colWearRate: "마모율 (mm/1,000km)",
     colKmPerMm: "km/mm",
@@ -176,7 +177,8 @@ const buildTX = () => ({
   id: {
     dbTitle: "DB Umur Ban",
     status: "Status",
-    all: "Semua",
+    all: "Semua status",
+    viewGroup: "Tampilan",
     pcs: "pcs",
     colNo: "No",
     colSerial: "Serial",
@@ -210,7 +212,7 @@ const buildTX = () => ({
     belowNote: "Batas pesan < {mm} mm · bukan scrap",
     lastMeasAll: "Ukur terakhir semua unit {d} · {n} hr lalu",
     minLabel: "Terendah",
-    colsHidden: "Kolom HR·CPK : tampil di layar ≥ 1000px",
+    colsHidden: "Kolom HR·CPK : tampil di layar ≥ 1000px · Status selain terpasang : di bawah serial",
     activeFilters: "Aktif : {f}",
     colWearRate: "Laju aus (mm/1,000km)",
     colKmPerMm: "km/mm",
@@ -323,7 +325,8 @@ const buildTX = () => ({
   en: {
     dbTitle: "Tire Lifetime DB",
     status: "Status",
-    all: "All",
+    all: "All statuses",
+    viewGroup: "View",
     pcs: "pcs",
     colNo: "No",
     colSerial: "Serial",
@@ -357,7 +360,7 @@ const buildTX = () => ({
     belowNote: "Order limit < {mm} mm · not scrap",
     lastMeasAll: "All units last measured {d} · {n} d ago",
     minLabel: "Lowest",
-    colsHidden: "HR·CPK columns : shown at ≥ 1000px",
+    colsHidden: "HR·CPK columns : shown at ≥ 1000px · Non-mounted status : under serial",
     activeFilters: "Active : {f}",
     colWearRate: "Wear rate (mm/1,000km)",
     colKmPerMm: "km/mm",
@@ -528,7 +531,8 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
   }
   const [dueSel, setDueSel] = useState<null | "below" | "soon" | "all">(null);
   const due: null | "below" | "soon" = dueSel === "all" ? null : dueSel ?? (dueCount.below > 0 ? "below" : null);
-  const setDue = (v: null | "below" | "soon") => { setDueSel(v ?? "all"); if (v === "below") setSort((s) => (s?.k === "rem" ? null : s)); };
+  // 기준 이하·≤30일 뷰는 장착 행만 담는다 — 상태 필터가 남으면 빈 결과가 되므로 풀어 둔다(select 도 숨김)
+  const setDue = (v: null | "below" | "soon") => { setDueSel(v ?? "all"); if (v) setLifeFilter("ALL"); if (v === "below") setSort((s) => (s?.k === "rem" ? null : s)); };
   const [q, setQ] = useState("");
   const theadRef = useRef<HTMLTableSectionElement>(null);
   const [headH, setHeadH] = useState(40);
@@ -618,7 +622,9 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
   const lastDate = sameDate ? [...lastDates][0] : null;
   const lastAge = lastDate && sorted[0] ? Math.max(0, -(prepDaysLeft(sorted[0].serial, sorted[0].status, today) ?? 0)) : 0;
   const showPdate = !sameDate;
-  const full = !belowView;
+  // 전체 뷰만 11열. ≤30일 뷰는 장착 행 몇 개라 HR·예상 HM·CPK·상태를 빼고 7열로 줄인다
+  const soonView = due === "soon";
+  const full = due === null;
   useEffect(() => {
     const el = theadRef.current;
     if (!el) return;
@@ -627,7 +633,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
     setHeadH(el.offsetHeight);
     return () => ro.disconnect();
   }, [belowView, lang, sorted.length > 0]);
-  const colCount = full ? 11 : showPdate ? 6 : 5;
+  const colCount = full ? 11 : soonView ? 7 : showPdate ? 6 : 5;
   // 차량별 소제목 — 기본 정렬(차량 → 날짜)일 때만. 최저 트레드가 그 차량의 긴급도
   const groupHeads = belowView && !sort && !chSel;
   const chStat = new Map<string, { n: number; min: number | null }>();
@@ -787,60 +793,56 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
           <span className="font-mono text-xs tabular-nums bg-muted px-2 py-0.5 rounded-full whitespace-nowrap">
             {filtered.length}{tx.pcs} / {due === "below" ? dueCount.below : due === "soon" ? dueCount.soon : TMS_DATA.life.length}{tx.pcs}
           </span>
-          <button
-            type="button"
-            aria-pressed={due === null}
-            onClick={() => { setDue(null); setChSel(null); }}
-            className={`text-xs font-semibold px-3 py-1 min-h-7 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${due === null ? "bg-primary/15 border-primary ring-1 ring-primary text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
-          >
-            {tx.viewAll}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{TMS_DATA.life.length}</span>
-          </button>
-          {([["below", tx.projBelow, "level-danger"], ["soon", tx.due30, "level-order"]] as const).map(([k, label, tone]) => {
-            const on = due === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={on}
-                onClick={() => { setDue(on ? null : k); setChSel(null); }}
-                className={`text-xs font-semibold px-3 py-1 min-h-7 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? (tone === "level-danger" ? "bg-level-danger/15 border-level-danger ring-1 ring-level-danger" : "bg-level-order/20 border-level-order ring-1 ring-level-order") + " text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
-              >
-                {label}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{dueCount[k]}</span>
-              </button>
-            );
-          })}
+          {/* 보기 전환 — 한 컨트롤 안의 세 선택지. 누른 칸을 다시 눌러도 그대로(토글 아님) */}
+          <div role="group" aria-label={tx.viewGroup} className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-muted/30 p-0.5">
+            {([[null, tx.viewAll, TMS_DATA.life.length], ["below", tx.projBelow, dueCount.below], ["soon", tx.due30, dueCount.soon]] as const).map(([k, label, n]) => {
+              const on = due === k;
+              const tone = k === "below" ? "bg-level-danger/15 ring-level-danger" : k === "soon" ? "bg-level-order/20 ring-level-order" : "bg-primary/15 ring-primary";
+              return (
+                <button
+                  key={k ?? "all"}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => { setDue(k); setChSel(null); }}
+                  className={`relative h-8 px-3 rounded-md text-xs whitespace-nowrap transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? `${tone} ring-1 ring-inset text-foreground font-bold` : "text-foreground font-semibold hover:bg-muted"}`}
+                >
+                  {label}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{n}</span>
+                </button>
+              );
+            })}
+          </div>
           <input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder={tx.searchPh}
             aria-label={tx.searchPh}
-            className="text-xs bg-muted/30 border border-border rounded-full px-3 py-1 w-44 min-h-6 focus-visible:outline-2 focus-visible:outline-primary"
+            className="text-xs bg-muted/30 border border-border rounded-lg px-3 h-9 w-44 focus-visible:outline-2 focus-visible:outline-primary"
           />
           {sort && (
-            <button type="button" onClick={() => setSort(null)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground min-h-6 px-1">
+            <button type="button" onClick={() => setSort(null)} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground min-h-9 px-1 rounded focus-visible:outline-2 focus-visible:outline-primary">
               {tx.sortReset}
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{tx.status}:</span>
-            <select
+            {/* 상태 필터는 전체 뷰에서만 — 다른 두 뷰는 장착 행뿐이다 */}
+            {full && <select
               value={lifeFilter}
               aria-label={tx.status}
               onChange={(e) => setLifeFilter(e.target.value)}
-              className="text-xs bg-muted/30 border border-border rounded-lg px-3 py-1.5 text-foreground font-semibold focus-visible:outline-2 focus-visible:outline-primary"
+              className="text-xs bg-muted/30 border border-border rounded-lg px-3 h-9 text-foreground font-semibold focus-visible:outline-2 focus-visible:outline-primary"
             >
               <option value="ALL">{tx.all}</option>
               <option value="Install">{tx.statusName["Install"]}</option>
               <option value="Scrap">{tx.statusName["Scrap"]}</option>
               <option value="Spare">{tx.statusName["Spare"]}</option>
               <option value="Not Install">{tx.statusName["Not Install"]}</option>
-            </select>
+            </select>}
             {/* 엑셀 다운로드 — 로그인한 모든 사용자(조회 권한 포함) */}
             {canDownload && (
               <button
                 onClick={exportExcel}
-                className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-lg bg-level-ok text-white hover:bg-level-ok/85 transition-colors"
+                className="inline-flex items-center gap-1 text-xs font-bold px-3 h-9 rounded-lg bg-level-ok text-white hover:bg-level-ok/85 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <Download className="w-3.5 h-3.5" />
                 {tx.excelDownload}
@@ -849,7 +851,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
           </div>
         </div>
         {belowView && belowByCh.size > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pb-3" role="group" data-ch-chips aria-label={tx.projBelow}>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-3 pb-3" role="group" data-ch-chips aria-label={tx.projBelow}>
             {[null, ...[...belowByCh.keys()].sort()].map((ch) => {
               const on = chSel === ch;
               return (
@@ -858,7 +860,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   type="button"
                   aria-pressed={on}
                   onClick={() => { setDue("below"); setChSel(ch); }}
-                  className={`text-xs px-2.5 py-0.5 min-h-6 rounded-full border transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? "bg-primary/15 border-primary ring-1 ring-primary text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
+                  className={`relative text-xs px-3 min-h-8 rounded-full border transition-colors after:absolute after:inset-x-0 after:-inset-y-1.5 after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${on ? "bg-primary/15 border-primary ring-1 ring-primary text-foreground font-bold" : "bg-muted/30 text-foreground border-border hover:bg-muted"}`}
                 >
                   {ch ? `CH ${ch}` : tx.chipChAll}<span className="sr-only">: </span><span className="ml-1 font-mono tabular-nums">{ch ? belowByCh.get(ch) : dueCount.below}</span>
                 </button>
@@ -874,14 +876,15 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
           </p>
         )}
         <div role="status" className="sr-only">{sorted.length === 0 ? tx.noMatch : `${fmtInt(sorted.length)}${tx.pcs}`}</div>
-        {!belowView && sorted.length > 0 && <p className="hidden max-[999px]:block pb-2 text-[11px] text-muted-foreground">{tx.colsHidden}</p>}
+        {full && sorted.length > 0 && <p className="hidden max-[999px]:block pb-2 text-[11px] text-muted-foreground">{tx.colsHidden}</p>}
         <div className="overflow-auto max-h-[70vh]">
           <table aria-label={tx.tableLabel} className="w-full min-w-240 max-[999px]:min-w-160 table-fixed text-xs border-collapse font-mono">
             <colgroup>
               {/* 상태 열은 'Not Install' 이 한 줄로 들어갈 만큼 준다(9%). 합계 100%.
                   No·최초 장착일은 표에서 뺐다 — 행 모달(이력)에 장착일이 있고 No 는 엑셀에 남는다 */}
               {/* 1000px 미만: 주행 HR(3)·CPK(6) 열을 접는다 — 값은 행 모달에서 확인. 남는 폭은 시리얼·교체일·비고로 */}
-              {(!belowView ? [
+              {/* ≤30일 뷰 7열 / 기준 이하 6·5열 — 비고는 대부분 빈칸이라 숫자 열보다 넓게 두지 않는다 */}
+              {(full ? [
                 "w-[11%] max-[999px]:w-[15%]",
                 "w-[8%] max-[999px]:w-[10%]",
                 "w-[8%] max-[999px]:w-[9%]",
@@ -891,21 +894,29 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 "w-[13%] max-[999px]:hidden",
                 "w-[9%] max-[999px]:w-[11.5%]",
                 "w-[10%] max-[999px]:w-[15.5%]",
-                "w-[10%] max-[999px]:w-[14.3%]",
-                "w-[9%] max-[999px]:w-[7.2%]",
-              ] : showPdate ? [
+                "w-[10%] max-[999px]:hidden",
+                "w-[9%] max-[999px]:w-[21.5%]",
+              ] : soonView ? [
                 "w-[16%]",
+                "w-[11%]",
                 "w-[12%]",
-                "w-[13%]",
-                "w-[13%]",
+                "w-[12%]",
+                "w-[12%]",
+                "w-[15%]",
+                "w-[22%]",
+              ] : showPdate ? [
+                "w-[18%]",
                 "w-[14%]",
-                "w-[32%]",
+                "w-[15%]",
+                "w-[15%]",
+                "w-[15%]",
+                "w-[23%]",
               ] : [
+                "w-[20%]",
+                "w-[16%]",
                 "w-[17%]",
-                "w-[14%]",
-                "w-[15%]",
-                "w-[15%]",
-                "w-[39%]",
+                "w-[17%]",
+                "w-[30%]",
               ]).map((cls, i) => (
                 <col key={i} className={cls} />
               ))}
@@ -922,14 +933,14 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   ...(belowView ? [] : [{ k: "rem", label: tx.colRemKm, align: "text-right", sort: "rem" as SortKey }]),
                   ...(showPdate ? [{ k: "pdate", label: belowView ? tx.colLastMeas : tx.colProjDate, align: "text-right", sort: "pdate" as SortKey }] : []),
                   ...(full ? [{ k: "status", label: tx.colStatus, align: "text-center" }] : []),
-                  { k: "note", label: tx.colNote, align: "text-center" },
+                  { k: "note", label: tx.colNote, align: "text-left" },
                 ].map((h: { k: string; label: string; align: string; sort?: SortKey }) => (
                   <th
                     key={h.k}
                     scope="col"
                     title={h.k === "ekm" ? tx.tipEkm : h.k === "rem" ? tx.tipRem : undefined}
                     aria-sort={h.sort ? (sort?.k === h.sort ? (sort.dir === "asc" ? "ascending" : "descending") : "none") : undefined}
-                    className={`bg-card border-b border-border px-2 py-2 max-[999px]:px-1 max-[999px]:text-[11px] text-muted-foreground font-semibold whitespace-normal break-keep align-bottom leading-tight ${h.k === "hr" || h.k === "cpk" ? "max-[999px]:hidden " : ""}${h.k === "serial" ? "sticky left-0 z-20" : ""} ${h.align}`}
+                    className={`bg-card border-b border-border px-2 py-2 max-[999px]:px-1 max-[999px]:text-[11px] text-muted-foreground font-semibold whitespace-normal break-keep align-bottom leading-tight ${h.k === "hr" || h.k === "cpk" || h.k === "status" ? "max-[999px]:hidden " : ""}${h.k === "serial" ? "sticky left-0 z-20" : ""} ${h.align}`}
                   >
                     {(() => {
                       // «예상 KM (최소 0mm)» → 주 라벨 / 조건 2줄. 조건은 보조 정보라 작게
@@ -1021,7 +1032,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   className={`border-b border-border/30 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${isFocus ? "bg-primary/10 ring-2 ring-primary/50" : `hover:bg-muted/10 ${!monitored ? "bg-muted/10" : ""}`}`}
                 >
                   <td className="px-2 max-[999px]:px-1 py-1.5 text-[11px] max-w-35 sticky left-0 z-1 bg-card">
-                    {belowView && c ? (
+                    {!full && c ? (
                       <>
                         {/* 현장 정비사는 위치로 타이어를 찾는다 — 위치 1순위, 시리얼은 보조 */}
                         <div className="text-xs font-bold text-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>
@@ -1031,6 +1042,10 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                       <>
                         <div className="truncate" title={l.serial}>{l.serial}<span className="sr-only"> · {tx.rowOpen}</span></div>
                         {c && <div className="text-muted-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>}
+                        {/* 1000px 미만은 상태 열을 접는다 — 장착 외(폐기·예비·미장착)만 여기 한 줄로. 장착은 위치 줄이 이미 말한다 */}
+                        {full && l.status !== "Install" && (
+                          <div className="hidden max-[999px]:block font-sans font-semibold text-muted-foreground leading-tight whitespace-nowrap">{tx.statusName[l.status]}</div>
+                        )}
                       </>
                     )}
                   </td>
@@ -1177,7 +1192,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   )}
                   {full && (
                   <>
-                    <td className="px-2 py-1.5 text-center">
+                    <td className="px-2 py-1.5 text-center max-[999px]:hidden">
                       <span
                         className={`inline-block whitespace-nowrap text-[11px] font-bold px-2 py-0.5 rounded-full border ${STATUS_STYLE[l.status]}`}
                       >
@@ -1188,7 +1203,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   )}
                   {/* 비고 — 조각 사이에 실제 ' · ' 문자를 넣는다.
                       여백(margin)만으로 띄우면 복사·스크린리더에서 '측정 외850 R2i' 처럼 붙는다. */}
-                  <td className="px-2 py-1.5 text-[11px] text-muted-foreground text-center" title={l.note || undefined}>
+                  <td className="px-2 py-1.5 text-[11px] text-muted-foreground text-left font-sans break-keep" title={l.note || undefined}>
                     <div className="line-clamp-2">
                     {[
                       !monitored && <span key="nm" className="text-[11px] text-muted-foreground border border-border/60 rounded px-1.5 py-0.5 align-middle">{tx.nonMeasured}</span>,
@@ -1227,7 +1242,7 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                 {full && <td className="px-2 py-2 text-right">{fmtInt(avg.ehm)}</td>}
                 {full && <td className="px-2 py-2 text-right whitespace-nowrap max-[999px]:hidden">{fmtCpk(avg.cpk, avg.cpkCur)}</td>}
                 {!belowView && <td className="px-2 py-2 text-right">{fmtInt(avg.rem)}</td>}
-                <td colSpan={full ? 3 : showPdate ? 2 : 1} />
+                {showPdate && <td />}{full && <td className="max-[999px]:hidden" />}<td />
               </tr>
             </tfoot>}
           </table>
