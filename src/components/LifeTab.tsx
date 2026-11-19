@@ -87,6 +87,8 @@ const buildTX = () => ({
     projOverTitle: "측정 후 주행으로 이미 도달 예상 · 재측정 필요",
     projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족", none: "예상 KM 산출 불가 — 신품 기준 회차 등 조건 미충족" },
     projWhyShort: { few_rounds: "회차 부족", no_trend: "추세 없음", hm_reset: "HM Reset", no_data: "데이터 부족", none: "산출 불가" },
+    estReached: "도달",
+    estReachedTip: "누적 KM 이 0 mm 예상치 이상",
     footMore: "기준 전체 보기",
     foot8a: "잔여 KM · 예상 교체일",
     foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율). 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개`,
@@ -231,6 +233,8 @@ const buildTX = () => ({
     projOverTitle: "Diperkirakan sudah tercapai sejak ukur terakhir · ukur ulang",
     projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang", none: "KM prediksi tidak dapat dihitung — syarat seperti sesi baru belum terpenuhi" },
     projWhyShort: { few_rounds: "Sesi kurang", no_trend: "Tanpa tren", hm_reset: "HM Reset", no_data: "Data kurang", none: "Tak terhitung" },
+    estReached: "Tercapai",
+    estReachedTip: "KM kumulatif sudah mencapai perkiraan 0 mm",
     footMore: "Semua keterangan",
     foot8a: "Sisa KM · Prakiraan tgl ganti",
     foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm`,
@@ -375,6 +379,8 @@ const buildTX = () => ({
     projOverTitle: "Likely reached since last measurement · re-measure",
     projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data", none: "Est. KM unavailable — conditions such as new-tire baseline not met" },
     projWhyShort: { few_rounds: "Few rounds", no_trend: "No trend", hm_reset: "HM Reset", no_data: "Low data", none: "N/A" },
+    estReached: "Reached",
+    estReachedTip: "Cumulative KM already at the 0 mm projection",
     footMore: "All notes",
     foot8a: "Remaining KM · Projected date",
     foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm`,
@@ -764,11 +770,9 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <h2 className="text-base font-bold text-foreground">{tx.dbTitle}</h2>
-          {(qn !== "" || lifeFilter !== "ALL" || chSel) && (
-            <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded-full">
-              {filtered.length}{tx.pcs} / {due === "below" ? dueCount.below : due === "soon" ? dueCount.soon : TMS_DATA.life.length}{tx.pcs}
-            </span>
-          )}
+          <span className="font-mono text-xs tabular-nums bg-muted px-2 py-0.5 rounded-full whitespace-nowrap">
+            {filtered.length}{tx.pcs} / {due === "below" ? dueCount.below : due === "soon" ? dueCount.soon : TMS_DATA.life.length}{tx.pcs}
+          </span>
           <button
             type="button"
             aria-pressed={due === null}
@@ -1060,7 +1064,13 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   </>
                   )}
                   <td className="px-2 py-1.5 text-right">
-                    {c?.expectedKm != null && !noExpected ? (
+                    {belowView && installed && c?.expectedKm != null && c?.km != null && c.expectedKm <= c.km ? (
+                      // 거리 KM 과 같은 숫자를 되풀이하지 않는다 — 이미 0 mm 예상치에 닿은 행
+                      <>
+                        <span className="text-muted-foreground">{EMPTY}</span>
+                        <div className="text-[11px] font-sans leading-tight text-muted-foreground break-keep" title={tx.estReachedTip}>{tx.estReached}<span className="sr-only"> : {tx.estReachedTip}</span></div>
+                      </>
+                    ) : c?.expectedKm != null && !noExpected ? (
                       <span className={`font-bold ${c.expectedKm >= targetLifeKm() && !c.kmIsLowerBound && c.projection.remainingKm !== 0 ? "text-level-ok" : ""}`}>{fmtInt(c.expectedKm)}</span>
                     ) : (
                       <span className="text-muted-foreground">{EMPTY}</span>
