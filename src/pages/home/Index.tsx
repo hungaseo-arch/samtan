@@ -79,7 +79,7 @@ const ROLE_BADGE_BG: Record<Role, string> = {
 
 export default function Index() {
   const { lang, setLang, t } = useLang();
-  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword, displayName, sessionExpired } = useAuth();
+  const { user, role, isAdmin, signOut, loading: authLoading, needsPassword, displayName, sessionExpired, guest } = useAuth();
   const [showPwChange, setShowPwChange] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -129,9 +129,9 @@ export default function Index() {
   // 로그아웃(세션 만료 포함) 시에는 다음 로그인에서 다시 로드하도록 상태를 되돌린다.
   const userId = user?.id;
   useEffect(() => {
-    if (userId) reloadData();
+    if (userId || guest) reloadData();
     else setStatus("loading");
-  }, [userId, reloadData]);
+  }, [userId, guest, reloadData]);
 
   // 시리얼 클릭 → 교체·수명 DB로 이동 + 해당 행 포커스
   const goToSerial = useCallback((serial: string) => goToTab("life", { serial }), [goToTab]);
@@ -169,7 +169,7 @@ export default function Index() {
   }
 
   // 로그인 전에는 앱을 노출하지 않는다 — 접속 즉시 로그인 화면.
-  if (!user) {
+  if (!user && !guest) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
         <div className="h-1 w-full bg-primary fixed top-0 left-0" />
@@ -322,6 +322,15 @@ export default function Index() {
                 드롭다운으로 접었다. 헤더에 아이콘 4개가 나열되면 어느 것이 무슨 뜻인지
                 아이콘만으로 구분되지 않아 전부 눌러 봐야 한다. 여는 방식은 위 내비게이션
                 그룹 드롭다운과 같다 (바깥 클릭 오버레이 포함). */}
+            {guest && (
+              <a
+                href={`${window.location.pathname}${window.location.hash}`}
+                className="shrink-0 rounded-full border border-border px-3 py-1 text-xs font-bold text-primary hover:bg-muted/40"
+                title={t("auth.guestHint")}
+              >
+                {t("auth.guest")}
+              </a>
+            )}
             {user && (
               <div className="relative shrink-0">
                 <button
