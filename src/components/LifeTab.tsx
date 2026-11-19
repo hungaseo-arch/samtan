@@ -85,7 +85,8 @@ const buildTX = () => ({
     projBelowTitle: "발주 기준 이하 — 예상일은 마지막 측정일",
     remAsOf: "마지막 측정 시점 기준 잔여",
     projOverTitle: "측정 후 주행으로 이미 도달 예상 · 재측정 필요",
-    projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족" },
+    projWhy: { few_rounds: "회차 3개 미만 — 예측 불가", no_trend: "마모 추세 없음 — 예측 불가", hm_reset: "HM Reset 차량 — 계기 보정 전 예측 불가", no_data: "측정 데이터 부족", none: "예상 KM 산출 불가 — 신품 기준 회차 등 조건 미충족" },
+    projWhyShort: { few_rounds: "회차 부족", no_trend: "추세 없음", hm_reset: "HM Reset", no_data: "데이터 부족", none: "산출 불가" },
     footMore: "기준 전체 보기",
     foot8a: "잔여 KM · 예상 교체일",
     foot8b: ` = 최근 트레드에서 발주 기준 ${treadThresholds().order}mm 까지 남은 주행거리와 그 도달일. 마모율은 트레드 vs 누적 KM 회귀, 날짜 환산은 그 차량의 최근 30일 평균 일일 주행 KM(없으면 일 마모율). 30일 이내는 노랑, 14일 이내는 빨강. 예상 KM·HM (0mm) 은 0mm 도달 기준으로 별개`,
@@ -228,7 +229,8 @@ const buildTX = () => ({
     projBelowTitle: "Di bawah batas pesan — tanggal = tgl ukur terakhir",
     remAsOf: "Sisa per ukur terakhir",
     projOverTitle: "Diperkirakan sudah tercapai sejak ukur terakhir · ukur ulang",
-    projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang" },
+    projWhy: { few_rounds: "Kurang dari 3 Pemeriksaan — tidak dapat diprediksi", no_trend: "Tidak ada tren Aus — tidak dapat diprediksi", hm_reset: "Unit HM Reset — tidak dapat diprediksi sebelum koreksi meter", no_data: "Data pengukuran kurang", none: "KM prediksi tidak dapat dihitung — syarat seperti sesi baru belum terpenuhi" },
+    projWhyShort: { few_rounds: "Sesi kurang", no_trend: "Tanpa tren", hm_reset: "HM Reset", no_data: "Data kurang", none: "Tak terhitung" },
     footMore: "Semua keterangan",
     foot8a: "Sisa KM · Prakiraan tgl ganti",
     foot8b: ` = sisa jarak dari Kedalaman alur terakhir sampai batas pesan ${treadThresholds().order}mm dan tanggal tercapainya. Laju Aus dari regresi Kedalaman alur vs KM kumulatif; konversi ke tanggal memakai rata-rata KM harian 30 hari terakhir Unit tersebut (jika tidak ada, laju Aus harian). ≤ 30 hari kuning, ≤ 14 hari merah. Prediksi KM·HM (0mm) adalah perkiraan terpisah sampai 0mm`,
@@ -371,7 +373,8 @@ const buildTX = () => ({
     projBelowTitle: "Below order threshold — date = last measurement",
     remAsOf: "Remaining as of last measurement",
     projOverTitle: "Likely reached since last measurement · re-measure",
-    projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data" },
+    projWhy: { few_rounds: "Fewer than 3 inspections — cannot project", no_trend: "No wear trend — cannot project", hm_reset: "HM Reset vehicle — cannot project before meter correction", no_data: "Not enough measurement data", none: "Est. KM unavailable — conditions such as new-tire baseline not met" },
+    projWhyShort: { few_rounds: "Few rounds", no_trend: "No trend", hm_reset: "HM Reset", no_data: "Low data", none: "N/A" },
     footMore: "All notes",
     foot8a: "Remaining KM · Projected date",
     foot8b: ` = distance left from the latest tread to the ${treadThresholds().order}mm order threshold, and the date it is reached. Wear rate is the regression of tread vs cumulative KM; dates use the average daily KM of that vehicle over the last 30 days (or the daily wear rate if KM is missing). Within 30 days yellow, within 14 days red. Est. KM·HM (0mm) is a separate projection to 0mm`,
@@ -626,9 +629,12 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
   ].filter(Boolean).join(" · ");
 
   /** 예상 교체일을 못 낸 사유 — 셀 툴팁 */
-  const projWhy = (c: LifeCalc | null, hmReset: boolean | undefined) =>
-    c ? (c.projection.reason ? tx.projWhy[c.projection.reason] : "")
-      : hmReset ? tx.projWhy.hm_reset : tx.projWhy.no_data;
+  const projWhyKey = (c: LifeCalc | null, hmReset: boolean | undefined) =>
+    c ? (c.projection.reason ?? null) : hmReset ? "hm_reset" as const : "no_data" as const;
+  const projWhy = (c: LifeCalc | null, hmReset: boolean | undefined) => {
+    const k = projWhyKey(c, hmReset);
+    return k ? tx.projWhy[k] : "";
+  };
 
   // 시리얼 포커스(다른 페이지/교체이력 탭에서 시리얼 클릭) → 해당 행 스크롤·하이라이트
   const focusRow = useRef<HTMLTableRowElement | null>(null);
@@ -997,13 +1003,23 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                   className={`border-b border-border/30 transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-primary focus-visible:-outline-offset-2 ${isFocus ? "bg-primary/10 ring-2 ring-primary/50" : `hover:bg-muted/10 ${!monitored ? "bg-muted/10" : ""}`}`}
                 >
                   <td className="px-2 max-[999px]:px-1 py-1.5 text-[11px] max-w-35 sticky left-0 z-1 bg-card">
-                    <div className="truncate" title={l.serial}>{l.serial}<span className="sr-only"> · {tx.rowOpen}</span></div>
-                    {c && <div className="text-muted-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>}
+                    {belowView && c ? (
+                      <>
+                        {/* 현장 정비사는 위치로 타이어를 찾는다 — 위치 1순위, 시리얼은 보조 */}
+                        <div className="text-xs font-bold text-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>
+                        <div className="truncate text-muted-foreground leading-tight" title={l.serial}>{l.serial}<span className="sr-only"> · {tx.rowOpen}</span></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="truncate" title={l.serial}>{l.serial}<span className="sr-only"> · {tx.rowOpen}</span></div>
+                        {c && <div className="text-muted-foreground leading-tight whitespace-nowrap">{c.ch} · {c.pos}</div>}
+                      </>
+                    )}
                   </td>
                   <td className="px-2 py-1.5 text-right">
                     {tread != null ? (
                       <>
-                        <span className={`${treadCls}${belowView ? " text-sm font-bold" : ""}`}>{installed && (treadLevel(tread) === "danger" || treadLevel(tread) === "order") && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-hidden="true" />}{fmtTread(tread, false)}<span className="text-muted-foreground ml-0.5">mm</span></span>
+                        <span className={`${treadCls}${belowView ? ` text-sm ${treadLevel(tread) === "danger" ? "font-bold" : "font-medium"}` : ""}`}>{installed && (treadLevel(tread) === "danger" || (!belowView && treadLevel(tread) === "order")) && <AlertTriangle className="inline w-3 h-3 mr-0.5 -mt-0.5" aria-hidden="true" />}{fmtTread(tread, false)}<span className="text-muted-foreground ml-0.5">mm</span></span>
                         {/* 4점 평균 병기 — 최소값이 0.0 이어도 숄더가 남았는지 여기서 보인다.
                             판정·색상은 위의 최소값이 그대로 쥔다. 평균은 읽기 보조일 뿐이다.
                             평균이 최소값과 같으면(4점이 모두 동일) 줄만 차지하므로 생략한다. */}
@@ -1049,6 +1065,11 @@ export default function LifeTab({ focusSerial, onDataChanged }: { focusSerial?: 
                     ) : (
                       <span className="text-muted-foreground">{EMPTY}</span>
                     )}
+                    {/* «—» 의 사유 — 툴팁만으로는 키보드·터치에서 안 보인다. 장착 중인데 예상 KM 이 비는 경우만 */}
+                    {belowView && installed && !noExpected && c?.expectedKm == null && (() => {
+                      const k = projWhyKey(c ?? null, hmReset) ?? (hmUnresolved ? "hm_reset" as const : "none" as const);
+                      return k ? <div className="text-[11px] font-sans leading-tight text-muted-foreground break-keep" title={tx.projWhy[k]}>{tx.projWhyShort[k]}<span className="sr-only"> : {tx.projWhy[k]}</span></div> : null;
+                    })()}
                     {/* 4점 기준인데 4점 회차가 2개 미만 — 비운 이유를 보인다 (T-3) */}
                     {!noExpected && basis !== "min" && c?.fourPointShort && (
                       <div className="text-[11px] leading-tight text-level-warn" title={tx.fourPointShortTip}>
