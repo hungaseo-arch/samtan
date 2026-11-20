@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
-import { isGuestWindow } from "@/auth/guestWindow";
 
 // 계정 권한 등급 — Supabase app_metadata.role 에 저장(관리자만 설정, JWT 포함).
 //  admin: 모든 권한 / inspector: 입력·수정 / viewer(기본): 조회
@@ -22,8 +21,6 @@ interface AuthCtx {
   canDelete: boolean;   // 삭제 (admin)
   canDownload: boolean; // 다운로드 (로그인한 모든 사용자)
   isAdmin: boolean;
-  /** 2026-11-20 한정 게스트 조회 모드(비로그인 · 조회 전용). guestWindow.ts 참고. */
-  guest: boolean;
   /** 초대 수락·비밀번호 재설정 링크로 들어온 상태 — 비밀번호를 정해야 로그인이 완성된다. */
   needsPassword: boolean;
   dismissNeedsPassword: () => void;
@@ -118,12 +115,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const canDelete = role === "admin";
   // 다운로드는 조회 권한(user)까지 허용 — 앱 자체가 로그인 뒤에 있으므로 외부 노출은 없다.
   const canDownload = Boolean(user);
-  // 게스트: 세션 확인이 끝났고 로그인하지 않은 상태에서 ?guest=1 + 기한 내일 때만. 쓰기·다운로드 권한은 user 가 없어 자연히 false.
-  const guest = !loading && !user && isGuestWindow();
 
   return (
     <Ctx.Provider value={{
-      user, loading, role, canWrite, canDelete, canDownload, isAdmin: role === "admin", guest,
+      user, loading, role, canWrite, canDelete, canDownload, isAdmin: role === "admin",
       displayName, sessionExpired,
       needsPassword: needsPassword || mustChange,
       dismissNeedsPassword: () => setNeedsPassword(false),
