@@ -43,10 +43,10 @@ const TX = {
     excel: "엑셀 다운로드",
     legendDev: `평균 대비 +${pct(WEAR_DEV_WARN)}% 이상 노랑 · +${pct(WEAR_DEV_DANGER)}% 이상 빨강`,
     side: (ch: string, l: string, r: string, d: string) =>
-      `CH ${ch} 좌우 편차 ${d} — 좌 ${l} / 우 ${r}. 정렬·토인 점검을 권장합니다.`,
-    sideNone: `좌우 평균 마모율 차이가 ${pct(SIDE_DEV_WARN)}% 이상인 차량이 없습니다.`,
-    foot: "마모율은 같은 시리얼의 인접 회차 구간만으로 계산합니다 (트레드 증가·km 미증가·트레드 0 구간 제외). 포지션 값에는 교체 전 타이어 구간도 포함됩니다. 평균은 차량 선택과 무관하게 전 차량 포지션 값의 산술평균입니다.",
-    noData: "비교할 마모율 데이터가 없습니다 (km 미기록이거나 회차가 부족합니다).",
+      `CH ${ch} 좌우 편차 ${d} — 좌 ${l} / 우 ${r}. 정렬·토인 점검 권장`,
+    sideNone: `좌우 평균 마모율 차이가 ${pct(SIDE_DEV_WARN)}% 이상인 차량 없음`,
+    foot: "마모율은 같은 시리얼의 인접 회차 구간만으로 계산 (트레드 증가·km 미증가·트레드 0 구간 제외). 포지션 값에는 교체 전 타이어 구간도 포함. 평균은 차량 선택과 무관하게 전 차량 포지션 값의 산술평균",
+    noData: "비교할 마모율 데이터 없음 (km 미기록 또는 회차 부족)",
     sheet: "마모율", sheetSide: "좌우 편차", colLeft: "좌 평균", colRight: "우 평균", colDiff: "편차",
   },
   id: {
@@ -60,10 +60,10 @@ const TX = {
     excel: "Unduh Excel",
     legendDev: `≥ +${pct(WEAR_DEV_WARN)}% dari rata-rata kuning · ≥ +${pct(WEAR_DEV_DANGER)}% merah`,
     side: (ch: string, l: string, r: string, d: string) =>
-      `CH ${ch} selisih Kiri·Kanan ${d} — Kiri ${l} / Kanan ${r}. Disarankan periksa alignment·toe-in.`,
-    sideNone: `Tidak ada Unit dengan selisih laju Aus Kiri·Kanan ≥ ${pct(SIDE_DEV_WARN)}%.`,
-    foot: "Laju Aus dihitung hanya dari interval Pemeriksaan berurutan dengan serial yang sama (interval dengan alur naik, km tidak bertambah, atau alur 0 dikecualikan). Nilai Posisi juga mencakup ban sebelum Penggantian. Rata-rata adalah rata-rata aritmetika semua Posisi di semua Unit, tidak tergantung pilihan Unit.",
-    noData: "Tidak ada data laju Aus untuk dibandingkan (km tidak tercatat atau Pemeriksaan kurang).",
+      `CH ${ch} selisih Kiri·Kanan ${d} — Kiri ${l} / Kanan ${r}. Disarankan periksa alignment·toe-in`,
+    sideNone: `Tidak ada Unit dengan selisih laju Aus Kiri·Kanan ≥ ${pct(SIDE_DEV_WARN)}%`,
+    foot: "Laju Aus dihitung hanya dari interval Pemeriksaan berurutan dengan serial yang sama (interval dengan alur naik, km tidak bertambah, atau alur 0 dikecualikan). Nilai Posisi juga mencakup ban sebelum Penggantian. Rata-rata adalah rata-rata aritmetika semua Posisi di semua Unit, tidak tergantung pilihan Unit",
+    noData: "Tidak ada data laju Aus untuk dibandingkan (km tidak tercatat atau Pemeriksaan kurang)",
     sheet: "Laju Aus", sheetSide: "Selisih Kiri-Kanan", colLeft: "Rata-rata Kiri", colRight: "Rata-rata Kanan", colDiff: "Selisih",
   },
   en: {
@@ -77,10 +77,10 @@ const TX = {
     excel: "Download Excel",
     legendDev: `≥ +${pct(WEAR_DEV_WARN)}% over average yellow · ≥ +${pct(WEAR_DEV_DANGER)}% red`,
     side: (ch: string, l: string, r: string, d: string) =>
-      `CH ${ch} left/right imbalance ${d} — left ${l} / right ${r}. Check alignment and toe-in.`,
-    sideNone: `No vehicle has a left/right wear-rate difference of ${pct(SIDE_DEV_WARN)}% or more.`,
-    foot: "Wear rates use only adjacent-round intervals on the same serial (intervals with rising tread, non-increasing km, or zero tread are excluded). Position values include tires removed before replacement. The average is the arithmetic mean of all positions on all vehicles, regardless of the vehicle filter.",
-    noData: "No wear-rate data to compare (km not recorded, or too few rounds).",
+      `CH ${ch} left/right imbalance ${d} — left ${l} / right ${r}. Check alignment and toe-in`,
+    sideNone: `No vehicle has a left/right wear-rate difference of ${pct(SIDE_DEV_WARN)}% or more`,
+    foot: "Wear rates use only adjacent-round intervals on the same serial (intervals with rising tread, non-increasing km, or zero tread are excluded). Position values include tires removed before replacement. The average is the arithmetic mean of all positions on all vehicles, regardless of the vehicle filter",
+    noData: "No wear-rate data to compare (km not recorded, or too few rounds)",
     sheet: "Wear rate", sheetSide: "Left-right imbalance", colLeft: "Left avg", colRight: "Right avg", colDiff: "Imbalance",
   },
 } as const;

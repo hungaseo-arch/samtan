@@ -14,9 +14,9 @@ const TX = {
   ko: {
     title: "타이어 상세",
     loading: "불러오는 중…",
-    notFound: "이 시리얼의 기록이 없습니다.",
+    notFound: "이 시리얼의 기록 없음",
     unregistered: "수명 DB 미등록 타이어",
-    unregisteredHint: "점검 이력에서 가져온 데이터입니다. 최초 장착 정보를 보완해 주십시오.",
+    unregisteredHint: "점검 이력에서 가져온 데이터. 최초 장착 정보 보완 필요",
     serial: "시리얼",
     no: "No",
     install: "최초 장착일",
@@ -38,10 +38,10 @@ const TX = {
   id: {
     title: "Detail ban",
     loading: "Memuat…",
-    notFound: "Tidak ada catatan untuk serial ini.",
+    notFound: "Tidak ada catatan untuk serial ini",
     unregistered: "Belum terdaftar di DB umur ban",
     unregisteredHint:
-      "Data diambil dari riwayat pemeriksaan. Mohon lengkapi data pemasangan awal.",
+      "Data diambil dari riwayat pemeriksaan. Data pemasangan awal perlu dilengkapi",
     serial: "Serial",
     no: "No",
     install: "Tgl pasang awal",
@@ -63,10 +63,10 @@ const TX = {
   en: {
     title: "Tire detail",
     loading: "Loading…",
-    notFound: "No record for this serial.",
+    notFound: "No record for this serial",
     unregistered: "Not registered in lifetime DB",
     unregisteredHint:
-      "Data taken from inspection history. Please complete the initial install record.",
+      "Data taken from inspection history. Initial install record needs completing",
     serial: "Serial",
     no: "No",
     install: "First install date",
